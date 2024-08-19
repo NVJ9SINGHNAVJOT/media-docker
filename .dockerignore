@@ -1,0 +1,13 @@
+.git
+.gitignore
+.gitattributes
+README.md
+.prettierc
+.prettierignore
+nodemon.json
+build
+dist
+logs
+node_modules
+uploadStorage
+media_docker_files

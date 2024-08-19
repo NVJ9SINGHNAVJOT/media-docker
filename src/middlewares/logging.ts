@@ -1,0 +1,28 @@
+import { logger } from "@/logger/logger";
+import { errRes } from "@/utils/error";
+import { NextFunction, Request, Response } from "express";
+
+function logging(req: Request, res: Response, next: NextFunction) {
+  try {
+    logger.http("req details", {
+      method: req.method,
+      url: req.url,
+      clientIP: req.ip,
+      query: req.query,
+      requestBody: req.body,
+      requestHeaders: {
+        "content-type": req.headers["content-type"],
+        "sec-ch-ua-platform": req.headers["sec-ch-ua-platform"],
+        origin: req.headers["origin"],
+        "sec-fetch-site": req.headers["sec-fetch-site"],
+        "sec-fetch-mode": req.headers["sec-fetch-mode"],
+      },
+    });
+    next();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  } catch (error: any) {
+    return errRes(res, 500, "errror while logging req details", error.message);
+  }
+}
+
+export default logging;

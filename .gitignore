@@ -1,0 +1,15 @@
+
+# environment
+*.env
+!example.env
+
+# modules
+/node_modules
+
+# logs
+/logs
+
+# storage
+/uploadStorage
+/media_docker_files
+

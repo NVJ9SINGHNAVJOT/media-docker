@@ -1,0 +1,23 @@
+---
+version: '3.8'
+
+volumes:
+  media-docker-volume:
+
+networks:
+  proxy:
+    external: true
+
+services:
+  media-docker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: media-docker
+    volumes:
+      - media-docker:/usr/src/app
+    networks:
+        - proxy
+    ports: [7000:7000] # disable in production
+    env_file: .env
+    command: [ 'node', 'dist/index.js']
