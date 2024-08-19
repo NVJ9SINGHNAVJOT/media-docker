@@ -1,6 +1,5 @@
-import express, { Router } from "express";
-import { imageFile } from "@/middlewares/multer";
+import { Router } from "express";
 
-const destroyRouter: Router = express.Router();
+const destroyRouter = Router();
 
 export default destroyRouter;

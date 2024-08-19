@@ -22,12 +22,14 @@ app.use(cookieParser());
 // logging details
 app.use(logging);
 
+app.use("/media_docker_files", express.static("media_docker_files"));
+
 // server only accessible with serverKey
 app.use(serverKey);
 
 // routes
 app.use("/api/v1/uploads", uploadRouter);
-app.use("/api/v1/destroy", destroyRouter);
+app.use("/api/v1/destroys", destroyRouter);
 
 app.get("/", (_req: Request, res: Response) => {
   res.json({
