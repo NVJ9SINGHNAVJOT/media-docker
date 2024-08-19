@@ -5,7 +5,7 @@ export default function executeFFmpegCommand(command: string): Promise<boolean> 
   return new Promise((resolve, reject) => {
     exec(command, (error) => {
       if (error) {
-        logger.error("error while converting video", { error: error.message });
+        logger.error("error while converting video", { error: error.message, command: command });
         reject(false);
       } else {
         resolve(true);
