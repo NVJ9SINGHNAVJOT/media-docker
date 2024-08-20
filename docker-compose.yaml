@@ -15,7 +15,7 @@ services:
       dockerfile: Dockerfile
     container_name: media-docker
     volumes:
-      - media-docker-volume:/usr/src/app
+      - media-docker-volume:/app
     networks:
         - proxy
     ports: [7000:7000] # disable in production

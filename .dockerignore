@@ -2,7 +2,7 @@
 .gitignore
 .gitattributes
 README.md
-.prettierc
+.prettierrc
 .prettierignore
 nodemon.json
 build
