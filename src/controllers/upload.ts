@@ -2,7 +2,7 @@ import { errRes } from "@/utils/error";
 import { Request, Response } from "express";
 import { v4 as uuidv4 } from "uuid";
 import fs from "fs";
-import { deleteFile } from "@/utils/deleteFile";
+import { deleteFile } from "@/utils/delete";
 import executeFFmpegCommand from "@/utils/executeFFmpegCommand";
 
 export const uploadVideo = async (req: Request, res: Response): Promise<Response> => {
@@ -23,7 +23,7 @@ export const uploadVideo = async (req: Request, res: Response): Promise<Response
 
     // executing command
     const executed = await executeFFmpegCommand(ffmpegCommand);
-    deleteFile(req.file as Express.Multer.File);
+    deleteFile(req.file);
     if (executed) {
       return res.status(200).json({
         success: true,
@@ -66,10 +66,10 @@ export const uploadVideoResolutions = async (req: Request, res: Response): Promi
 
     // ffmpeg
     const commands = [
-      `ffmpeg -i ${videoPath} -codec:v libx264 -codec:a aac -hls_time 10 -hls_playlist_type vod -hls_segment_filename "${outputPath360}/segment%03d.ts" -start_number 0 -vf "scale=640:360" ${hlsPath360}`,
-      `ffmpeg -i ${videoPath} -codec:v libx264 -codec:a aac -hls_time 10 -hls_playlist_type vod -hls_segment_filename "${outputPath480}/segment%03d.ts" -start_number 0 -vf "scale=640:360" ${hlsPath480}`,
-      `ffmpeg -i ${videoPath} -codec:v libx264 -codec:a aac -hls_time 10 -hls_playlist_type vod -hls_segment_filename "${outputPath720}/segment%03d.ts" -start_number 0 -vf "scale=640:360" ${hlsPath720}`,
-      `ffmpeg -i ${videoPath} -codec:v libx264 -codec:a aac -hls_time 10 -hls_playlist_type vod -hls_segment_filename "${outputPath1080}/segment%03d.ts" -start_number 0 -vf "scale=640:360" ${hlsPath1080}`,
+      `ffmpeg -i ${videoPath} -codec:v libx264 -codec:a aac -vf "scale=640:360" -hls_time 10 -hls_playlist_type vod -hls_segment_filename "${outputPath360}/segment%03d.ts" -start_number 0 ${hlsPath360}`,
+      `ffmpeg -i ${videoPath} -codec:v libx264 -codec:a aac -vf "scale=854:480" -hls_time 10 -hls_playlist_type vod -hls_segment_filename "${outputPath480}/segment%03d.ts" -start_number 0 ${hlsPath480}`,
+      `ffmpeg -i ${videoPath} -codec:v libx264 -codec:a aac -vf "scale=1280:720" -hls_time 10 -hls_playlist_type vod -hls_segment_filename "${outputPath720}/segment%03d.ts" -start_number 0 ${hlsPath720}`,
+      `ffmpeg -i ${videoPath} -codec:v libx264 -codec:a aac -vf "scale=1920:1080" -hls_time 10 -hls_playlist_type vod -hls_segment_filename "${outputPath1080}/segment%03d.ts" -start_number 0 ${hlsPath1080}`,
     ];
 
     // executing command
@@ -77,7 +77,7 @@ export const uploadVideoResolutions = async (req: Request, res: Response): Promi
 
     const result = await Promise.all(executed);
 
-    deleteFile(req.file as Express.Multer.File);
+    deleteFile(req.file);
     if (!result.includes(false)) {
       return res.status(200).json({
         success: true,

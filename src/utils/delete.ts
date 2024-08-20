@@ -15,25 +15,13 @@ export function deleteFiles(files: Express.Multer.File[] | { [fieldname: string]
   if (Array.isArray(files)) {
     // If files is already an array, directly process it
     files.forEach((file) => {
-      if (fs.existsSync(file.path)) {
-        fs.unlink(file.path, (unlinkError) => {
-          if (unlinkError) {
-            logger.error("error deleting files from uploadStorage", { error: unlinkError });
-          }
-        });
-      }
+      deleteFile(file);
     });
   } else {
     // Otherwise, extract the array of files from the dictionary
     const fileArray = Object.values(files).flat();
     fileArray.forEach((file) => {
-      if (fs.existsSync(file.path)) {
-        fs.unlink(file.path, (unlinkError) => {
-          if (unlinkError) {
-            logger.error("error deleting files from uploadStorage", { error: unlinkError });
-          }
-        });
-      }
+      deleteFile(file);
     });
   }
 }
