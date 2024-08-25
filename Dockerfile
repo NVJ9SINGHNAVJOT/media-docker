@@ -14,4 +14,4 @@ RUN apk add --no-cache ffmpeg
 
 EXPOSE 7000
 
-ENTRYPOINT ["dist/main"]
+CMD [ "dist/main" ]

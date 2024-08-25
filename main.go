@@ -17,7 +17,7 @@ import (
 func main() {
 	envs, err := config.ValidateEnvs()
 	if err != nil {
-		fmt.Println("invalid environment variables, error: " + err.Error())
+		fmt.Println("invalid environment variables", err)
 		panic(err)
 	}
 

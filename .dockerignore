@@ -2,8 +2,10 @@
 .gitignore
 .gitattributes
 README.md
+.env.example
 build
 dist
+tmp
 logs
 uploadStorage
 media_docker_files
