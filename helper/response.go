@@ -30,7 +30,7 @@ func Response(w http.ResponseWriter, status int, message string, data any) {
 		}
 		err := json.NewEncoder(w).Encode(response)
 		if err != nil {
-			log.Error().Msg("error encoding to json, error: " + err.Error())
+			log.Error().Str("error", err.Error()).Msg("error encoding to json")
 		}
 		return
 	}
@@ -41,6 +41,6 @@ func Response(w http.ResponseWriter, status int, message string, data any) {
 	}
 	err := json.NewEncoder(w).Encode(response)
 	if err != nil {
-		log.Error().Msg("error encoding to json, error: " + err.Error())
+		log.Error().Str("error", err.Error()).Msg("error encoding to json")
 	}
 }

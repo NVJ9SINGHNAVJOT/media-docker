@@ -27,7 +27,7 @@ func CreateDirs(outputPaths []string) error {
 func DeleteFile(filePath string) {
 	err := os.Remove(filePath)
 	if err != nil {
-		log.Error().Msg("error deleting file, error: " + err.Error())
+		log.Error().Str("error", err.Error()).Msg("error deleting file")
 		return
 	}
 }

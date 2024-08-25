@@ -50,7 +50,7 @@ func convertVideoResolution(videoPath, outputPath, hlsPath string, resolution in
 	)
 
 	if err := cmd.Run(); err != nil {
-		log.Error().Msg(fmt.Sprintf("error converting video resolution for "+videoPath+", resolution: %s, error: "+err.Error(), strconv.FormatInt(resolution, 10)))
+		log.Error().Str("error", err.Error()).Msg(fmt.Sprintf("error converting video resolution for "+videoPath+", resolution: %s", strconv.FormatInt(resolution, 10)))
 		*resolutionError = true
 	}
 }
