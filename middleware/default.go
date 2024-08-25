@@ -12,7 +12,7 @@ import (
 func DefaultMiddlewares(router *chi.Mux, allowedOrigins []string) {
 	router.Use(cors.Handler(cors.Options{
 		AllowedOrigins: allowedOrigins,
-		AllowedMethods: []string{"POST", "DELETE"},
+		AllowedMethods: []string{"GET", "POST", "DELETE"},
 		AllowedHeaders: []string{
 			"Origin",
 			"X-Requested-With",

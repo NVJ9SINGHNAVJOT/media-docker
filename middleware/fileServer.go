@@ -5,13 +5,17 @@ import (
 	"strings"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/nvj9singhnavjot/media-docker/helper"
 )
 
 // FileServer conveniently sets up a http.FileServer handler to serve
 // static files from a http.FileSystem.
 func FileServer(r chi.Router, path string, root http.FileSystem) {
 	if strings.ContainsAny(path, "{}*") {
-		panic("FileServer does not permit any URL parameters.")
+		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+			helper.Response(w, 400, "fileServer does not permit any URL parameters.", nil)
+		})
+		return
 	}
 
 	if path != "/" && path[len(path)-1] != '/' {
