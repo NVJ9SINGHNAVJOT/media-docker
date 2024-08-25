@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -14,13 +15,13 @@ import (
 )
 
 func main() {
-	config.SetUpLogger()
-
 	envs, err := config.ValidateEnvs()
 	if err != nil {
-		log.Error().Msg("invalid environment variables, " + err.Error())
+		fmt.Println("invalid environment variables, error: " + err.Error())
 		panic(err)
 	}
+
+	config.SetUpLogger(envs.Environment)
 
 	// router
 	router := chi.NewRouter()

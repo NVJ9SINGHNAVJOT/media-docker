@@ -28,5 +28,5 @@ func DefaultMiddlewares(router *chi.Mux, allowedOrigins []string) {
 	router.Use(middleware.Throttle(1000))
 	router.Use(httprate.LimitByIP(10, 1*time.Minute))
 	router.Use(middleware.AllowContentEncoding("deflate", "gzip"))
-	router.Use(middleware.AllowContentType("application/json", "multipart/form-data", "text/xml"))
+	router.Use(middleware.AllowContentType("application/json", "multipart/form-data"))
 }
