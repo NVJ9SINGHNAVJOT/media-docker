@@ -14,13 +14,13 @@ import (
 
 // valid file types
 var validFiles = map[string][]string{
-	"image": {"image/jpeg", "image/jpg", "image/png"},
-	"video": {"video/mp4", "video/webm", "video/ogg", "video/mkv"},
-	"audio": {"audio/mp3", "audio/mpeg", "audio/wav"},
+	"imageFile": {"image/jpeg", "image/jpg", "image/png"},
+	"videoFile": {"video/mp4", "video/webm", "video/ogg", "video/mkv"},
+	"audioFile": {"audio/mp3", "audio/mpeg", "audio/wav"},
 }
 
-func isValidFileType(fileType, mimeType string) bool {
-	allowedTypes, ok := validFiles[fileType]
+func isValidFileType(fileName, mimeType string) bool {
+	allowedTypes, ok := validFiles[fileName]
 	if !ok {
 		return false // Invalid fileType
 	}
@@ -34,11 +34,11 @@ func isValidFileType(fileType, mimeType string) bool {
 	return false // Valid fileType but invalid mimeType
 }
 
-func FileStorage(fileName string, fileType string, next http.HandlerFunc) http.HandlerFunc {
+func FileStorage(fileName string, next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		// Parse the form data
-		err := r.ParseMultipartForm(helper.Constants.MaxFileSize)
+		err := r.ParseMultipartForm(helper.Constants.MaxFileSize[fileName])
 		if err != nil {
 			helper.Response(w, http.StatusBadRequest, "error parsing form data", err)
 			return
@@ -57,12 +57,12 @@ func FileStorage(fileName string, fileType string, next http.HandlerFunc) http.H
 			return
 		}
 
-		if !isValidFileType(fileType, header.Header.Get("Content-Type")) {
-			helper.Response(w, http.StatusUnsupportedMediaType, "unsupported "+fileType+" file type", nil)
+		if !isValidFileType(fileName, header.Header.Get("Content-Type")) {
+			helper.Response(w, http.StatusUnsupportedMediaType, "unsupported "+fileName+" file type", nil)
 			return
 		}
 
-		if header.Size > helper.Constants.MaxFileSize {
+		if header.Size > helper.Constants.MaxFileSize[fileName] {
 			helper.Response(w, http.StatusRequestEntityTooLarge, "file to large type", nil)
 			return
 		}

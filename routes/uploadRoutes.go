@@ -10,9 +10,9 @@ import (
 
 func UploadRoutes() func(router chi.Router) {
 	return func(router chi.Router) {
-		router.Post("/video", middleware.FileStorage("videoFile", "video", http.HandlerFunc(api.Video)))
-		router.Post("/videoResolutions", middleware.FileStorage("videoFile", "video", http.HandlerFunc(api.VideoResolutions)))
-		router.Post("/image", middleware.FileStorage("imageFile", "image", http.HandlerFunc(api.Image)))
-		router.Post("/audio", middleware.FileStorage("audioFile", "audio", http.HandlerFunc(api.Audio)))
+		router.Post("/video", middleware.FileStorage("videoFile", http.HandlerFunc(api.Video)))
+		router.Post("/videoResolutions", middleware.FileStorage("videoFile", http.HandlerFunc(api.VideoResolutions)))
+		router.Post("/image", middleware.FileStorage("imageFile", http.HandlerFunc(api.Image)))
+		router.Post("/audio", middleware.FileStorage("audioFile", http.HandlerFunc(api.Audio)))
 	}
 }

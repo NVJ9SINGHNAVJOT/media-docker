@@ -3,12 +3,16 @@ package helper
 type ConstConfig struct {
 	UploadStorage string
 	MediaStorage  string
-	MaxFileSize   int64
+	MaxFileSize   map[string]int64
 }
 
 // NOTE: do not change these values, project will break
 var Constants = &ConstConfig{
 	UploadStorage: "uploadStorage",
 	MediaStorage:  "media_docker_files",
-	MaxFileSize:   1024 * 1024 * 1000,
+	MaxFileSize: map[string]int64{
+		"videoFile": 1024 * 1024 * 1000, // 1 GB
+		"imageFile": 1024 * 1024 * 50,   // 50 MB
+		"audioFile": 1024 * 1024 * 50,   // 50 MB
+	},
 }
