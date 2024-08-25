@@ -3,8 +3,14 @@
 *.env
 !example.env
 
-# modules
-/node_modules
+# build
+/dist
+/build
+*.exe
+
+# development
+/temp
+/tmp
 
 # logs
 /logs

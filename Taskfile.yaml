@@ -1,0 +1,28 @@
+---
+version: "3"
+
+dotenv:
+  - ".env"
+
+interval: 500ms
+
+tasks:
+  tidy:
+    desc: runs go mod tidy
+    cmds:
+      - go mod tidy
+
+  build:
+    desc: builds the project
+    cmds:
+      - go build -o ./dist/main main.go
+
+  run:
+    desc: run main.go file
+    cmds:
+      - go run main.go
+
+  dev:
+    desc: dev
+    cmds:
+      - air

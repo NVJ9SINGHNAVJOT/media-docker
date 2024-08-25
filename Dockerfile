@@ -1,25 +1,17 @@
-FROM node:20-alpine AS base
-
-# Install dependencies only when needed
-FROM base AS deps
+FROM golang:1.23
 
 WORKDIR /app
 
-# Install dependencies
-COPY package.json ./
-COPY package-lock.json ./
-RUN npm ci
+# pre-copy/cache go.mod for pre-downloading dependencies and only redownloading them in subsequent builds if they change
+COPY go.mod go.sum ./
+RUN go mod download && go mod verify
 
-# Rebuild the source code only when needed
-FROM base AS builder
-WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
 COPY . .
+RUN go build -o ./dist/main main.go
 
 # Install FFmpeg
 RUN apk add --no-cache ffmpeg
-RUN npm run build
 
 EXPOSE 7000
 
-ENTRYPOINT  ["node", "dist/index.js"]
+ENTRYPOINT ["dist/main"]

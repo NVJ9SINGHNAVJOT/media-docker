@@ -20,4 +20,4 @@ services:
         - proxy
     ports: [7000:7000] # disable in production
     env_file: .env
-    command: [ 'node', 'dist/index.js']
+    command: [ 'dist/main']
