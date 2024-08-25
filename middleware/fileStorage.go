@@ -40,7 +40,7 @@ func FileStorage(fileName string, next http.HandlerFunc) http.HandlerFunc {
 		// Parse the form data
 		err := r.ParseMultipartForm(helper.Constants.MaxFileSize[fileName])
 		if err != nil {
-			helper.Response(w, http.StatusBadRequest, "error parsing form data", err)
+			helper.Response(w, http.StatusBadRequest, "error parsing form data", err.Error())
 			return
 		}
 
@@ -53,7 +53,7 @@ func FileStorage(fileName string, next http.HandlerFunc) http.HandlerFunc {
 
 		file, header, err := r.FormFile(fileName)
 		if err != nil {
-			helper.Response(w, http.StatusBadRequest, "error reading file", err)
+			helper.Response(w, http.StatusBadRequest, "error reading file", err.Error())
 			return
 		}
 
@@ -76,7 +76,7 @@ func FileStorage(fileName string, next http.HandlerFunc) http.HandlerFunc {
 		out, err := os.Create(filePath)
 
 		if err != nil {
-			helper.Response(w, http.StatusInternalServerError, "error creating file", err)
+			helper.Response(w, http.StatusInternalServerError, "error creating file", err.Error())
 			return
 		}
 		defer out.Close()
@@ -84,7 +84,7 @@ func FileStorage(fileName string, next http.HandlerFunc) http.HandlerFunc {
 		// Copy the file content to the destination
 		_, err = io.Copy(out, file)
 		if err != nil {
-			helper.Response(w, http.StatusInternalServerError, "error saving file", err)
+			helper.Response(w, http.StatusInternalServerError, "error saving file", err.Error())
 			return
 		}
 

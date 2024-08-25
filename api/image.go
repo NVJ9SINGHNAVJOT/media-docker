@@ -12,7 +12,7 @@ import (
 func Image(w http.ResponseWriter, r *http.Request) {
 	_, header, err := r.FormFile("imageFile")
 	if err != nil {
-		helper.Response(w, http.StatusBadRequest, "error reading file", err)
+		helper.Response(w, http.StatusBadRequest, "error reading file", err.Error())
 		return
 	}
 
@@ -24,7 +24,7 @@ func Image(w http.ResponseWriter, r *http.Request) {
 	err = pkg.ConvertImage(imagePath, outputPath, id, 1)
 
 	if err != nil {
-		helper.Response(w, http.StatusInternalServerError, "error while converting image", err)
+		helper.Response(w, http.StatusInternalServerError, "error while converting image", err.Error())
 		go pkg.DeleteFile(imagePath)
 		return
 	}

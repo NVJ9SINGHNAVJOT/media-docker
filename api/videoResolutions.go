@@ -28,7 +28,7 @@ func VideoResolutions(w http.ResponseWriter, r *http.Request) {
 
 	// Create the output directory
 	if err := pkg.CreateDirs([]string{outputPath360, outputPath480, outputPath720, outputPath1080}); err != nil {
-		helper.Response(w, http.StatusInternalServerError, "error creating output directorys", err)
+		helper.Response(w, http.StatusInternalServerError, "error creating output directorys", err.Error())
 		go pkg.DeleteFile(videoPath)
 		return
 	}
@@ -55,7 +55,7 @@ func VideoResolutions(w http.ResponseWriter, r *http.Request) {
 	err = pkg.ConvertVideoResolutions(videoPath, resolutions)
 
 	if err != nil {
-		helper.Response(w, http.StatusInternalServerError, "error while converting video", nil)
+		helper.Response(w, http.StatusInternalServerError, "error while converting video", err.Error())
 		go pkg.DeleteFile(videoPath)
 		return
 	}

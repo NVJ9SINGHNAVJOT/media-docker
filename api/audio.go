@@ -13,7 +13,7 @@ func Audio(w http.ResponseWriter, r *http.Request) {
 
 	_, header, err := r.FormFile("audioFile")
 	if err != nil {
-		helper.Response(w, http.StatusBadRequest, "error reading file", err)
+		helper.Response(w, http.StatusBadRequest, "error reading file", err.Error())
 		return
 	}
 
@@ -25,7 +25,7 @@ func Audio(w http.ResponseWriter, r *http.Request) {
 	err = pkg.ConvertAudio(audioPath, outputPath, id)
 
 	if err != nil {
-		helper.Response(w, http.StatusInternalServerError, "error while converting audio", err)
+		helper.Response(w, http.StatusInternalServerError, "error while converting audio", err.Error())
 		go pkg.DeleteFile(audioPath)
 		return
 	}

@@ -13,7 +13,7 @@ func Video(w http.ResponseWriter, r *http.Request) {
 
 	_, header, err := r.FormFile("videoFile")
 	if err != nil {
-		helper.Response(w, http.StatusBadRequest, "error reading file", err)
+		helper.Response(w, http.StatusBadRequest, "error reading file", err.Error())
 		return
 	}
 
@@ -24,7 +24,7 @@ func Video(w http.ResponseWriter, r *http.Request) {
 
 	// Create the output directory
 	if err := pkg.CreateDir(outputPath); err != nil {
-		helper.Response(w, http.StatusInternalServerError, "error creating output directory", err)
+		helper.Response(w, http.StatusInternalServerError, "error creating output directory", err.Error())
 		go pkg.DeleteFile(videoPath)
 		return
 	}
@@ -32,7 +32,7 @@ func Video(w http.ResponseWriter, r *http.Request) {
 	err = pkg.ConvertVideo(videoPath, outputPath)
 
 	if err != nil {
-		helper.Response(w, http.StatusInternalServerError, "error while converting video", err)
+		helper.Response(w, http.StatusInternalServerError, "error while converting video", err.Error())
 		go pkg.DeleteFile(videoPath)
 		return
 	}

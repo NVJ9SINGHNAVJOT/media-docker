@@ -73,6 +73,7 @@ func main() {
 
 	// all routes for server
 	router.Route("/api/v1/uploads", routes.UploadRoutes())
+	router.Route("/api/v1/destroys", routes.DestroyRoutes())
 
 	// index handler
 	router.Get("/", func(w http.ResponseWriter, r *http.Request) {

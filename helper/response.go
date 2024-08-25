@@ -12,8 +12,8 @@ type APIResponse struct {
 }
 
 type APIResponseWithData struct {
-	Message string
-	Data    any
+	Message string `json:"message" validate:"required"`
+	Data    any    `json:"data,omitempty"`
 }
 
 func Response(w http.ResponseWriter, status int, message string, data any) {
@@ -36,7 +36,9 @@ func Response(w http.ResponseWriter, status int, message string, data any) {
 
 	response := APIResponseWithData{
 		Message: message,
-		Data:    data,
+	}
+	if data != nil {
+		response.Data = data
 	}
 	err := json.NewEncoder(w).Encode(response)
 	if err != nil {
