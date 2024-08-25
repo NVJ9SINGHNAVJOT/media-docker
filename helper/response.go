@@ -2,7 +2,6 @@ package helper
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"github.com/rs/zerolog/log"
@@ -23,7 +22,7 @@ func Response(w http.ResponseWriter, status int, message string, data any) {
 
 	if status > 299 {
 		if data != nil {
-			log.Error().Msg(fmt.Sprintf("%s, %s", message, data))
+			log.Error().Any("error", data).Msg(message)
 		}
 		response := APIResponse{
 			Message: message,

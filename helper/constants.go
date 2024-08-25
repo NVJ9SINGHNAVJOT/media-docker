@@ -6,6 +6,7 @@ type ConstConfig struct {
 	MaxFileSize   int64
 }
 
+// NOTE: do not change these values, project will break
 var Constants = &ConstConfig{
 	UploadStorage: "uploadStorage",
 	MediaStorage:  "media_docker_files",

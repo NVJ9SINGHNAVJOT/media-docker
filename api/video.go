@@ -38,8 +38,8 @@ func Video(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Respond with success
-	videoURL := fmt.Sprintf("http://localhost:7000/%s/index.m3u8", outputPath)
-	helper.Response(w, 201, "video uploaded successfully", map[string]any{"videoUrl": videoURL})
+	videoUrl := fmt.Sprintf("http://localhost:7000/%s/index.m3u8", outputPath)
+	helper.Response(w, 201, "video uploaded successfully", map[string]any{"videoUrl": videoUrl})
 
 	go pkg.DeleteFile(videoPath)
 }

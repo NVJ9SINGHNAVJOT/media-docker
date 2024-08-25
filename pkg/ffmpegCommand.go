@@ -77,3 +77,20 @@ func ConvertVideoResolutions(videoPath string, resolutions []FFmpegConfig) error
 
 	return nil
 }
+
+// can adjust the value (1 to 31) for compression
+func ConvertImage(imagePath, outputPath, fileName string, compression int64) error {
+
+	// Execute the ffmpeg command
+	cmd := exec.Command("ffmpeg",
+		"-i", imagePath,
+		"-q:v", strconv.FormatInt(compression, 10),
+		fmt.Sprintf("%s/%s.jpeg", outputPath, fileName),
+	)
+
+	if err := cmd.Run(); err != nil {
+		return err
+	}
+
+	return nil
+}
