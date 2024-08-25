@@ -29,23 +29,32 @@ func main() {
 	// UploadStorage created if not existed
 	exist, err := pkg.DirExist(helper.Constants.UploadStorage)
 	if err != nil {
-		log.Error().Str("error", err.Error()).Msg("error while checking " + helper.Constants.UploadStorage + " dir")
+		log.Error().Str("error", err.Error()).Msg("error while checking /" + helper.Constants.UploadStorage + " dir")
 		panic(err)
 	} else if !exist {
 		pkg.CreateDir(helper.Constants.UploadStorage)
 	}
 
 	/*
-		NOTE: with "/media_docker_files" folder "/images" folder is also checked,
-		because images are stored directly in images folder.
-		while each video and audio files have their own folder
+		NOTE: with "/media_docker_files" folder "/images" and "/audios" folder is also checked,
+		because images and audios are stored directly in folders.
+		while each video have their own folder
 	*/
+	// images
 	exist, err = pkg.DirExist(helper.Constants.MediaStorage + "/images")
 	if err != nil {
-		log.Error().Str("error", err.Error()).Msg("error while checking " + helper.Constants.MediaStorage + " dir")
+		log.Error().Str("error", err.Error()).Msg("error while checking /" + helper.Constants.MediaStorage + "/images dir")
 		panic(err)
 	} else if !exist {
 		pkg.CreateDir(helper.Constants.MediaStorage + "/images")
+	}
+	// audios
+	exist, err = pkg.DirExist(helper.Constants.MediaStorage + "/audios")
+	if err != nil {
+		log.Error().Str("error", err.Error()).Msg("error while checking /" + helper.Constants.MediaStorage + "/audios dir")
+		panic(err)
+	} else if !exist {
+		pkg.CreateDir(helper.Constants.MediaStorage + "/audios")
 	}
 
 	// router

@@ -94,3 +94,23 @@ func ConvertImage(imagePath, outputPath, fileName string, compression int64) err
 
 	return nil
 }
+
+// 320 Kbps for max audio quality
+func ConvertAudio(audioPath, outputPath, fileName string) error {
+	// Execute the FFmpeg command for audio conversion
+
+	cmd := exec.Command("ffmpeg",
+		"-i", audioPath,
+		"-vn",
+		"-ar", "44100",
+		"-ac", "2",
+		"-b:a", "192k",
+		fmt.Sprintf("%s/%s.mp3", outputPath, fileName),
+	)
+
+	if err := cmd.Run(); err != nil {
+		return err
+	}
+
+	return nil
+}
