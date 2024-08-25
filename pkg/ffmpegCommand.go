@@ -9,7 +9,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func ConvertVideo(videoPath, outputPath, hlsPath string) error {
+func ConvertVideo(videoPath, outputPath string) error {
 
 	// Execute the ffmpeg command
 	cmd := exec.Command("ffmpeg",
@@ -20,7 +20,7 @@ func ConvertVideo(videoPath, outputPath, hlsPath string) error {
 		"-hls_playlist_type", "vod",
 		"-hls_segment_filename", fmt.Sprintf("%s/segment%%03d.ts", outputPath),
 		"-start_number", "0",
-		hlsPath,
+		fmt.Sprintf("%s/index.m3u8", outputPath),
 	)
 
 	if err := cmd.Run(); err != nil {
@@ -32,7 +32,7 @@ func ConvertVideo(videoPath, outputPath, hlsPath string) error {
 
 var heights = map[int64]string{360: "740", 480: "854", 720: "1280", 1080: "1920"}
 
-func convertVideoResolution(videoPath, outputPath, hlsPath string, resolution int64, wg *sync.WaitGroup, resolutionError *bool) {
+func convertVideoResolution(videoPath, outputPath string, resolution int64, wg *sync.WaitGroup, resolutionError *bool) {
 
 	defer wg.Done()
 
@@ -46,7 +46,7 @@ func convertVideoResolution(videoPath, outputPath, hlsPath string, resolution in
 		"-hls_playlist_type", "vod",
 		"-hls_segment_filename", fmt.Sprintf("%s/segment%%03d.ts", outputPath),
 		"-start_number", "0",
-		hlsPath,
+		fmt.Sprintf("%s/index.m3u8", outputPath),
 	)
 
 	if err := cmd.Run(); err != nil {
@@ -57,7 +57,6 @@ func convertVideoResolution(videoPath, outputPath, hlsPath string, resolution in
 
 type FFmpegConfig struct {
 	OutputPath string
-	HlsPath    string
 	Resolution int64
 }
 
@@ -67,7 +66,7 @@ func ConvertVideoResolutions(videoPath string, resolutions []FFmpegConfig) error
 
 	for _, v := range resolutions {
 		wg.Add(1)
-		go convertVideoResolution(videoPath, v.OutputPath, v.HlsPath, v.Resolution, &wg, &resolutionError)
+		go convertVideoResolution(videoPath, v.OutputPath, v.Resolution, &wg, &resolutionError)
 	}
 
 	wg.Wait()

@@ -20,8 +20,7 @@ func Video(w http.ResponseWriter, r *http.Request) {
 	videoPath := header.Header.Get("path")
 
 	id := uuid.New().String()
-	outputPath := fmt.Sprintf("media_docker_files/videos/%s", id)
-	hlsPath := fmt.Sprintf("%s/index.m3u8", outputPath)
+	outputPath := fmt.Sprintf("%s/videos/%s", helper.Constants.MediaStorage, id)
 
 	// Create the output directory
 	if err := pkg.CreateDir(outputPath); err != nil {
@@ -30,7 +29,7 @@ func Video(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = pkg.ConvertVideo(videoPath, outputPath, hlsPath)
+	err = pkg.ConvertVideo(videoPath, outputPath)
 
 	if err != nil {
 		helper.Response(w, http.StatusInternalServerError, "error while converting video", err)

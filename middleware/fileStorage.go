@@ -12,33 +12,33 @@ import (
 	"github.com/nvj9singhnavjot/media-docker/helper"
 )
 
-// valid file type
-var validMimeTypes = map[string]bool{
-	// image
-	"image/jpeg": true,
-	"image/jpg":  true,
-	"image/png":  true,
-	// video
-	"video/mp4":  true,
-	"video/webm": true,
-	"video/ogg":  true,
-	// audio
-	"audio/mp3":  true,
-	"audio/mpeg": true,
-	"audio/wav":  true,
+// valid file types
+var validFiles = map[string][]string{
+	"image": {"image/jpeg", "image/jpg", "image/png"},
+	"video": {"video/mp4", "video/webm", "video/ogg", "video/mkv"},
+	"audio": {"audio/mp3", "audio/mpeg", "audio/wav"},
 }
 
-// Change this to your desired folder path
-var UploadFolder = "uploadStorage"
+func isValidFileType(fileType, mimeType string) bool {
+	allowedTypes, ok := validFiles[fileType]
+	if !ok {
+		return false // Invalid fileType
+	}
 
-// max 1 GB file size allowed
-const maxFileSize = 1024 * 1024 * 1000
+	for _, allowedType := range allowedTypes {
+		if allowedType == mimeType {
+			return true // Valid fileType and mimeType
+		}
+	}
 
-func FileStorage(fileName string, next http.HandlerFunc) http.HandlerFunc {
+	return false // Valid fileType but invalid mimeType
+}
+
+func FileStorage(fileName string, fileType string, next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		// Parse the form data
-		err := r.ParseMultipartForm(maxFileSize)
+		err := r.ParseMultipartForm(helper.Constants.MaxFileSize)
 		if err != nil {
 			helper.Response(w, http.StatusBadRequest, "error parsing form data", err)
 			return
@@ -57,12 +57,12 @@ func FileStorage(fileName string, next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
-		if !validMimeTypes[header.Header.Get("Content-Type")] {
-			helper.Response(w, http.StatusUnsupportedMediaType, "unsupported file type", nil)
+		if !isValidFileType(fileType, header.Header.Get("Content-Type")) {
+			helper.Response(w, http.StatusUnsupportedMediaType, "unsupported "+fileType+" file type", nil)
 			return
 		}
 
-		if header.Size > maxFileSize {
+		if header.Size > helper.Constants.MaxFileSize {
 			helper.Response(w, http.StatusRequestEntityTooLarge, "file to large type", nil)
 			return
 		}
@@ -72,7 +72,7 @@ func FileStorage(fileName string, next http.HandlerFunc) http.HandlerFunc {
 		// Generate a unique filename with UUID
 		fileExt := filepath.Ext(header.Filename)
 		uuidFilename := fmt.Sprintf("%s-%s%s", strings.TrimSuffix(header.Filename, fileExt), uuid.New().String(), fileExt)
-		filePath := filepath.Join(UploadFolder, uuidFilename)
+		filePath := filepath.Join(helper.Constants.UploadStorage, uuidFilename)
 		out, err := os.Create(filePath)
 
 		if err != nil {

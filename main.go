@@ -10,6 +10,7 @@ import (
 	"github.com/nvj9singhnavjot/media-docker/config"
 	"github.com/nvj9singhnavjot/media-docker/helper"
 	"github.com/nvj9singhnavjot/media-docker/middleware"
+	"github.com/nvj9singhnavjot/media-docker/pkg"
 	"github.com/nvj9singhnavjot/media-docker/routes"
 	"github.com/rs/zerolog/log"
 )
@@ -23,6 +24,22 @@ func main() {
 
 	config.SetUpLogger(envs.Environment)
 
+	exist, err := pkg.DirExist(helper.Constants.UploadStorage)
+	if err != nil {
+		log.Error().Str("error", err.Error()).Msg("error while checking " + helper.Constants.UploadStorage + " dir")
+		panic(err)
+	} else if !exist {
+		pkg.CreateDir(helper.Constants.UploadStorage)
+	}
+
+	exist, err = pkg.DirExist(helper.Constants.MediaStorage)
+	if err != nil {
+		log.Error().Str("error", err.Error()).Msg("error while checking " + helper.Constants.MediaStorage + " dir")
+		panic(err)
+	} else if !exist {
+		pkg.CreateDir(helper.Constants.MediaStorage)
+	}
+
 	// router
 	router := chi.NewRouter()
 
@@ -32,8 +49,8 @@ func main() {
 	// Create a route along /media_docker_files that will serve contents from
 	// the ./media_docker_files/ folder.
 	workDir, _ := os.Getwd()
-	filesDir := http.Dir(filepath.Join(workDir, "media_docker_files"))
-	middleware.FileServer(router, "/media_docker_files", filesDir)
+	filesDir := http.Dir(filepath.Join(workDir, helper.Constants.MediaStorage))
+	middleware.FileServer(router, "/"+helper.Constants.MediaStorage, filesDir)
 
 	// routes
 	router.Route("/api/v1/uploads", routes.UploadRoutes())
@@ -49,7 +66,7 @@ func main() {
 
 	err = http.ListenAndServe(port, router)
 	if err != nil {
-		log.Error().Msg("error while running server")
+		log.Error().Str("error", err.Error()).Msg("error while running server")
 		panic(err)
 	}
 }

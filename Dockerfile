@@ -1,4 +1,4 @@
-FROM golang:1.23
+FROM golang:1.23-alpine
 
 WORKDIR /app
 
@@ -14,4 +14,4 @@ RUN apk add --no-cache ffmpeg
 
 EXPOSE 7000
 
-CMD [ "dist/main" ]
+ENTRYPOINT [ "/dist/main" ]

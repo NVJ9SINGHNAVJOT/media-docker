@@ -21,10 +21,10 @@ func VideoResolutions(w http.ResponseWriter, r *http.Request) {
 
 	id := uuid.New().String()
 
-	outputPath360 := fmt.Sprintf("media_docker_files/videos/%s/360", id)
-	outputPath480 := fmt.Sprintf("media_docker_files/videos/%s/480", id)
-	outputPath720 := fmt.Sprintf("media_docker_files/videos/%s/720", id)
-	outputPath1080 := fmt.Sprintf("media_docker_files/videos/%s/1080", id)
+	outputPath360 := fmt.Sprintf("%s/videos/%s/360", helper.Constants.MediaStorage, id)
+	outputPath480 := fmt.Sprintf("%s/videos/%s/480", helper.Constants.MediaStorage, id)
+	outputPath720 := fmt.Sprintf("%s/videos/%s/720", helper.Constants.MediaStorage, id)
+	outputPath1080 := fmt.Sprintf("%s/videos/%s/1080", helper.Constants.MediaStorage, id)
 
 	// Create the output directory
 	if err := pkg.CreateDirs([]string{outputPath360, outputPath480, outputPath720, outputPath1080}); err != nil {
@@ -33,30 +33,21 @@ func VideoResolutions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	hlsPath360 := fmt.Sprintf("%s/index.m3u8", outputPath360)
-	hlsPath480 := fmt.Sprintf("%s/index.m3u8", outputPath480)
-	hlsPath720 := fmt.Sprintf("%s/index.m3u8", outputPath720)
-	hlsPath1080 := fmt.Sprintf("%s/index.m3u8", outputPath1080)
-
 	resolutions := []pkg.FFmpegConfig{
 		{
 			OutputPath: outputPath360,
-			HlsPath:    hlsPath360,
 			Resolution: 360,
 		},
 		{
 			OutputPath: outputPath480,
-			HlsPath:    hlsPath480,
 			Resolution: 480,
 		},
 		{
 			OutputPath: outputPath720,
-			HlsPath:    hlsPath720,
 			Resolution: 720,
 		},
 		{
 			OutputPath: outputPath1080,
-			HlsPath:    hlsPath1080,
 			Resolution: 1080,
 		},
 	}
