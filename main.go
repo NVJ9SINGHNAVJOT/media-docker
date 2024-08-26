@@ -61,7 +61,9 @@ func main() {
 	router := chi.NewRouter()
 
 	// all default middlewares initialized
-	middleware.DefaultMiddlewares(router, envs.AllowedOrigins)
+	middleware.DefaultMiddlewares(envs.AllowedOrigins, router)
+	// server key for accessing server
+	router.Use(middleware.ServerKey(envs.ServerKey))
 
 	/*
 		Create a route along "/media_docker_files" that will serve contents from

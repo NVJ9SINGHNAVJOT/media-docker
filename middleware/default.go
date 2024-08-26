@@ -9,7 +9,7 @@ import (
 	"github.com/go-chi/httprate"
 )
 
-func DefaultMiddlewares(router *chi.Mux, allowedOrigins []string) {
+func DefaultMiddlewares(allowedOrigins []string, router *chi.Mux) {
 	router.Use(cors.Handler(cors.Options{
 		AllowedOrigins: allowedOrigins,
 		AllowedMethods: []string{"GET", "POST", "DELETE"},

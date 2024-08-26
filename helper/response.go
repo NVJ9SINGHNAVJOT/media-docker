@@ -8,10 +8,6 @@ import (
 )
 
 type APIResponse struct {
-	Message string
-}
-
-type APIResponseWithData struct {
 	Message string `json:"message" validate:"required"`
 	Data    any    `json:"data,omitempty"`
 }
@@ -19,15 +15,16 @@ type APIResponseWithData struct {
 func Response(w http.ResponseWriter, status int, message string, data any) {
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(status)
+	response := APIResponse{
+		Message: message,
+	}
 
 	if status > 299 {
+		// NOTE: if status more than 299 any data passed is nil or error
 		if data != nil {
 			log.Error().Any("error", data).Msg(message)
 		} else {
 			log.Error().Msg(message)
-		}
-		response := APIResponse{
-			Message: message,
 		}
 		err := json.NewEncoder(w).Encode(response)
 		if err != nil {
@@ -36,9 +33,6 @@ func Response(w http.ResponseWriter, status int, message string, data any) {
 		return
 	}
 
-	response := APIResponseWithData{
-		Message: message,
-	}
 	if data != nil {
 		response.Data = data
 	}
