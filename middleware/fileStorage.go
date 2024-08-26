@@ -38,11 +38,6 @@ func FileStorage(fileName string, next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
 		// Check the number of files uploaded
-		files := r.MultipartForm.File[fileName]
-		if len(files) != 1 {
-			helper.Response(w, http.StatusBadRequest, "only one file allowed", nil)
-			return
-		}
 
 		file, header, err := r.FormFile(fileName)
 		if err != nil {
