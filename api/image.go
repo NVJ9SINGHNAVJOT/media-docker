@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/google/uuid"
+	"github.com/nvj9singhnavjot/media-docker/config"
 	"github.com/nvj9singhnavjot/media-docker/helper"
 	"github.com/nvj9singhnavjot/media-docker/pkg"
 )
@@ -30,8 +31,8 @@ func Image(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Respond with success
-	imageUrl := fmt.Sprintf("http://localhost:7000/%s/%s.jpeg", outputPath, id)
-	helper.Response(w, 201, "image uploaded successfully", map[string]any{"imageUrl": imageUrl})
+	imageUrl := fmt.Sprintf("%s/%s/%s.jpeg", config.Envs.BASE_URL, outputPath, id)
+	helper.Response(w, http.StatusCreated, "image uploaded successfully", map[string]any{"fileUrl": imageUrl})
 
 	go pkg.DeleteFile(imagePath)
 }

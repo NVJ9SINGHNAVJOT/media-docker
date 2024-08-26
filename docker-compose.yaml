@@ -20,5 +20,5 @@ services:
       - media-docker-volume:/app/media_docker_files
     networks:
         - proxy
-    ports: [7000:7000] # disable in production
+    ports: [7000:7000]
     env_file: .env

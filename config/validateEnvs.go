@@ -11,36 +11,43 @@ type EnvironmentConfig struct {
 	AllowedOrigins []string
 	ServerKey      string
 	Port           string
+	BASE_URL       string
 }
 
-func ValidateEnvs() (*EnvironmentConfig, error) {
+var Envs = EnvironmentConfig{}
+
+func ValidateEnvs() error {
 
 	environment, exist := os.LookupEnv("ENVIRONMENT")
 	if !exist {
-		return nil, fmt.Errorf("environment is not provided")
+		return fmt.Errorf("environment is not provided")
 	}
 
 	allowedOrigins, exist := os.LookupEnv("ALLOWED_ORIGINS")
 	if !exist {
-		return nil, fmt.Errorf("allowed origins is not provided")
+		return fmt.Errorf("allowed origins is not provided")
 	}
 
 	serverKey, exist := os.LookupEnv("SERVER_KEY")
 	if !exist {
-		return nil, fmt.Errorf("server key is not provided")
+		return fmt.Errorf("server key is not provided")
 	}
 
 	port, exist := os.LookupEnv("PORT")
 	if !exist {
-		return nil, fmt.Errorf("port number is not provided")
+		return fmt.Errorf("port number is not provided")
 	}
 
-	envConfig := &EnvironmentConfig{
-		Environment:    environment,
-		AllowedOrigins: strings.Split(allowedOrigins, ","),
-		ServerKey:      serverKey,
-		Port:           port,
+	baseUrl, exist := os.LookupEnv("BASE_URL")
+	if !exist {
+		return fmt.Errorf("port number is not provided")
 	}
 
-	return envConfig, nil
+	Envs.Environment = environment
+	Envs.AllowedOrigins = strings.Split(allowedOrigins, ",")
+	Envs.ServerKey = serverKey
+	Envs.Port = port
+	Envs.BASE_URL = baseUrl
+
+	return nil
 }

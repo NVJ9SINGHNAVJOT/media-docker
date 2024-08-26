@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/google/uuid"
+	"github.com/nvj9singhnavjot/media-docker/config"
 	"github.com/nvj9singhnavjot/media-docker/helper"
 	"github.com/nvj9singhnavjot/media-docker/pkg"
 )
@@ -61,12 +62,12 @@ func VideoResolutions(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Respond with success
-	helper.Response(w, 201, "video uploaded successfully",
+	helper.Response(w, http.StatusCreated, "video uploaded successfully",
 		map[string]any{
-			"360":  fmt.Sprintf("http://localhost:7000/%s/index.m3u8", outputPath360),
-			"480":  fmt.Sprintf("http://localhost:7000/%s/index.m3u8", outputPath480),
-			"720":  fmt.Sprintf("http://localhost:7000/%s/index.m3u8", outputPath720),
-			"1080": fmt.Sprintf("http://localhost:7000/%s/index.m3u8", outputPath1080),
+			"360":  fmt.Sprintf("%s/%s/index.m3u8", config.Envs.BASE_URL, outputPath360),
+			"480":  fmt.Sprintf("%s/%s/index.m3u8", config.Envs.BASE_URL, outputPath480),
+			"720":  fmt.Sprintf("%s/%s/index.m3u8", config.Envs.BASE_URL, outputPath720),
+			"1080": fmt.Sprintf("%s/%s/index.m3u8", config.Envs.BASE_URL, outputPath1080),
 		})
 
 	go pkg.DeleteFile(videoPath)

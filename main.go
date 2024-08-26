@@ -17,14 +17,14 @@ import (
 
 func main() {
 	// environment variables are checked
-	envs, err := config.ValidateEnvs()
+	err := config.ValidateEnvs()
 	if err != nil {
 		fmt.Println("invalid environment variables", err)
 		panic(err)
 	}
 
 	// logger setup for server
-	config.SetUpLogger(envs.Environment)
+	config.SetUpLogger(config.Envs.Environment)
 
 	// UploadStorage created if not existed
 	exist, err := pkg.DirExist(helper.Constants.UploadStorage)
@@ -61,9 +61,9 @@ func main() {
 	router := chi.NewRouter()
 
 	// all default middlewares initialized
-	middleware.DefaultMiddlewares(envs.AllowedOrigins, router)
+	middleware.DefaultMiddlewares(config.Envs.AllowedOrigins, router)
 	// server key for accessing server
-	router.Use(middleware.ServerKey(envs.ServerKey))
+	router.Use(middleware.ServerKey(config.Envs.ServerKey))
 
 	/*
 		Create a route along "/media_docker_files" that will serve contents from
@@ -83,7 +83,7 @@ func main() {
 	})
 
 	// port initialized
-	port := ":" + envs.Port
+	port := ":" + config.Envs.Port
 	log.Info().Msg("server running...")
 
 	err = http.ListenAndServe(port, router)

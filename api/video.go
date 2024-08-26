@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/google/uuid"
+	"github.com/nvj9singhnavjot/media-docker/config"
 	"github.com/nvj9singhnavjot/media-docker/helper"
 	"github.com/nvj9singhnavjot/media-docker/pkg"
 )
@@ -38,8 +39,8 @@ func Video(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Respond with success
-	videoUrl := fmt.Sprintf("http://localhost:7000/%s/index.m3u8", outputPath)
-	helper.Response(w, 201, "video uploaded successfully", map[string]any{"videoUrl": videoUrl})
+	videoUrl := fmt.Sprintf("%s/%s/index.m3u8", config.Envs.BASE_URL, outputPath)
+	helper.Response(w, http.StatusCreated, "video uploaded successfully", map[string]any{"fileUrl": videoUrl})
 
 	go pkg.DeleteFile(videoPath)
 }

@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/google/uuid"
+	"github.com/nvj9singhnavjot/media-docker/config"
 	"github.com/nvj9singhnavjot/media-docker/helper"
 	"github.com/nvj9singhnavjot/media-docker/pkg"
 )
@@ -31,8 +32,8 @@ func Audio(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Respond with success
-	audioUrl := fmt.Sprintf("http://localhost:7000/%s/%s.mp3", outputPath, id)
-	helper.Response(w, 201, "audio uploaded successfully", map[string]any{"audioUrl": audioUrl})
+	audioUrl := fmt.Sprintf("%s/%s/%s.mp3", config.Envs.BASE_URL, outputPath, id)
+	helper.Response(w, http.StatusCreated, "audio uploaded successfully", map[string]any{"fileUrl": audioUrl})
 
 	go pkg.DeleteFile(audioPath)
 }
