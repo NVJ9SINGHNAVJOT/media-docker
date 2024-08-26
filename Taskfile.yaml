@@ -7,6 +7,12 @@ dotenv:
 interval: 500ms
 
 tasks:
+  i:
+    desc: download dependencies and verify integrity
+    cmds:
+      - go mod download
+      - go mod verify
+
   tidy:
     desc: runs go mod tidy
     cmds:
