@@ -2,7 +2,8 @@
 version: '3.8'
 
 volumes:
-  media-docker-volume:
+  # NOTE: do not change this name (breaking changes)
+  media-docker-files-volume:
 
 networks:
   proxy:
@@ -15,7 +16,8 @@ services:
       dockerfile: Dockerfile
     container_name: media-docker
     volumes:
-      - media-docker-volume:/app
+      # NOTE: do not change the mapping of volume (breaking changes)
+      - media-docker-volume:/app/media_docker_files
     networks:
         - proxy
     ports: [7000:7000] # disable in production
