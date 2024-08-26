@@ -23,6 +23,8 @@ func Response(w http.ResponseWriter, status int, message string, data any) {
 	if status > 299 {
 		if data != nil {
 			log.Error().Any("error", data).Msg(message)
+		} else {
+			log.Error().Msg(message)
 		}
 		response := APIResponse{
 			Message: message,
