@@ -1,11 +1,139 @@
-<mxfile host="Electron" modified="2024-08-28T14:16:24.062Z" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/24.5.3 Chrome/124.0.6367.207 Electron/30.0.6 Safari/537.36" etag="zzc1kgLbmmPXM6lBpUFo" version="24.5.3" type="device">
+<mxfile host="Electron" modified="2024-08-28T17:28:47.545Z" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) draw.io/24.5.3 Chrome/124.0.6367.207 Electron/30.0.6 Safari/537.36" etag="H3eBSInJiDbS-prqkRgR" version="24.5.3" type="device">
   <diagram name="Page-1" id="8LY6jf2VW1UNzwF86Eml">
-    <mxGraphModel dx="1290" dy="2821" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
+    <mxGraphModel dx="3380" dy="2842" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="0" pageScale="1" pageWidth="850" pageHeight="1100" math="0" shadow="0">
       <root>
         <mxCell id="0" />
         <mxCell id="1" parent="0" />
-        <mxCell id="1mTdtNGmqYXUZ3hvpRrU-1" value="&lt;b&gt;&lt;font color=&quot;#0000ff&quot; style=&quot;font-size: 75px;&quot;&gt;Media-Docker&amp;nbsp;&lt;/font&gt;&lt;/b&gt;&lt;b style=&quot;background-color: initial;&quot;&gt;&lt;font color=&quot;#0000ff&quot; style=&quot;font-size: 75px;&quot;&gt;System Design&lt;/font&gt;&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;" vertex="1" parent="1">
+        <mxCell id="1mTdtNGmqYXUZ3hvpRrU-1" value="&lt;b&gt;&lt;font color=&quot;#0000ff&quot; style=&quot;font-size: 75px;&quot;&gt;Media-Docker&amp;nbsp;&lt;/font&gt;&lt;/b&gt;&lt;b style=&quot;background-color: initial;&quot;&gt;&lt;font color=&quot;#0000ff&quot; style=&quot;font-size: 75px;&quot;&gt;System Design&lt;/font&gt;&lt;/b&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;" parent="1" vertex="1">
           <mxGeometry x="100" y="-1232" width="1390" height="202" as="geometry" />
+        </mxCell>
+        <mxCell id="nLX7vKWbinLuOnFE89nr-1" value="" style="endArrow=none;html=1;rounded=0;strokeWidth=10;" edge="1" parent="1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="780" y="5460" as="sourcePoint" />
+            <mxPoint x="780" y="-870" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="nLX7vKWbinLuOnFE89nr-3" value="" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="-450" y="-132" width="850" height="1180" as="geometry" />
+        </mxCell>
+        <mxCell id="nLX7vKWbinLuOnFE89nr-4" value="" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="945" y="-812" width="1439" height="1000" as="geometry" />
+        </mxCell>
+        <mxCell id="nLX7vKWbinLuOnFE89nr-5" value="" style="rounded=0;whiteSpace=wrap;html=1;labelBorderColor=default;fontSize=1;strokeWidth=25;" vertex="1" parent="1">
+          <mxGeometry x="1340" y="1120" width="4420" height="3880" as="geometry" />
+        </mxCell>
+        <mxCell id="nLX7vKWbinLuOnFE89nr-9" value="&lt;font style=&quot;font-size: 20px;&quot;&gt;eg: React App&lt;/font&gt;" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="-97" y="-175" width="144" height="36" as="geometry" />
+        </mxCell>
+        <mxCell id="nLX7vKWbinLuOnFE89nr-10" value="" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=12;image=img/lib/azure2/general/Media_File.svg;" vertex="1" parent="1">
+          <mxGeometry x="-247" y="-21" width="115.38" height="142" as="geometry" />
+        </mxCell>
+        <mxCell id="nLX7vKWbinLuOnFE89nr-34" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="nLX7vKWbinLuOnFE89nr-11" target="nLX7vKWbinLuOnFE89nr-10">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="nLX7vKWbinLuOnFE89nr-11" value="Media File&lt;div&gt;eg: example.mp4, example.mp3, example.png&lt;/div&gt;" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="-321.30999999999995" y="136" width="264" height="41" as="geometry" />
+        </mxCell>
+        <mxCell id="nLX7vKWbinLuOnFE89nr-13" value="" style="endArrow=classic;html=1;rounded=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" target="nLX7vKWbinLuOnFE89nr-18">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="-111" y="65" as="sourcePoint" />
+            <mxPoint x="1077" y="-592" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="104" y="65" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="nLX7vKWbinLuOnFE89nr-15" value="&lt;font style=&quot;font-size: 22px;&quot;&gt;temporary storage for file of backend server&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#a20025;strokeColor=#6F0000;fontColor=#ffffff;" vertex="1" parent="1">
+          <mxGeometry x="1751" y="-725" width="568" height="144" as="geometry" />
+        </mxCell>
+        <mxCell id="nLX7vKWbinLuOnFE89nr-16" value="&lt;font style=&quot;font-size: 50px;&quot;&gt;Media-Docker&lt;/font&gt;&lt;div&gt;&lt;span style=&quot;font-size: 50px;&quot;&gt;&lt;br&gt;&lt;/span&gt;&lt;div&gt;&lt;font style=&quot;font-size: 50px;&quot;&gt;Module&lt;/font&gt;&lt;/div&gt;&lt;/div&gt;" style="whiteSpace=wrap;html=1;aspect=fixed;fillColor=#e51400;fontColor=#ffffff;strokeColor=#B20000;" vertex="1" parent="1">
+          <mxGeometry x="1865" y="-231" width="345" height="345" as="geometry" />
+        </mxCell>
+        <mxCell id="nLX7vKWbinLuOnFE89nr-18" value="&lt;div style=&quot;color: rgb(204, 204, 204); background-color: rgb(31, 31, 31); font-family: Consolas, &amp;quot;Courier New&amp;quot;, monospace; font-size: 14px; line-height: 19px; white-space: pre;&quot;&gt;&lt;span style=&quot;color: #ce9178;&quot;&gt;http://backend-service.com/api/v1/uploadFile&lt;/span&gt;&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="1079" y="-683" width="357" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="nLX7vKWbinLuOnFE89nr-19" value="eg: backend server in on backend-service.com and uploadFile api hit by frontend request" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="1043" y="-602" width="490" height="26" as="geometry" />
+        </mxCell>
+        <mxCell id="nLX7vKWbinLuOnFE89nr-20" value="" style="endArrow=classic;html=1;rounded=0;strokeWidth=10;fillColor=#f9f7ed;strokeColor=#FFFFFF;" edge="1" parent="1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="1436" y="-653.5" as="sourcePoint" />
+            <mxPoint x="1804" y="-653.5" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="nLX7vKWbinLuOnFE89nr-21" value="" style="endArrow=classic;html=1;rounded=0;strokeWidth=10;" edge="1" parent="1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="2032.17" y="-579" as="sourcePoint" />
+            <mxPoint x="2032.17" y="-185" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="nLX7vKWbinLuOnFE89nr-23" value="" style="rounded=0;whiteSpace=wrap;html=1;strokeWidth=15;" vertex="1" parent="1">
+          <mxGeometry x="6372" y="1120" width="1241" height="3880" as="geometry" />
+        </mxCell>
+        <mxCell id="nLX7vKWbinLuOnFE89nr-24" value="Local Storage on Server&lt;div&gt;./media_docker_files&lt;/div&gt;" style="text;html=1;align=center;verticalAlign=middle;resizable=0;points=[];autosize=1;strokeColor=none;fillColor=none;" vertex="1" parent="1">
+          <mxGeometry x="7013" y="1073" width="147" height="41" as="geometry" />
+        </mxCell>
+        <mxCell id="nLX7vKWbinLuOnFE89nr-25" value="&lt;span style=&quot;color: rgb(255, 255, 255); font-size: 40px; text-wrap: nowrap;&quot;&gt;Frontend Application&lt;/span&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#1ba1e2;fontColor=#ffffff;strokeColor=#006EAF;" vertex="1" parent="1">
+          <mxGeometry x="-238" y="-253" width="483" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="nLX7vKWbinLuOnFE89nr-26" value="&lt;span style=&quot;color: rgb(255, 255, 255); font-size: 40px; text-wrap: nowrap;&quot;&gt;Backend Server&lt;/span&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#1ba1e2;fontColor=#ffffff;strokeColor=#006EAF;" vertex="1" parent="1">
+          <mxGeometry x="1423" y="-894" width="483" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="nLX7vKWbinLuOnFE89nr-27" value="&lt;span style=&quot;font-size: 50px; text-wrap: nowrap;&quot;&gt;Media Docker Service&lt;/span&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#1ba1e2;fontColor=#ffffff;strokeColor=#006EAF;" vertex="1" parent="1">
+          <mxGeometry x="3229.5" y="938" width="641" height="118" as="geometry" />
+        </mxCell>
+        <mxCell id="nLX7vKWbinLuOnFE89nr-31" value="&lt;font style=&quot;font-size: 24px;&quot;&gt;media-docker-server&lt;/font&gt;" style="swimlane;whiteSpace=wrap;html=1;startSize=93;fillColor=#0050ef;fontColor=#ffffff;strokeColor=#001DBC;strokeWidth=10;" vertex="1" parent="1">
+          <mxGeometry x="1668" y="1440" width="3715" height="1341" as="geometry" />
+        </mxCell>
+        <mxCell id="nLX7vKWbinLuOnFE89nr-41" value="&lt;div&gt;&lt;span style=&quot;font-size: 20px; background-color: initial;&quot;&gt;/video&lt;/span&gt;&lt;br&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;font-size: 20px;&quot;&gt;/videoResolutions&lt;br&gt;&lt;/span&gt;&lt;div&gt;&lt;span style=&quot;font-size: 20px;&quot;&gt;/audio&lt;/span&gt;&lt;/div&gt;&lt;div&gt;&lt;span style=&quot;font-size: 20px;&quot;&gt;/image&lt;/span&gt;&lt;/div&gt;&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;strokeColor=#666666;fillColor=#f5f5f5;fontColor=#333333;" vertex="1" parent="nLX7vKWbinLuOnFE89nr-31">
+          <mxGeometry x="261.38" y="992" width="202" height="153" as="geometry" />
+        </mxCell>
+        <mxCell id="nLX7vKWbinLuOnFE89nr-43" value="" style="endArrow=classic;html=1;rounded=0;strokeWidth=10;" edge="1" parent="nLX7vKWbinLuOnFE89nr-31">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="360.3800000000001" y="502.5" as="sourcePoint" />
+            <mxPoint x="360.3800000000001" y="965.5" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="nLX7vKWbinLuOnFE89nr-42" value="&lt;font style=&quot;font-size: 20px;&quot;&gt;fileStorage middleware will check file and then will store it&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;strokeColor=#666666;fillColor=#f5f5f5;fontColor=#333333;" vertex="1" parent="nLX7vKWbinLuOnFE89nr-31">
+          <mxGeometry x="183.38" y="550" width="358" height="86" as="geometry" />
+        </mxCell>
+        <mxCell id="nLX7vKWbinLuOnFE89nr-40" value="&lt;font style=&quot;font-size: 20px;&quot;&gt;/uploadRoutes&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;strokeColor=#666666;fillColor=#f5f5f5;fontColor=#333333;" vertex="1" parent="nLX7vKWbinLuOnFE89nr-31">
+          <mxGeometry x="280.88" y="446" width="163" height="57" as="geometry" />
+        </mxCell>
+        <mxCell id="nLX7vKWbinLuOnFE89nr-39" value="&lt;font style=&quot;font-size: 22px;&quot;&gt;temporary storage media-docker-server&lt;/font&gt;" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#a20025;strokeColor=#6F0000;fontColor=#ffffff;" vertex="1" parent="nLX7vKWbinLuOnFE89nr-31">
+          <mxGeometry x="87" y="662" width="568" height="144" as="geometry" />
+        </mxCell>
+        <mxCell id="nLX7vKWbinLuOnFE89nr-51" value="yes" style="edgeStyle=orthogonalEdgeStyle;html=1;align=left;verticalAlign=top;endArrow=open;endSize=8;strokeColor=#ff0000;rounded=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;" edge="1" source="nLX7vKWbinLuOnFE89nr-46" parent="nLX7vKWbinLuOnFE89nr-31">
+          <mxGeometry x="-1" relative="1" as="geometry">
+            <mxPoint x="360" y="446" as="targetPoint" />
+            <mxPoint x="360.0107526881716" y="362.004623655914" as="sourcePoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="nLX7vKWbinLuOnFE89nr-33" value="" style="endArrow=classic;html=1;rounded=0;strokeWidth=10;" edge="1" parent="1">
+          <mxGeometry width="50" height="50" relative="1" as="geometry">
+            <mxPoint x="2028.8600000000001" y="114" as="sourcePoint" />
+            <mxPoint x="2029" y="1614" as="targetPoint" />
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="nLX7vKWbinLuOnFE89nr-35" value="" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=12;image=img/lib/azure2/general/Media_File.svg;" vertex="1" parent="1">
+          <mxGeometry x="597" y="-272" width="46.31" height="57" as="geometry" />
+        </mxCell>
+        <mxCell id="nLX7vKWbinLuOnFE89nr-36" value="" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=12;image=img/lib/azure2/general/Media_File.svg;" vertex="1" parent="1">
+          <mxGeometry x="2019" y="-630" width="22.75" height="28" as="geometry" />
+        </mxCell>
+        <mxCell id="nLX7vKWbinLuOnFE89nr-37" value="" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=12;image=img/lib/azure2/general/Media_File.svg;" vertex="1" parent="1">
+          <mxGeometry x="2081" y="510" width="108.06" height="133" as="geometry" />
+        </mxCell>
+        <mxCell id="nLX7vKWbinLuOnFE89nr-38" value="" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=12;image=img/lib/azure2/general/Media_File.svg;" vertex="1" parent="1">
+          <mxGeometry x="1570" y="-730" width="46.31" height="57" as="geometry" />
+        </mxCell>
+        <mxCell id="nLX7vKWbinLuOnFE89nr-46" value="upload request will be checked with &lt;font style=&quot;font-size: 18px;&quot;&gt;server-key&lt;/font&gt;" style="rhombus;whiteSpace=wrap;html=1;fontColor=#000000;fillColor=#ffffc0;strokeColor=#ff0000;" vertex="1" parent="1">
+          <mxGeometry x="1795" y="1614" width="467" height="189" as="geometry" />
+        </mxCell>
+        <mxCell id="nLX7vKWbinLuOnFE89nr-47" value="no" style="edgeStyle=orthogonalEdgeStyle;html=1;align=left;verticalAlign=bottom;endArrow=open;endSize=8;strokeColor=#ff0000;rounded=0;" edge="1" source="nLX7vKWbinLuOnFE89nr-46" parent="1">
+          <mxGeometry x="-1" relative="1" as="geometry">
+            <mxPoint x="2455" y="1530" as="targetPoint" />
+          </mxGeometry>
         </mxCell>
       </root>
     </mxGraphModel>
