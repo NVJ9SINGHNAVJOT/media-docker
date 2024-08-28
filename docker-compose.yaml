@@ -10,10 +10,10 @@ networks:
     external: true
 
 services:
-  media-docker:
+  media-docker-client:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: ./internal/media-docker-client/Dockerfile
     container_name: media-docker
     volumes:
       # NOTE: do not change the mapping of volume (breaking changes)
@@ -21,4 +21,17 @@ services:
     networks:
         - proxy
     ports: [7000:7000]
+    env_file: .env
+
+  media-docker-server:
+    build:
+      context: .
+      dockerfile: ./internal/media-docker-server/Dockerfile
+    container_name: media-docker-server
+    volumes:
+      # NOTE: do not change the mapping of volume (breaking changes)
+      - media-docker-files-volume:/app/media_docker_files
+    networks:
+        - proxy
+    ports: [7007:7007]
     env_file: .env

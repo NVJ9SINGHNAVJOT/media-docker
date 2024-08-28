@@ -5,7 +5,7 @@ tmp_dir = "tmp"
 [build]
   args_bin = []
   bin = "tmp\\main.exe"
-  cmd = "go build -o ./tmp/main.exe ."
+  cmd = "cd cmd/media-docker-server && go build -o ./tmp/main.exe ."
   delay = 1000
   exclude_dir = ["assets", "tmp", "vendor", "testdata", ".vscode", "media_docker_files", "temp", "uploadStorage", .git, "_examples"]
   exclude_file = [.gitattributes]

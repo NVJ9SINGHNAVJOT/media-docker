@@ -21,14 +21,20 @@ tasks:
   build:
     desc: builds the project
     cmds:
-      - go build -o ./dist/main main.go
+      - cd cmd/media-docker-server && go build -o ../../dist/server-main main.go
+      - cd cmd/media-docker-client && go build -o ../../dist/client-main main.go
 
-  run:
-    desc: run main.go file
+  client:
+    desc: run client main.go file
     cmds:
-      - go run main.go
+      - go run cmd/media-docker-client/main.go
+
+  server:
+    desc: run server main.go file
+    cmds:
+      - go run cmd/media-docker-server/main.go
 
   dev:
-    desc: dev
+    desc: dev runs only server not client in dev mode
     cmds:
       - air
