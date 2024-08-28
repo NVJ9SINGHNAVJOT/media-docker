@@ -9,7 +9,7 @@ import (
 )
 
 type DeleteFileRequest struct {
-	ID   string `json:"id" validate:"required,uuid4"`
+	Id   string `json:"id" validate:"required,uuid4"`
 	Type string `json:"type" validate:"required,oneof=image video audio"`
 }
 
@@ -22,7 +22,7 @@ func DeleteFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	path := fmt.Sprintf("%s/%ss/%s", helper.Constants.MediaStorage, req.Type, req.ID)
+	path := fmt.Sprintf("%s/%ss/%s", helper.Constants.MediaStorage, req.Type, req.Id)
 
 	/*
 		NOTE: no error is passed in response as for file or dir deleting logging is
@@ -49,5 +49,5 @@ func DeleteFile(w http.ResponseWriter, r *http.Request) {
 		pkg.DeleteDir(path)
 	}
 
-	helper.Response(w, http.StatusOK, req.ID+" file deleted", nil)
+	helper.Response(w, http.StatusOK, req.Id+" file deleted", nil)
 }

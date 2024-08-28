@@ -31,7 +31,7 @@ func Image(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Respond with success
-	imageUrl := fmt.Sprintf("%s/%s/%s.jpeg", config.Envs.BASE_URL, outputPath, id)
+	imageUrl := fmt.Sprintf("%s/%s/%s.jpeg", config.MDSenvs.BASE_URL, outputPath, id)
 	helper.Response(w, http.StatusCreated, "image uploaded successfully", map[string]any{"fileUrl": imageUrl})
 
 	go pkg.DeleteFile(imagePath)

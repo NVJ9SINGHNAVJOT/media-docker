@@ -39,7 +39,7 @@ func Video(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Respond with success
-	videoUrl := fmt.Sprintf("%s/%s/index.m3u8", config.Envs.BASE_URL, outputPath)
+	videoUrl := fmt.Sprintf("%s/%s/index.m3u8", config.MDSenvs.BASE_URL, outputPath)
 	helper.Response(w, http.StatusCreated, "video uploaded successfully", map[string]any{"fileUrl": videoUrl})
 
 	go pkg.DeleteFile(videoPath)

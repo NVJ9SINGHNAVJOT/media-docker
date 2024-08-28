@@ -32,7 +32,7 @@ func Audio(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Respond with success
-	audioUrl := fmt.Sprintf("%s/%s/%s.mp3", config.Envs.BASE_URL, outputPath, id)
+	audioUrl := fmt.Sprintf("%s/%s/%s.mp3", config.MDSenvs.BASE_URL, outputPath, id)
 	helper.Response(w, http.StatusCreated, "audio uploaded successfully", map[string]any{"fileUrl": audioUrl})
 
 	go pkg.DeleteFile(audioPath)

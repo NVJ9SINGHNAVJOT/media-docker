@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-type EnvironmentConfig struct {
+type MDSEnvironmentConfig struct {
 	Environment    string
 	AllowedOrigins []string
 	ServerKey      string
@@ -14,9 +14,9 @@ type EnvironmentConfig struct {
 	BASE_URL       string
 }
 
-var Envs = EnvironmentConfig{}
+var MDSenvs = MDSEnvironmentConfig{}
 
-func ValidateEnvs() error {
+func ValidateMDSenvs() error {
 
 	environment, exist := os.LookupEnv("ENVIRONMENT")
 	if !exist {
@@ -43,11 +43,43 @@ func ValidateEnvs() error {
 		return fmt.Errorf("port number is not provided")
 	}
 
-	Envs.Environment = environment
-	Envs.AllowedOrigins = strings.Split(allowedOrigins, ",")
-	Envs.ServerKey = serverKey
-	Envs.Port = port
-	Envs.BASE_URL = baseUrl
+	MDSenvs.Environment = environment
+	MDSenvs.AllowedOrigins = strings.Split(allowedOrigins, ",")
+	MDSenvs.ServerKey = serverKey
+	MDSenvs.Port = port
+	MDSenvs.BASE_URL = baseUrl
+
+	return nil
+}
+
+type MDCEnvironmentConfig struct {
+	Environment    string
+	AllowedOrigins []string
+	Port           string
+}
+
+var MDCenvs = MDCEnvironmentConfig{}
+
+func ValidateMDCenvs() error {
+
+	environment, exist := os.LookupEnv("ENVIRONMENT")
+	if !exist {
+		return fmt.Errorf("environment is not provided")
+	}
+
+	allowedOrigins, exist := os.LookupEnv("ALLOWED_ORIGINS")
+	if !exist {
+		return fmt.Errorf("allowed origins is not provided")
+	}
+
+	port, exist := os.LookupEnv("PORT")
+	if !exist {
+		return fmt.Errorf("port number is not provided")
+	}
+
+	MDCenvs.Environment = environment
+	MDCenvs.AllowedOrigins = strings.Split(allowedOrigins, ",")
+	MDCenvs.Port = port
 
 	return nil
 }

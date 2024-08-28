@@ -64,10 +64,10 @@ func VideoResolutions(w http.ResponseWriter, r *http.Request) {
 	// Respond with success
 	helper.Response(w, http.StatusCreated, "video uploaded successfully",
 		map[string]any{
-			"360":  fmt.Sprintf("%s/%s/index.m3u8", config.Envs.BASE_URL, outputPath360),
-			"480":  fmt.Sprintf("%s/%s/index.m3u8", config.Envs.BASE_URL, outputPath480),
-			"720":  fmt.Sprintf("%s/%s/index.m3u8", config.Envs.BASE_URL, outputPath720),
-			"1080": fmt.Sprintf("%s/%s/index.m3u8", config.Envs.BASE_URL, outputPath1080),
+			"360":  fmt.Sprintf("%s/%s/index.m3u8", config.MDSenvs.BASE_URL, outputPath360),
+			"480":  fmt.Sprintf("%s/%s/index.m3u8", config.MDSenvs.BASE_URL, outputPath480),
+			"720":  fmt.Sprintf("%s/%s/index.m3u8", config.MDSenvs.BASE_URL, outputPath720),
+			"1080": fmt.Sprintf("%s/%s/index.m3u8", config.MDSenvs.BASE_URL, outputPath1080),
 		})
 
 	go pkg.DeleteFile(videoPath)
