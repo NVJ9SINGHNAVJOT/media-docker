@@ -17,7 +17,7 @@ services:
     container_name: media-docker
     volumes:
       # NOTE: do not change the mapping of volume (breaking changes)
-      - media-docker-files-volume:/app/media_docker_files
+      - media-docker-files-volume:/app/media_docker_files:ro
     networks:
         - proxy
     ports: [7000:7000]
@@ -30,7 +30,7 @@ services:
     container_name: media-docker-server
     volumes:
       # NOTE: do not change the mapping of volume (breaking changes)
-      - media-docker-files-volume:/app/media_docker_files
+      - media-docker-files-volume:/app/media_docker_files:rw
     networks:
         - proxy
     ports: [7007:7007]
