@@ -26,7 +26,7 @@ func main() {
 	}
 
 	// logger setup for server
-	config.SetUpLogger(config.MDCenvs.Environment)
+	config.SetUpLogger(config.MDCenvs.ENVIRONMENT)
 
 	exist, err := pkg.DirExist(helper.Constants.MediaStorage)
 	if err != nil {
@@ -40,7 +40,7 @@ func main() {
 	router := chi.NewRouter()
 
 	// all default middlewares initialized
-	mw.DefaultMiddlewares(router, config.MDCenvs.AllowedOrigins, []string{"GET"}, 5000)
+	mw.DefaultMiddlewares(router, config.MDCenvs.ALLOWED_ORIGINS_CLIENT, []string{"GET"}, 5000)
 
 	// middlewares for this router
 	router.Use(httprate.LimitByIP(10, 1*time.Minute))
@@ -59,7 +59,7 @@ func main() {
 	})
 
 	// port initialized
-	port := ":" + config.MDCenvs.Port
+	port := ":" + config.MDCenvs.CLIENT_PORT
 	log.Info().Msg("server running...")
 
 	err = http.ListenAndServe(port, router)

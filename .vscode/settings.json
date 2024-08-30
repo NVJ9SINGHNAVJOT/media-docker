@@ -1,3 +1,8 @@
 {
-  "conventionalCommits.scopes": ["ffmpeg", "example", "system-design"]
+  "conventionalCommits.scopes": [
+    "ffmpeg",
+    "example",
+    "system-design",
+    "channel"
+  ]
 }

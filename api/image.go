@@ -3,11 +3,12 @@ package api
 import (
 	"fmt"
 	"net/http"
+	"sync"
 
 	"github.com/google/uuid"
-	"github.com/nvj9singhnavjot/media-docker/config"
 	"github.com/nvj9singhnavjot/media-docker/helper"
 	"github.com/nvj9singhnavjot/media-docker/pkg"
+	"github.com/nvj9singhnavjot/media-docker/worker"
 )
 
 func Image(w http.ResponseWriter, r *http.Request) {
@@ -20,19 +21,24 @@ func Image(w http.ResponseWriter, r *http.Request) {
 	imagePath := header.Header.Get("path")
 
 	id := uuid.New().String()
-	outputPath := fmt.Sprintf("%s/images", helper.Constants.MediaStorage)
+	outputPath := fmt.Sprintf("%s/images/%s/jpeg", helper.Constants.MediaStorage, id)
 
-	err = pkg.ConvertImage(imagePath, outputPath, id, 1)
+	var executeError = false
+	var wg sync.WaitGroup
+	wg.Add(1)
 
-	if err != nil {
-		helper.Response(w, http.StatusInternalServerError, "error while converting image", err.Error())
+	worker.AddInChannel(pkg.ConvertImage(imagePath, outputPath, "1"), &wg, &executeError)
+
+	wg.Wait()
+
+	if executeError {
+		helper.Response(w, http.StatusInternalServerError, "error while converting image", nil)
 		go pkg.DeleteFile(imagePath)
 		return
 	}
 
 	// Respond with success
-	imageUrl := fmt.Sprintf("%s/%s/%s.jpeg", config.MDSenvs.BASE_URL, outputPath, id)
-	helper.Response(w, http.StatusCreated, "image uploaded successfully", map[string]any{"fileUrl": imageUrl})
+	helper.Response(w, http.StatusCreated, "image uploaded successfully", map[string]any{"fileUrl": outputPath})
 
 	go pkg.DeleteFile(imagePath)
 }

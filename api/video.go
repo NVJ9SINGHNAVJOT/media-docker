@@ -3,11 +3,13 @@ package api
 import (
 	"fmt"
 	"net/http"
+	"sync"
 
 	"github.com/google/uuid"
 	"github.com/nvj9singhnavjot/media-docker/config"
 	"github.com/nvj9singhnavjot/media-docker/helper"
 	"github.com/nvj9singhnavjot/media-docker/pkg"
+	"github.com/nvj9singhnavjot/media-docker/worker"
 )
 
 func Video(w http.ResponseWriter, r *http.Request) {
@@ -30,10 +32,16 @@ func Video(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = pkg.ConvertVideo(videoPath, outputPath)
+	var executeError = false
+	var wg sync.WaitGroup
+	wg.Add(1)
 
-	if err != nil {
-		helper.Response(w, http.StatusInternalServerError, "error while converting video", err.Error())
+	worker.AddInChannel(pkg.ConvertVideo(videoPath, outputPath), &wg, &executeError)
+
+	wg.Wait()
+
+	if executeError {
+		helper.Response(w, http.StatusInternalServerError, "error while converting video", nil)
 		go pkg.DeleteFile(videoPath)
 		return
 	}

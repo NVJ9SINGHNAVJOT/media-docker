@@ -7,20 +7,24 @@ import (
 )
 
 /*
+	NOTE: short notation
 	MDC = media-docker-client
 	MDS = media-docker-server
 */
 
 type MDCEnvironmentConfig struct {
-	Environment    string
-	AllowedOrigins []string
-	Port           string
+	ENVIRONMENT            string
+	ALLOWED_ORIGINS_CLIENT []string
+	CLIENT_PORT            string
 }
 
 type MDSEnvironmentConfig struct {
-	MDCEnvironmentConfig
-	ServerKey string
-	BASE_URL  string
+	ENVIRONMENT            string
+	ALLOWED_ORIGINS_SERVER []string
+	SERVER_KEY             string
+	WORKER_POOL_SIZE       string
+	BASE_URL               string
+	SERVER_PORT            string
 }
 
 var MDCenvs = MDCEnvironmentConfig{}
@@ -43,9 +47,9 @@ func ValidateMDCenvs() error {
 		return fmt.Errorf("port number is not provided")
 	}
 
-	MDCenvs.Environment = environment
-	MDCenvs.AllowedOrigins = strings.Split(allowedOrigins, ",")
-	MDCenvs.Port = port
+	MDCenvs.ENVIRONMENT = environment
+	MDCenvs.ALLOWED_ORIGINS_CLIENT = strings.Split(allowedOrigins, ",")
+	MDCenvs.CLIENT_PORT = port
 
 	return nil
 }
@@ -67,6 +71,11 @@ func ValidateMDSenvs() error {
 		return fmt.Errorf("server key is not provided")
 	}
 
+	workerPoolSize, exist := os.LookupEnv("WORKER_POOL_SIZE")
+	if !exist {
+		return fmt.Errorf("worker pool size is no provided")
+	}
+
 	port, exist := os.LookupEnv("SERVER_PORT")
 	if !exist {
 		return fmt.Errorf("port number is not provided")
@@ -77,11 +86,12 @@ func ValidateMDSenvs() error {
 		return fmt.Errorf("port number is not provided")
 	}
 
-	MDSenvs.Environment = environment
-	MDSenvs.AllowedOrigins = strings.Split(allowedOrigins, ",")
-	MDSenvs.ServerKey = serverKey
-	MDSenvs.Port = port
+	MDSenvs.ENVIRONMENT = environment
+	MDSenvs.ALLOWED_ORIGINS_SERVER = strings.Split(allowedOrigins, ",")
+	MDSenvs.SERVER_KEY = serverKey
+	MDSenvs.SERVER_PORT = port
 	MDSenvs.BASE_URL = baseUrl
+	MDSenvs.WORKER_POOL_SIZE = workerPoolSize
 
 	return nil
 }

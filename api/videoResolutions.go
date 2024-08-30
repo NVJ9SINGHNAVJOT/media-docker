@@ -3,11 +3,13 @@ package api
 import (
 	"fmt"
 	"net/http"
+	"sync"
 
 	"github.com/google/uuid"
 	"github.com/nvj9singhnavjot/media-docker/config"
 	"github.com/nvj9singhnavjot/media-docker/helper"
 	"github.com/nvj9singhnavjot/media-docker/pkg"
+	"github.com/nvj9singhnavjot/media-docker/worker"
 )
 
 func VideoResolutions(w http.ResponseWriter, r *http.Request) {
@@ -34,29 +36,19 @@ func VideoResolutions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resolutions := []pkg.FFmpegConfig{
-		{
-			OutputPath: outputPath360,
-			Resolution: 360,
-		},
-		{
-			OutputPath: outputPath480,
-			Resolution: 480,
-		},
-		{
-			OutputPath: outputPath720,
-			Resolution: 720,
-		},
-		{
-			OutputPath: outputPath1080,
-			Resolution: 1080,
-		},
-	}
+	var executeError = false
+	var wg sync.WaitGroup
+	wg.Add(4)
 
-	err = pkg.ConvertVideoResolutions(videoPath, resolutions)
+	worker.AddInChannel(pkg.ConvertVideoResolution(videoPath, outputPath360, "360"), &wg, &executeError)
+	worker.AddInChannel(pkg.ConvertVideoResolution(videoPath, outputPath480, "480"), &wg, &executeError)
+	worker.AddInChannel(pkg.ConvertVideoResolution(videoPath, outputPath720, "720"), &wg, &executeError)
+	worker.AddInChannel(pkg.ConvertVideoResolution(videoPath, outputPath1080, "1080"), &wg, &executeError)
 
-	if err != nil {
-		helper.Response(w, http.StatusInternalServerError, "error while converting video", err.Error())
+	wg.Wait()
+
+	if executeError {
+		helper.Response(w, http.StatusInternalServerError, "error while converting video resolutions", nil)
 		go pkg.DeleteFile(videoPath)
 		return
 	}

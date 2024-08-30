@@ -3,11 +3,12 @@ package api
 import (
 	"fmt"
 	"net/http"
+	"sync"
 
 	"github.com/google/uuid"
-	"github.com/nvj9singhnavjot/media-docker/config"
 	"github.com/nvj9singhnavjot/media-docker/helper"
 	"github.com/nvj9singhnavjot/media-docker/pkg"
+	"github.com/nvj9singhnavjot/media-docker/worker"
 )
 
 func Audio(w http.ResponseWriter, r *http.Request) {
@@ -21,19 +22,24 @@ func Audio(w http.ResponseWriter, r *http.Request) {
 	audioPath := header.Header.Get("path")
 
 	id := uuid.New().String()
-	outputPath := fmt.Sprintf("%s/audios", helper.Constants.MediaStorage)
+	outputPath := fmt.Sprintf("%s/audios/%s/.mp3", helper.Constants.MediaStorage, id)
 
-	err = pkg.ConvertAudio(audioPath, outputPath, id)
+	var executeError = false
+	var wg sync.WaitGroup
+	wg.Add(1)
 
-	if err != nil {
-		helper.Response(w, http.StatusInternalServerError, "error while converting audio", err.Error())
+	worker.AddInChannel(pkg.ConvertAudio(audioPath, outputPath), &wg, &executeError)
+
+	wg.Wait()
+
+	if executeError {
+		helper.Response(w, http.StatusInternalServerError, "error while converting audio", nil)
 		go pkg.DeleteFile(audioPath)
 		return
 	}
 
 	// Respond with success
-	audioUrl := fmt.Sprintf("%s/%s/%s.mp3", config.MDSenvs.BASE_URL, outputPath, id)
-	helper.Response(w, http.StatusCreated, "audio uploaded successfully", map[string]any{"fileUrl": audioUrl})
+	helper.Response(w, http.StatusCreated, "audio uploaded successfully", map[string]any{"fileUrl": outputPath})
 
 	go pkg.DeleteFile(audioPath)
 }
