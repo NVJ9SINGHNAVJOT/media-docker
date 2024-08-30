@@ -46,14 +46,16 @@ Media-Docker is a Docker service designed for storing media files for static use
    ```
    cd media-docker
    task i
-   task run
+   task server
+   task client
    ```
 
-- Project will start running at (eg: 7000) 7000 port. [`http://localhost:7000`](http://localhost:7000).
+- Client will start running at (eg: 7000) 7000 port. [`http://localhost:7000`](http://localhost:7000).
+- Server will start running at (eg: 7007) 7007 port. [`http://localhost:7007`](http://localhost:7007).
 
 ## Important
 
-- Media-Docker utilizes FFmpeg for media file conversion. However, it’s important to note that FFmpeg can be resource-intensive. To optimize performance, consider adjusting your API rate limits based on your system’s available resources.
+- Media-Docker utilizes FFmpeg for media file conversion. However, it’s important to note that FFmpeg can be resource-intensive. To optimize performance, consider adjusting your API rate limits and worker pool size based on your system’s available resources.
 
 ---
 
