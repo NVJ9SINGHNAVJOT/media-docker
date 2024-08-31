@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"runtime"
 	"strconv"
 	"time"
 
@@ -40,6 +41,9 @@ func main() {
 	}
 	worker.SetupChannel(workerSize)
 	defer worker.CloseChannel()
+
+	// HACK: server can use max 1 core only
+	runtime.GOMAXPROCS(1)
 
 	// router intialized
 	router := chi.NewRouter()
