@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net/http"
 	"runtime"
-	"strconv"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -33,14 +32,13 @@ func main() {
 	// check dir setup for server
 	config.CreateDirSetup()
 
-	// set channel for command execution
-	workerSize, err := strconv.Atoi(config.MDSenvs.WORKER_POOL_SIZE)
+	// set channels for command execution
+	err = worker.SetupChannels()
 	if err != nil {
-		log.Error().Str("error", err.Error()).Msg("error while getting worker size for pool")
+		log.Error().Str("error", err.Error()).Msg("error while setting up channels")
 		panic(err)
 	}
-	worker.SetupChannel(workerSize)
-	defer worker.CloseChannel()
+	defer worker.CloseChannels()
 
 	// HACK: server can use max 1 core only
 	runtime.GOMAXPROCS(1)

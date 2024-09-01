@@ -19,12 +19,15 @@ type MDCEnvironmentConfig struct {
 }
 
 type MDSEnvironmentConfig struct {
-	ENVIRONMENT            string
-	ALLOWED_ORIGINS_SERVER []string
-	SERVER_KEY             string
-	WORKER_POOL_SIZE       string
-	BASE_URL               string
-	SERVER_PORT            string
+	ENVIRONMENT                       string
+	ALLOWED_ORIGINS_SERVER            []string
+	SERVER_KEY                        string
+	VIDEO_WORKER_POOL_SIZE            string
+	VIDEO_RESOLUTION_WORKER_POOL_SIZE string
+	IMAGE_WORKER_POOL_SIZE            string
+	AUDIO_WORKER_POOL_SIZE            string
+	BASE_URL                          string
+	SERVER_PORT                       string
 }
 
 var MDCenvs = MDCEnvironmentConfig{}
@@ -71,9 +74,24 @@ func ValidateMDSenvs() error {
 		return fmt.Errorf("server key is not provided")
 	}
 
-	workerPoolSize, exist := os.LookupEnv("WORKER_POOL_SIZE")
+	videoWorkerPoolSize, exist := os.LookupEnv("VIDEO_WORKER_POOL_SIZE")
 	if !exist {
-		return fmt.Errorf("worker pool size is no provided")
+		return fmt.Errorf("video worker pool size is no provided")
+	}
+
+	videoResolutionWorkerPoolSize, exist := os.LookupEnv("VIDEO_RESOLUTION_WORKER_POOL_SIZE")
+	if !exist {
+		return fmt.Errorf("videoResolution worker pool size is no provided")
+	}
+
+	imageWorkerPoolSize, exist := os.LookupEnv("IMAGE_WORKER_POOL_SIZE")
+	if !exist {
+		return fmt.Errorf("image worker pool size is no provided")
+	}
+
+	audioWorkerPoolSize, exist := os.LookupEnv("AUDIO_WORKER_POOL_SIZE")
+	if !exist {
+		return fmt.Errorf("audio worker pool size is no provided")
 	}
 
 	port, exist := os.LookupEnv("SERVER_PORT")
@@ -91,7 +109,10 @@ func ValidateMDSenvs() error {
 	MDSenvs.SERVER_KEY = serverKey
 	MDSenvs.SERVER_PORT = port
 	MDSenvs.BASE_URL = baseUrl
-	MDSenvs.WORKER_POOL_SIZE = workerPoolSize
+	MDSenvs.VIDEO_WORKER_POOL_SIZE = videoWorkerPoolSize
+	MDSenvs.VIDEO_RESOLUTION_WORKER_POOL_SIZE = videoResolutionWorkerPoolSize
+	MDSenvs.IMAGE_WORKER_POOL_SIZE = imageWorkerPoolSize
+	MDSenvs.AUDIO_WORKER_POOL_SIZE = audioWorkerPoolSize
 
 	return nil
 }

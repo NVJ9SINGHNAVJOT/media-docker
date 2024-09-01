@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/google/uuid"
+	"github.com/nvj9singhnavjot/media-docker/config"
 	"github.com/nvj9singhnavjot/media-docker/helper"
 	"github.com/nvj9singhnavjot/media-docker/pkg"
 	"github.com/nvj9singhnavjot/media-docker/worker"
@@ -21,13 +22,13 @@ func Image(w http.ResponseWriter, r *http.Request) {
 	imagePath := header.Header.Get("path")
 
 	id := uuid.New().String()
-	outputPath := fmt.Sprintf("%s/images/%s/jpeg", helper.Constants.MediaStorage, id)
+	outputPath := fmt.Sprintf("%s/images/%s.jpeg", helper.Constants.MediaStorage, id)
 
 	var executeError = false
 	var wg sync.WaitGroup
 	wg.Add(1)
 
-	worker.AddInChannel(pkg.ConvertImage(imagePath, outputPath, "1"), &wg, &executeError)
+	worker.AddInImageChannel(pkg.ConvertImage(imagePath, outputPath, "1"), &wg, &executeError)
 
 	wg.Wait()
 
@@ -38,7 +39,8 @@ func Image(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Respond with success
-	helper.Response(w, http.StatusCreated, "image uploaded successfully", map[string]any{"fileUrl": outputPath})
+	helper.Response(w, http.StatusCreated, "image uploaded successfully",
+		map[string]any{"fileUrl": fmt.Sprintf("%s/%s", config.MDSenvs.BASE_URL, outputPath)})
 
 	go pkg.DeleteFile(imagePath)
 }

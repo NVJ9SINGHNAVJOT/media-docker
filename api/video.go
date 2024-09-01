@@ -36,7 +36,7 @@ func Video(w http.ResponseWriter, r *http.Request) {
 	var wg sync.WaitGroup
 	wg.Add(1)
 
-	worker.AddInChannel(pkg.ConvertVideo(videoPath, outputPath), &wg, &executeError)
+	worker.AddInVideoChannel(pkg.ConvertVideo(videoPath, outputPath), &wg, &executeError)
 
 	wg.Wait()
 

@@ -6,6 +6,7 @@ import (
 	"sync"
 
 	"github.com/google/uuid"
+	"github.com/nvj9singhnavjot/media-docker/config"
 	"github.com/nvj9singhnavjot/media-docker/helper"
 	"github.com/nvj9singhnavjot/media-docker/pkg"
 	"github.com/nvj9singhnavjot/media-docker/worker"
@@ -22,13 +23,13 @@ func Audio(w http.ResponseWriter, r *http.Request) {
 	audioPath := header.Header.Get("path")
 
 	id := uuid.New().String()
-	outputPath := fmt.Sprintf("%s/audios/%s/.mp3", helper.Constants.MediaStorage, id)
+	outputPath := fmt.Sprintf("%s/audios/%s.mp3", helper.Constants.MediaStorage, id)
 
 	var executeError = false
 	var wg sync.WaitGroup
 	wg.Add(1)
 
-	worker.AddInChannel(pkg.ConvertAudio(audioPath, outputPath), &wg, &executeError)
+	worker.AddInAudioChannel(pkg.ConvertAudio(audioPath, outputPath), &wg, &executeError)
 
 	wg.Wait()
 
@@ -39,7 +40,8 @@ func Audio(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Respond with success
-	helper.Response(w, http.StatusCreated, "audio uploaded successfully", map[string]any{"fileUrl": outputPath})
+	helper.Response(w, http.StatusCreated, "audio uploaded successfully",
+		map[string]any{"fileUrl": fmt.Sprintf("%s/%s", config.MDSenvs.BASE_URL, outputPath)})
 
 	go pkg.DeleteFile(audioPath)
 }

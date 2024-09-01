@@ -40,10 +40,10 @@ func VideoResolutions(w http.ResponseWriter, r *http.Request) {
 	var wg sync.WaitGroup
 	wg.Add(4)
 
-	worker.AddInChannel(pkg.ConvertVideoResolution(videoPath, outputPath360, "360"), &wg, &executeError)
-	worker.AddInChannel(pkg.ConvertVideoResolution(videoPath, outputPath480, "480"), &wg, &executeError)
-	worker.AddInChannel(pkg.ConvertVideoResolution(videoPath, outputPath720, "720"), &wg, &executeError)
-	worker.AddInChannel(pkg.ConvertVideoResolution(videoPath, outputPath1080, "1080"), &wg, &executeError)
+	worker.AddInVideoResolutionChannel(pkg.ConvertVideoResolution(videoPath, outputPath360, "360"), &wg, &executeError)
+	worker.AddInVideoResolutionChannel(pkg.ConvertVideoResolution(videoPath, outputPath480, "480"), &wg, &executeError)
+	worker.AddInVideoResolutionChannel(pkg.ConvertVideoResolution(videoPath, outputPath720, "720"), &wg, &executeError)
+	worker.AddInVideoResolutionChannel(pkg.ConvertVideoResolution(videoPath, outputPath1080, "1080"), &wg, &executeError)
 
 	wg.Wait()
 
