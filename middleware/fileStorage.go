@@ -41,7 +41,7 @@ func FileStorage(fileName string, next http.HandlerFunc) http.HandlerFunc {
 
 		file, header, err := r.FormFile(fileName)
 		if err != nil {
-			helper.Response(w, http.StatusBadRequest, "error reading file", err.Error())
+			helper.Response(w, http.StatusBadRequest, "error reading file - no file present", err.Error())
 			return
 		}
 
