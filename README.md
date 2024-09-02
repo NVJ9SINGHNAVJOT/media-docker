@@ -55,8 +55,8 @@ Media-Docker is a Docker service designed for storing media files for static use
 
 ## System Design
 
-- [`Open`](https://raw.githubusercontent.com/NVJ9SINGHNAVJOT/media-docker/1b6ccbd4a6d8dcf2a41c1b8551e2683b99b3ca49/Media-Docker-System-Design.svg)
-![Media-Docker-System-Design](https://raw.githubusercontent.com/NVJ9SINGHNAVJOT/media-docker/1b6ccbd4a6d8dcf2a41c1b8551e2683b99b3ca49/Media-Docker-System-Design.svg)
+- [`Open`](https://raw.githubusercontent.com/NVJ9SINGHNAVJOT/media-docker/5fcca46631e9e69bc2f89f0097d55ec4e32561a1/Media-Docker-System-Design.svg)
+![Media-Docker-System-Design](https://raw.githubusercontent.com/NVJ9SINGHNAVJOT/media-docker/5fcca46631e9e69bc2f89f0097d55ec4e32561a1/Media-Docker-System-Design.svg)
 
 ---
 
