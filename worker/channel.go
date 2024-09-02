@@ -73,9 +73,9 @@ func SetupChannels() error {
 	audioChannel = make(chan Media)
 
 	createChannelWorkersPool(videoChannel, videoWorkers)
-	createChannelWorkersPool(videoResolutionChannel, videoWorkers)
-	createChannelWorkersPool(imageChannel, videoWorkers)
-	createChannelWorkersPool(audioChannel, videoWorkers)
+	createChannelWorkersPool(videoResolutionChannel, videoResolutionWorkers)
+	createChannelWorkersPool(imageChannel, imageWorkers)
+	createChannelWorkersPool(audioChannel, audioWorkers)
 
 	return nil
 }
