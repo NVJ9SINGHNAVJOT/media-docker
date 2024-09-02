@@ -8,7 +8,7 @@ RUN go mod download && go mod verify
 COPY . .
 RUN cd cmd/media-docker-server && go build -o ../../dist/main main.go
 
-FROM golang:1.22-alpine AS runner
+FROM builder AS runner
 WORKDIR /app
 
 COPY --from=builder /app/dist .
