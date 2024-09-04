@@ -8,7 +8,7 @@ import (
 )
 
 // Initialize the validator.
-var validate = validator.New(validator.WithRequiredStructEnabled())
+var Validate = validator.New(validator.WithRequiredStructEnabled())
 
 // ValidateRequestBody validates the request body against the provided struct.
 func ValidateRequest(r *http.Request, target interface{}) error {
@@ -16,7 +16,7 @@ func ValidateRequest(r *http.Request, target interface{}) error {
 		return err
 	}
 
-	if err := validate.Struct(target); err != nil {
+	if err := Validate.Struct(target); err != nil {
 		return err
 	}
 
