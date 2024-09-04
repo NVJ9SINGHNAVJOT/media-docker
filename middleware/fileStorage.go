@@ -37,7 +37,11 @@ func isValidFileType(fileName, mimeType string) bool {
 func FileStorage(fileName string, next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 
-		// Check the number of files uploaded
+		// Parse the form data
+		if err := r.ParseMultipartForm(helper.Constants.MaxFileSize[fileName]); err != nil {
+			helper.Response(w, http.StatusBadRequest, "error parsing form data", err.Error())
+			return
+		}
 
 		file, header, err := r.FormFile(fileName)
 		if err != nil {
