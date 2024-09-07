@@ -53,6 +53,36 @@ Media-Docker is a Docker service designed for storing media files for static use
 - Client will start running at (eg: 7000) 7000 port. [`http://localhost:7000`](http://localhost:7000).
 - Server will start running at (eg: 7007) 7007 port. [`http://localhost:7007`](http://localhost:7007).
 
+## Examples
+
+Node.js
+   - copy and paste api_node.js.ts file from examples folder to your project
+   - eg: api_node.js.ts file is in utils folder in your project
+   ```
+   import mediaDocker from "@/utils/api_node_js";
+
+   // upload image
+   const image_fileUrl = await mediaDocker.uploadImage(
+      "your_server_key",
+      "http://localhost:7007",
+      req.file.path
+   );
+   console.log(image_fileUrl) // "http://localhost:7000/media_docker_files/images/5f157386-dbf2-46d1-a927-4d837aedbaeb.jpeg"
+   ```
+
+   ```
+   import mediaDocker from "@/utils/api_node_js";
+
+   // upload video
+   const video_fileUrl = await mediaDocker.uploadVideo(
+      "your_server_key",
+      "http://localhost:7007",
+      req.file.path
+   );
+   console.log(video_fileUrl) // "http://localhost:7000/media_docker_files/videos/ac9ec121-dad2-48ee-91a5-b9e0e8bcce27/index.m3u8"
+
+   ```
+
 ## System Design
 
 - [`Open`](https://raw.githubusercontent.com/NVJ9SINGHNAVJOT/media-docker/5fcca46631e9e69bc2f89f0097d55ec4e32561a1/Media-Docker-System-Design.svg)
