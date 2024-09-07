@@ -33,8 +33,3 @@ tasks:
     desc: run server main.go file
     cmds:
       - go run cmd/media-docker-server/main.go
-
-  dev:
-    desc: dev runs only server not client in dev mode
-    cmds:
-      - air
