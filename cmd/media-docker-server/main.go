@@ -32,7 +32,8 @@ func main() {
 	// check dir setup for server
 	config.CreateDirSetup()
 
-	// set channels for command execution
+	// set channels for command execution.
+	// each channel has its own independent pool of workers.
 	err = worker.SetupChannels()
 	if err != nil {
 		log.Error().Str("error", err.Error()).Msg("error while setting up channels")
@@ -41,6 +42,7 @@ func main() {
 	defer worker.CloseChannels()
 
 	// HACK: server can use max 1 core only
+	// maximum core count can be increased according to the system’s resource capacity.
 	runtime.GOMAXPROCS(1)
 
 	// router intialized
