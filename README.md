@@ -58,18 +58,8 @@ Media-Docker is a Docker service designed for storing media files for static use
 Node.js
    - copy and paste api_node.js.ts file from examples folder to your project
    - eg: api_node.js.ts file is in utils folder in your project
-   ```
-   import mediaDocker from "@/utils/api_node_js";
 
-   // upload image
-   const image_fileUrl = await mediaDocker.uploadImage(
-      "your_server_key",
-      "http://localhost:7007",
-      req.file.path
-   );
-   console.log(image_fileUrl) // "http://localhost:7000/media_docker_files/images/5f157386-dbf2-46d1-a927-4d837aedbaeb.jpeg"
-   ```
-
+   - video
    ```
    import mediaDocker from "@/utils/api_node_js";
 
@@ -79,8 +69,22 @@ Node.js
       "http://localhost:7007",
       req.file.path
    );
-   console.log(video_fileUrl) // "http://localhost:7000/media_docker_files/videos/ac9ec121-dad2-48ee-91a5-b9e0e8bcce27/index.m3u8"
+   console.log(video_fileUrl)
+   // "http://localhost:7000/media_docker_files/videos/ac9ec121-dad2-48ee-91a5-b9e0e8bcce27/index.m3u8"
+   ```
 
+   - image
+   ```
+   import mediaDocker from "@/utils/api_node_js";
+
+   // upload image
+   const image_fileUrl = await mediaDocker.uploadImage(
+      "your_server_key",
+      "http://localhost:7007",
+      req.file.path
+   );
+   console.log(image_fileUrl)
+   // "http://localhost:7000/media_docker_files/images/5f157386-dbf2-46d1-a927-4d837aedbaeb.jpeg"
    ```
 
 ## System Design
