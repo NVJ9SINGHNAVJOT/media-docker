@@ -20,7 +20,8 @@ class MediaDocker {
     serverKey: string,
     serverBaseURL: string,
     filePath: string,
-    apiEndPoint: string
+    apiEndPoint: string,
+    formValues?: { [key: string]: unknown }
   ): Promise<Result<T>> {
     // file extension
     let fileType = filePath.split(".").pop();
@@ -42,6 +43,13 @@ class MediaDocker {
     const formData = new FormData();
     formData.append(fileType + "File", new Blob([content], { type: `${fileType}/${ext}` }));
 
+    // Add formValues to formData
+    if (formValues) {
+      Object.keys(formValues).forEach((key) => {
+        formData.append(key, `${formValues[key]}`);
+      });
+    }
+
     const response = await fetch(serverBaseURL + `/api/v1/uploads/${apiEndPoint}`, {
       method: "POST",
       body: formData as FormData,
@@ -58,15 +66,21 @@ class MediaDocker {
     return resData;
   }
 
-  async uploadVideo(serverKey: string, serverBaseURL: string, filePath: string): Promise<string> {
+  // In optional parameter quality can be in between 40 and 100
+  async uploadVideo(serverKey: string, serverBaseURL: string, filePath: string, quality?: number): Promise<string> {
+    if (quality && (quality < 40 || quality > 100)) {
+      throw new Error("Quality must be between 40 and 100");
+    }
     const res = await this.uploadFileToMediaDockerServer<{ fileUrl: string }>(
       serverKey,
       serverBaseURL,
       filePath,
-      "video"
+      "video",
+      { quality }
     );
     return res.data.fileUrl;
   }
+
   async uploadVideoResolutions(
     serverKey: string,
     serverBaseURL: string,
@@ -85,6 +99,7 @@ class MediaDocker {
     }>(serverKey, serverBaseURL, filePath, "videoResolutions");
     return res.data;
   }
+
   async uploadImage(serverKey: string, serverBaseURL: string, filePath: string): Promise<string> {
     const res = await this.uploadFileToMediaDockerServer<{ fileUrl: string }>(
       serverKey,
@@ -94,6 +109,7 @@ class MediaDocker {
     );
     return res.data.fileUrl;
   }
+
   async uploadAudio(serverKey: string, serverBaseURL: string, filePath: string): Promise<string> {
     const res = await this.uploadFileToMediaDockerServer<{ fileUrl: string }>(
       serverKey,
@@ -103,6 +119,7 @@ class MediaDocker {
     );
     return res.data.fileUrl;
   }
+
   async deleteFile(
     serverKey: string,
     serverBaseURL: string,
