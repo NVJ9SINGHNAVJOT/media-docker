@@ -5,6 +5,8 @@ import (
 	"os/exec"
 )
 
+// ConvertVideo return pointer to the Cmd struct to execute the
+// video conversion command with video file path, output path, and if quality given.
 func ConvertVideo(videoPath, outputPath string, quality ...int) *exec.Cmd {
 	var args []string
 
