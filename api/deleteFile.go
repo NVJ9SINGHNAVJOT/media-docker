@@ -8,13 +8,13 @@ import (
 	"github.com/nvj9singhnavjot/media-docker/pkg"
 )
 
-type DeleteFileRequest struct {
+type deleteFileRequest struct {
 	Id   string `json:"id" validate:"required,uuid4"`
 	Type string `json:"type" validate:"required,oneof=image video audio"`
 }
 
 func DeleteFile(w http.ResponseWriter, r *http.Request) {
-	var req DeleteFileRequest
+	var req deleteFileRequest
 
 	// Parse the JSON request and populate the DeleteFileRequest struct.
 	if err := helper.ValidateRequest(r, &req); err != nil {
