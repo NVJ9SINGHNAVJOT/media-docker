@@ -45,13 +45,18 @@ func main() {
 	// maximum core count can be increased according to the system’s resource capacity.
 	runtime.GOMAXPROCS(1)
 
+	// initialize validator
+	helper.InitializeValidator()
+
 	// router intialized
 	router := chi.NewRouter()
 
 	// all default middlewares initialized
 	mw.DefaultMiddlewares(router, config.MDSenvs.ALLOWED_ORIGINS_SERVER, []string{"POST", "DELETE"}, 1000)
+
 	// server key for accessing server
 	router.Use(mw.ServerKey(config.MDSenvs.SERVER_KEY))
+
 	// middlewares for this router
 	router.Use(middleware.AllowContentEncoding("deflate", "gzip"))
 	router.Use(middleware.AllowContentType("application/json", "multipart/form-data"))
