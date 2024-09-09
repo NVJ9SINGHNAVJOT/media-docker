@@ -7,7 +7,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-type APIResponse struct {
+type apiResponse struct {
 	Message string `json:"message" validate:"required"`
 	Data    any    `json:"data,omitempty"`
 }
@@ -15,7 +15,7 @@ type APIResponse struct {
 func Response(w http.ResponseWriter, status int, message string, data any) {
 	w.Header().Add("Content-Type", "application/json")
 	w.WriteHeader(status)
-	response := APIResponse{
+	response := apiResponse{
 		Message: message,
 	}
 
@@ -29,6 +29,7 @@ func Response(w http.ResponseWriter, status int, message string, data any) {
 		err := json.NewEncoder(w).Encode(response)
 		if err != nil {
 			log.Error().Str("error", err.Error()).Msg("error encoding to json")
+			http.Error(w, `{"message":"internal server error, while encoding json"}`, http.StatusInternalServerError)
 		}
 		return
 	}
@@ -39,5 +40,6 @@ func Response(w http.ResponseWriter, status int, message string, data any) {
 	err := json.NewEncoder(w).Encode(response)
 	if err != nil {
 		log.Error().Str("error", err.Error()).Msg("error encoding to json")
+		http.Error(w, `{"message":"internal server error, while encoding json"}`, http.StatusInternalServerError)
 	}
 }
