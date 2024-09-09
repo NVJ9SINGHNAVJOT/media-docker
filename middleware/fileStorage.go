@@ -1,6 +1,8 @@
 package middleware
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -59,6 +61,34 @@ func FileStorage(fileName string, next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
+		// Create a map to store form values
+		formData := make(map[string]string)
+
+		// Iterate over the form values and add them to the map
+		for key, values := range r.MultipartForm.Value {
+			if len(values) > 0 {
+				formData[key] = values[0]
+			}
+		}
+
+		// Marshal the map to JSON, only if formData map len is not 0
+		// This will add all key values to request body for next api's
+		if len(formData) > 0 {
+			jsonData, err := json.Marshal(formData)
+			if err != nil {
+				helper.Response(w, http.StatusInternalServerError, "error marshalling JSON", nil)
+				return
+			}
+
+			// Replace the request body with the JSON object
+			r.Body = io.NopCloser(bytes.NewReader(jsonData))
+			r.ContentLength = int64(len(jsonData))
+		} else {
+			// Set an empty body
+			r.Body = io.NopCloser(bytes.NewReader([]byte("{}")))
+			r.ContentLength = int64(len("{}"))
+		}
+
 		defer file.Close()
 
 		// Generate a unique filename with UUID
@@ -80,6 +110,8 @@ func FileStorage(fileName string, next http.HandlerFunc) http.HandlerFunc {
 			return
 		}
 
+		// NOTE: file "path" is added to Header
+		// this file "path" is further used by next api for accessing file loaction
 		header.Header.Add("path", filePath)
 		next(w, r)
 	}
