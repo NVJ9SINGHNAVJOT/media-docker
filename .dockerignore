@@ -1,8 +1,11 @@
 .git
 .gitignore
 .gitattributes
+.vscode
 README.md
 .env.example
+assets
+_examples
 build
 dist
 tmp
