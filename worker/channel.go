@@ -94,6 +94,17 @@ func SetupChannels() error {
 }
 
 // CloseChannels closes all media channels, ensuring no more tasks can be added.
+// 
+// NOTE: We have not used context.Context for graceful shutdown in this implementation
+// because this project is Docker-based. When the server is running inside a Docker container,
+// all command executions will automatically stop when the container shuts down.
+// Docker handles process termination, and all running commands (including exec.Cmd)
+// will be killed when the container stops.
+//
+// However, if this server is started on a local machine (outside of Docker),
+// the commands running via exec.Cmd will continue to execute even if the server is closed.
+// To handle such cases, you might consider using context.Context to manage the lifecycle
+// of commands and ensure they are stopped when the server shuts down.
 func CloseChannels() {
 	close(videoChannel)
 	close(videoResolutionChannel)
