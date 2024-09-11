@@ -1,3 +1,8 @@
+<p align="center">
+   <img src="./assets/images/media_docker_icon.png" alt="Description of the image" style="width: 40%;" />
+   <p align="center">Streamline Your Media Management: On-Demand Streaming and Scalable Storage with Media-Docker</p>
+</p>
+
 # Media-Docker
 
 Media-Docker is a Docker service designed for storing media files for static use by servers.
