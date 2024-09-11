@@ -14,7 +14,7 @@ services:
     build:
       context: .
       dockerfile: ./internal/media-docker-client/Dockerfile
-    container_name: media-docker
+    container_name: media-docker-client
     volumes:
       # NOTE: do not change the mapping of volume (breaking changes)
       - media-docker-files-volume:/app/media_docker_files:ro

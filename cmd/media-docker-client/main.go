@@ -60,7 +60,7 @@ func main() {
 
 	// port initialized
 	port := ":" + config.MDCenvs.CLIENT_PORT
-	log.Info().Msg("server running...")
+	log.Info().Msg("media-docker-client server running...")
 
 	err = http.ListenAndServe(port, router)
 	if err != nil {
