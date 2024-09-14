@@ -13,7 +13,6 @@ temp
 logs
 uploadStorage
 media_docker_files
-.air.toml
 Taskfile.yaml
 Media-Docker-System-Design.svg
 Media-Docker-System-Design.drawio
