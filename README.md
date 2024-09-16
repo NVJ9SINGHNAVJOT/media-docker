@@ -16,15 +16,15 @@ Media-Docker is a Docker service designed for storing media files for static use
 
 ## Features
 
-1. #### Video Streaming :
+#### Video Streaming :
 
    - Media-Docker leverages **FFmpeg** to convert video files into segments, allowing for on-demand streaming to the frontend. It also enables video quality adjustment and supports conversion and storage in          multiple resolutions, including **360p, 480p, 720p, and 1080p**.
 
-2. #### Audio files :
+#### Audio files :
 
    - Audio files are stored based on the required **bitrate** provided by the backend service.
 
-3. #### Image files :
+#### Image files :
 
    - Image files are stored according to the **compression** settings provided by the backend service.
 
