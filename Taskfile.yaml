@@ -33,3 +33,13 @@ tasks:
     desc: run server main.go file
     cmds:
       - go run cmd/media-docker-server/main.go
+
+  compose-up:
+    desc: starts media-docker containers
+    cmd:
+      - docker compose up -d
+
+  compose-down:
+    desc: stops media-docker containers
+    cmd:
+      - docker compose down
