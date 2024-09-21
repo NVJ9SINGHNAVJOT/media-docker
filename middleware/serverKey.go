@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/nvj9singhnavjot/media-docker/helper"
+	"github.com/nvj9singhnavjot/media-docker/worker"
 )
 
 // ServerKey is a middleware function that checks if the request contains
@@ -25,13 +26,15 @@ func ServerKey(serverKey string) func(http.Handler) http.Handler {
 			checkKey = strings.TrimPrefix(checkKey, "Bearer ")
 
 			// Check if the provided key matches the serverKey
-			if checkKey == serverKey {
-				// If the key matches, proceed to the next handler
-				next.ServeHTTP(w, r)
-			} else {
+			if checkKey != serverKey {
 				// If the key does not match, respond with a 403 Forbidden status
 				helper.Response(w, http.StatusForbidden, "unauthorized access denied for server", nil)
+			} else if !worker.AcceptingRequests {
+				helper.Response(w, http.StatusServiceUnavailable, "Server is shutting down", nil)
+				return
 			}
+			// If the key matches, proceed to the next handler
+			next.ServeHTTP(w, r)
 		})
 	}
 }

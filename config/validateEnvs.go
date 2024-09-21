@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 )
 
@@ -22,10 +23,10 @@ type MDSEnvironmentConfig struct {
 	ENVIRONMENT                       string
 	ALLOWED_ORIGINS_SERVER            []string
 	SERVER_KEY                        string
-	VIDEO_WORKER_POOL_SIZE            string
-	VIDEO_RESOLUTION_WORKER_POOL_SIZE string
-	IMAGE_WORKER_POOL_SIZE            string
-	AUDIO_WORKER_POOL_SIZE            string
+	VIDEO_WORKER_POOL_SIZE            int
+	VIDEO_RESOLUTION_WORKER_POOL_SIZE int
+	IMAGE_WORKER_POOL_SIZE            int
+	AUDIO_WORKER_POOL_SIZE            int
 	BASE_URL                          string
 	SERVER_PORT                       string
 }
@@ -42,12 +43,12 @@ func ValidateMDCenvs() error {
 
 	allowedOrigins, exist := os.LookupEnv("ALLOWED_ORIGINS_CLIENT")
 	if !exist {
-		return fmt.Errorf("allowed origins is not provided")
+		return fmt.Errorf("allowed origins are not provided")
 	}
 
 	port, exist := os.LookupEnv("CLIENT_PORT")
 	if !exist {
-		return fmt.Errorf("port number is not provided")
+		return fmt.Errorf("client port is not provided")
 	}
 
 	MDCenvs.ENVIRONMENT = environment
@@ -66,7 +67,7 @@ func ValidateMDSenvs() error {
 
 	allowedOrigins, exist := os.LookupEnv("ALLOWED_ORIGINS_SERVER")
 	if !exist {
-		return fmt.Errorf("allowed origins is not provided")
+		return fmt.Errorf("allowed origins are not provided")
 	}
 
 	serverKey, exist := os.LookupEnv("SERVER_KEY")
@@ -74,34 +75,64 @@ func ValidateMDSenvs() error {
 		return fmt.Errorf("server key is not provided")
 	}
 
-	videoWorkerPoolSize, exist := os.LookupEnv("VIDEO_WORKER_POOL_SIZE")
+	videoWorkerPoolSizeStr, exist := os.LookupEnv("VIDEO_WORKER_POOL_SIZE")
 	if !exist {
-		return fmt.Errorf("video worker pool size is no provided")
+		return fmt.Errorf("video worker pool size is not provided")
+	}
+	videoWorkerPoolSize, err := strconv.Atoi(videoWorkerPoolSizeStr)
+	if err != nil {
+		return fmt.Errorf("invalid video worker pool size: %v", err)
 	}
 
-	videoResolutionWorkerPoolSize, exist := os.LookupEnv("VIDEO_RESOLUTION_WORKER_POOL_SIZE")
+	videoResolutionWorkerPoolSizeStr, exist := os.LookupEnv("VIDEO_RESOLUTION_WORKER_POOL_SIZE")
 	if !exist {
-		return fmt.Errorf("videoResolution worker pool size is no provided")
+		return fmt.Errorf("video resolution worker pool size is not provided")
+	}
+	videoResolutionWorkerPoolSize, err := strconv.Atoi(videoResolutionWorkerPoolSizeStr)
+	if err != nil {
+		return fmt.Errorf("invalid video resolution worker pool size: %v", err)
 	}
 
-	imageWorkerPoolSize, exist := os.LookupEnv("IMAGE_WORKER_POOL_SIZE")
+	imageWorkerPoolSizeStr, exist := os.LookupEnv("IMAGE_WORKER_POOL_SIZE")
 	if !exist {
-		return fmt.Errorf("image worker pool size is no provided")
+		return fmt.Errorf("image worker pool size is not provided")
+	}
+	imageWorkerPoolSize, err := strconv.Atoi(imageWorkerPoolSizeStr)
+	if err != nil {
+		return fmt.Errorf("invalid image worker pool size: %v", err)
 	}
 
-	audioWorkerPoolSize, exist := os.LookupEnv("AUDIO_WORKER_POOL_SIZE")
+	audioWorkerPoolSizeStr, exist := os.LookupEnv("AUDIO_WORKER_POOL_SIZE")
 	if !exist {
-		return fmt.Errorf("audio worker pool size is no provided")
+		return fmt.Errorf("audio worker pool size is not provided")
+	}
+	audioWorkerPoolSize, err := strconv.Atoi(audioWorkerPoolSizeStr)
+	if err != nil {
+		return fmt.Errorf("invalid audio worker pool size: %v", err)
+	}
+
+	// Validate worker pool sizes
+	if videoWorkerPoolSize < 1 {
+		return fmt.Errorf("minimum size required for video channel workers is 1")
+	}
+	if videoResolutionWorkerPoolSize < 1 {
+		return fmt.Errorf("minimum size required for video resolution channel workers is 1")
+	}
+	if imageWorkerPoolSize < 1 {
+		return fmt.Errorf("minimum size required for image channel workers is 1")
+	}
+	if audioWorkerPoolSize < 1 {
+		return fmt.Errorf("minimum size required for audio channel workers is 1")
 	}
 
 	port, exist := os.LookupEnv("SERVER_PORT")
 	if !exist {
-		return fmt.Errorf("port number is not provided")
+		return fmt.Errorf("server port is not provided")
 	}
 
 	baseUrl, exist := os.LookupEnv("BASE_URL")
 	if !exist {
-		return fmt.Errorf("port number is not provided")
+		return fmt.Errorf("base URL is not provided")
 	}
 
 	MDSenvs.ENVIRONMENT = environment

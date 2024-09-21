@@ -36,10 +36,10 @@ tasks:
 
   compose-up:
     desc: starts media-docker containers
-    cmd:
+    cmds:
       - docker compose up -d
 
   compose-down:
     desc: stops media-docker containers
-    cmd:
+    cmds:
       - docker compose down
