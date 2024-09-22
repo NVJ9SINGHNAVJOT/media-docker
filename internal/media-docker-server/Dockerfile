@@ -13,9 +13,6 @@ WORKDIR /app
 
 COPY --from=builder /app/dist .
 
-# Install FFmpeg for the runner image
-RUN apk add --no-cache ffmpeg
-
 EXPOSE 7007
 
 ENTRYPOINT [ "/app/main" ]
