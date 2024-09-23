@@ -3,14 +3,24 @@ package api
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 
+	"github.com/google/uuid"
 	"github.com/nvj9singhnavjot/media-docker/config"
 	"github.com/nvj9singhnavjot/media-docker/helper"
+	"github.com/nvj9singhnavjot/media-docker/internal/media-docker-server/kafka"
 	"github.com/nvj9singhnavjot/media-docker/pkg"
 )
 
 type videoRequest struct {
 	Quality string `json:"quality" validate:"omitempty,customVideoQuality"`
+}
+
+// Struct for Kafka message// Struct for Kafka message with quality as an optional number
+type videoMessage struct {
+	FilePath string `json:"filePath" validate:"required"` // Mandatory field for the file path
+	NewId    string `json:"newId" validate:"required"`    // New id for file url
+	Quality  *int   `json:"quality" validate:"omitempty"` // Optional field for the video quality (using pointer for omitempty)
 }
 
 func Video(w http.ResponseWriter, r *http.Request) {
@@ -26,6 +36,57 @@ func Video(w http.ResponseWriter, r *http.Request) {
 	// Parse the JSON request and populate the VideoRequest struct.
 	if err := helper.ValidateRequest(r, &req); err != nil {
 		helper.Response(w, http.StatusBadRequest, "invalid data", err.Error())
+		go pkg.DeleteFile(videoPath)
+		return
+	}
+
+	// Initialize quality as nil for optional use
+	var quality *int
+
+	// Convert quality string to an integer if provided
+	if req.Quality != "" {
+		q, err := strconv.Atoi(req.Quality) // Convert string to int
+		if err != nil {
+			helper.Response(w, http.StatusBadRequest, "invalid quality value", err.Error())
+			go pkg.DeleteFile(videoPath)
+			return
+		}
+		quality = &q // Set quality as a pointer to the integer value
+	}
+
+	id := uuid.New().String()
+	outputPath := fmt.Sprintf("%s/videos/%s", helper.Constants.MediaStorage, id)
+
+	// Create the VideoMessage struct to be passed to Kafka
+	message := videoMessage{
+		FilePath: videoPath, // Set the file path
+		NewId:    id,
+		Quality:  quality, // Set the optional quality (can be nil)
+	}
+
+	// Create a channel of size 1 to store the Kafka response for this request
+	responseChannel := make(chan bool, 1)
+
+	// Store the channel in the request map with the file path as the key
+	kafka.RequestMap.Store(videoPath, responseChannel)
+
+	// Pass the struct to the Kafka producer
+	if err := kafka.ProduceKafkaMessage("video", message); err != nil {
+		helper.Response(w, http.StatusInternalServerError, "error sending Kafka message", err.Error())
+		kafka.RequestMap.Delete(videoPath)
+		go pkg.DeleteFile(videoPath)
+		return
+	}
+
+	// Wait for the response from the Kafka processor
+	responseSuccess := <-responseChannel
+
+	// Delete the channel from the map once processing is complete
+	kafka.RequestMap.Delete(videoPath)
+
+	// Check if the processing was successful or failed
+	if !responseSuccess {
+		helper.Response(w, http.StatusInternalServerError, "video conversion failed", nil)
 		go pkg.DeleteFile(videoPath)
 		return
 	}

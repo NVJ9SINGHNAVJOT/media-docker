@@ -4,6 +4,7 @@ version: '3.8'
 volumes:
   # NOTE: do not change this name (breaking changes)
   media-docker-files-volume:
+  media-docker-upload-volume:
   media-docker-kafka_data:
 
 networks:
@@ -32,12 +33,15 @@ services:
     container_name: media-docker-server
     volumes:
       # NOTE: do not change the mapping of volume (breaking changes)
-      - media-docker-files-volume:/app/media_docker_files:rw
+      - media-docker-upload-volume:/app/uploadStorage:rw
+      - media-docker-files-volume:/app/media_docker_files:ro
     networks:
         - proxy
         - media-docker-proxy
     ports: [7007:7007]
     env_file: .env
+    depends_on:
+      - media-docker-kafka
 
   media-docker-kafka:
     image: docker.io/bitnami/kafka:3.3.2

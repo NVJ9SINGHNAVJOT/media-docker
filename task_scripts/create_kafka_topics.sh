@@ -43,9 +43,15 @@ if is_container_running; then
   echo "Kafka container '$KAFKA_CONTAINER' is running. Proceeding to create topics..."
 
   # Create topics with 10 partitions and replication factor of 1
-  create_topic_if_not_exists "message" 10 1
-  create_topic_if_not_exists "gpMessage" 10 1
-  create_topic_if_not_exists "unseenCount" 10 1
+  create_topic_if_not_exists "video" 10 1
+  create_topic_if_not_exists "videoResponse" 10 1
+  create_topic_if_not_exists "videoResolution" 10 1
+  create_topic_if_not_exists "videoResolutionResponse" 10 1
+  create_topic_if_not_exists "image" 10 1
+  create_topic_if_not_exists "imageResponse" 10 1
+  create_topic_if_not_exists "audio" 10 1
+  create_topic_if_not_exists "audioResponse" 10 1
+  create_topic_if_not_exists "deleteFile" 10 1
 else
   echo "Kafka container '$KAFKA_CONTAINER' is not running. Exiting..."
   exit 1

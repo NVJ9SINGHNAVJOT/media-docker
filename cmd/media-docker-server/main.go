@@ -17,7 +17,6 @@ import (
 	"github.com/nvj9singhnavjot/media-docker/helper"
 	"github.com/nvj9singhnavjot/media-docker/internal/media-docker-server/routes"
 	mw "github.com/nvj9singhnavjot/media-docker/middleware"
-	"github.com/nvj9singhnavjot/media-docker/worker"
 	"github.com/rs/zerolog/log"
 )
 
@@ -35,11 +34,6 @@ func main() {
 
 	// check dir setup for server
 	config.CreateDirSetup()
-
-	// Set channels for command execution.
-	// Each channel has its own independent pool of workers.
-	// NOTE: Start worker setup in a goroutine
-	go worker.SetupChannels() // This will use all available cores
 
 	time.Sleep(5 * time.Second)
 	// HACK: Set max cores for the HTTP server
@@ -106,12 +100,6 @@ func shutdownGracefully(server *http.Server) {
 	defer cancel()
 
 	log.Info().Msg("Stopping all workers for all channels.")
-
-	// Close all worker channels to stop workers
-	worker.CloseChannels()
-
-	// Ensure all worker goroutines finish
-	log.Info().Msg("All workers have stopped, exiting application.")
 
 	// Shutdown the HTTP server
 	if err := server.Shutdown(ctx); err != nil {

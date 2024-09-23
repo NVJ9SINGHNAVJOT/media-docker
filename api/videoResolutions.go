@@ -3,52 +3,53 @@ package api
 import (
 	"fmt"
 	"net/http"
-	"sync"
 
 	"github.com/google/uuid"
-	"github.com/nvj9singhnavjot/media-docker/config"
 	"github.com/nvj9singhnavjot/media-docker/helper"
+	"github.com/nvj9singhnavjot/media-docker/internal/media-docker-server/kafka"
 	"github.com/nvj9singhnavjot/media-docker/pkg"
-	"github.com/nvj9singhnavjot/media-docker/worker"
 )
 
-func VideoResolutions(w http.ResponseWriter, r *http.Request) {
+type videoResolutionMessage struct {
+	FilePath string `json:"filePath" validate:"required"` // Mandatory field for the file path
+	NewId    string `json:"newId" validate:"required"`    // New ID for video URL
+}
 
+func VideoResolutions(w http.ResponseWriter, r *http.Request) {
 	_, header, err := r.FormFile("videoFile")
 	if err != nil {
-		helper.Response(w, http.StatusBadRequest, "error reading file", nil)
+		helper.Response(w, http.StatusBadRequest, "error reading file", err.Error())
 		return
 	}
 
 	videoPath := header.Header.Get("path")
-
 	id := uuid.New().String()
 
-	outputPath360 := fmt.Sprintf("%s/videos/%s/360", helper.Constants.MediaStorage, id)
-	outputPath480 := fmt.Sprintf("%s/videos/%s/480", helper.Constants.MediaStorage, id)
-	outputPath720 := fmt.Sprintf("%s/videos/%s/720", helper.Constants.MediaStorage, id)
-	outputPath1080 := fmt.Sprintf("%s/videos/%s/1080", helper.Constants.MediaStorage, id)
+	// Create the VideoResolutionMessage struct to be passed to Kafka
+	message := videoResolutionMessage{
+		FilePath: videoPath,
+		NewId:    id,
+	}
 
-	// Create the output directory
-	if err := pkg.CreateDirs([]string{outputPath360, outputPath480, outputPath720, outputPath1080}); err != nil {
-		helper.Response(w, http.StatusInternalServerError, "error creating output directorys", err.Error())
+	// Create a channel to store the Kafka responses
+	responseChannel := make(chan bool, 1)
+	kafka.RequestMap.Store(videoPath, responseChannel)
+
+	// Pass the struct to the Kafka producer
+	if err := kafka.ProduceKafkaMessage("videoResolution", message); err != nil {
+		helper.Response(w, http.StatusInternalServerError, "error sending Kafka message", err.Error())
+		kafka.RequestMap.Delete(videoPath)
 		go pkg.DeleteFile(videoPath)
 		return
 	}
 
-	var executeError = false
-	var wg sync.WaitGroup
-	wg.Add(4)
+	// Wait for the response from the Kafka processor
+	responseSuccess := <-responseChannel
+	kafka.RequestMap.Delete(videoPath)
 
-	worker.AddInVideoResolutionChannel(pkg.ConvertVideoResolution(videoPath, outputPath360, "360"), &wg, &executeError)
-	worker.AddInVideoResolutionChannel(pkg.ConvertVideoResolution(videoPath, outputPath480, "480"), &wg, &executeError)
-	worker.AddInVideoResolutionChannel(pkg.ConvertVideoResolution(videoPath, outputPath720, "720"), &wg, &executeError)
-	worker.AddInVideoResolutionChannel(pkg.ConvertVideoResolution(videoPath, outputPath1080, "1080"), &wg, &executeError)
-
-	wg.Wait()
-
-	if executeError {
-		helper.Response(w, http.StatusInternalServerError, "error while converting video resolutions", nil)
+	// Check if the processing was successful or failed
+	if !responseSuccess {
+		helper.Response(w, http.StatusInternalServerError, "video resolution conversion failed", nil)
 		go pkg.DeleteFile(videoPath)
 		return
 	}
@@ -56,10 +57,10 @@ func VideoResolutions(w http.ResponseWriter, r *http.Request) {
 	// Respond with success
 	helper.Response(w, http.StatusCreated, "video uploaded successfully",
 		map[string]any{
-			"360":  fmt.Sprintf("%s/%s/index.m3u8", config.MDSenvs.BASE_URL, outputPath360),
-			"480":  fmt.Sprintf("%s/%s/index.m3u8", config.MDSenvs.BASE_URL, outputPath480),
-			"720":  fmt.Sprintf("%s/%s/index.m3u8", config.MDSenvs.BASE_URL, outputPath720),
-			"1080": fmt.Sprintf("%s/%s/index.m3u8", config.MDSenvs.BASE_URL, outputPath1080),
+			"360":  fmt.Sprintf("%s/videos/%s/360", helper.Constants.MediaStorage, id),
+			"480":  fmt.Sprintf("%s/videos/%s/480", helper.Constants.MediaStorage, id),
+			"720":  fmt.Sprintf("%s/videos/%s/720", helper.Constants.MediaStorage, id),
+			"1080": fmt.Sprintf("%s/videos/%s/1080", helper.Constants.MediaStorage, id),
 		})
 
 	go pkg.DeleteFile(videoPath)

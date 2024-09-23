@@ -2,11 +2,14 @@ package kafka
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"sync"
 
 	"github.com/segmentio/kafka-go"
 )
 
+var RequestMap sync.Map
 var writer *kafka.Writer
 
 // InitializeKafkaProducer initializes the Kafka writer only once
@@ -46,17 +49,24 @@ func CloseKafkaProducer() error {
 }
 
 // ProduceKafkaMessage sends a message to the specified topic with 5 retry attempts
-func ProduceKafkaMessage(topic, value string) error {
-	// Create the Kafka message with key and value
-	message := kafka.Message{
-		Topic: topic,         // Specify the topic dynamically
-		Value: []byte(value), // The message payload
-	}
-
-	// Write message with retry attempts handled by Kafka
-	err := writer.WriteMessages(context.Background(), message)
+func ProduceKafkaMessage(topic string, value interface{}) error {
+	// Marshal the value (interface) to JSON
+	jsonValue, err := json.Marshal(value)
 	if err != nil {
 		return err
 	}
+
+	// Create the Kafka message with key and value
+	message := kafka.Message{
+		Topic: topic,     // Specify the topic dynamically
+		Value: jsonValue, // The serialized JSON message payload
+	}
+
+	// Write message with retry attempts handled by Kafka
+	err = writer.WriteMessages(context.Background(), message)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
