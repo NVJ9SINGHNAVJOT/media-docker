@@ -42,9 +42,9 @@ func Image(w http.ResponseWriter, r *http.Request) {
 
 	// Pass the struct to the Kafka producer
 	if err := serverKafka.KafkaProducer.Produce("image", message); err != nil {
-		helper.Response(w, http.StatusInternalServerError, "error sending Kafka message", err.Error())
+		pkg.AddToFileDeleteChan(imagePath)
 		serverKafka.ImageRequestMap.Delete(imagePath)
-		go pkg.DeleteFile(imagePath)
+		helper.Response(w, http.StatusInternalServerError, "error sending Kafka message", err.Error())
 		return
 	}
 
@@ -57,13 +57,10 @@ func Image(w http.ResponseWriter, r *http.Request) {
 	// Check if the processing was successful or failed
 	if !responseSuccess {
 		helper.Response(w, http.StatusInternalServerError, "image conversion failed", nil)
-		go pkg.DeleteFile(imagePath)
 		return
 	}
 
 	// Respond with success
 	imageUrl := fmt.Sprintf("%s/%s", config.ServerEnv.BASE_URL, outputPath)
 	helper.Response(w, http.StatusCreated, "image uploaded successfully", map[string]any{"fileUrl": imageUrl})
-
-	go pkg.DeleteFile(imagePath)
 }

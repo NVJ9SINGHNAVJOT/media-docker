@@ -73,6 +73,9 @@ func main() {
 		config.ServerEnv.KAFKA_GROUP_PREFIX_ID, &wg,
 		topics, config.ServerEnv.KAFKA_BROKERS, serverKafka.ProcessMessage)
 
+	go pkg.DeleteFileWorker()
+	go serverKafka.KafkaConsumer.KafkaConsumeSetup()
+
 	// initialize validator
 	helper.InitializeValidator()
 
@@ -88,7 +91,7 @@ func main() {
 	// middlewares for this router
 	router.Use(middleware.AllowContentEncoding("deflate", "gzip"))
 	router.Use(middleware.AllowContentType("application/json", "multipart/form-data"))
-	router.Use(httprate.LimitByIP(10, 1*time.Minute))
+	router.Use(httprate.LimitByIP(50, 1*time.Minute))
 
 	// all routes for server
 	router.Route("/api/v1/uploads", routes.UploadRoutes())
@@ -106,38 +109,97 @@ func main() {
 		Handler: router,
 	}
 
-	go shutdownGracefully(srv)
-	log.Info().Msg("media-docker-server server running...")
+	// sync.Once to ensure shutdown happens only once
+	var shutdownOnce sync.Once
+
+	// Shutdown handling using signal and worker tracking
+	go func() {
+		sigChan := make(chan os.Signal, 1)
+		signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+
+		for {
+			select {
+			case sig := <-sigChan:
+				log.Info().Msgf("Received signal: %s. Shutting down...", sig)
+
+				// Stop accepting new connections immediately
+				srv.SetKeepAlivesEnabled(false)
+
+				time.Sleep(1 * time.Minute)
+				cancel() // Cancel context to signal Kafka workers to shut down
+
+				// Wait for all Kafka workers to finish before shutting down the server
+				log.Info().Msg("Waiting for Kafka workers to complete...")
+				wg.Wait() // Wait for all worker goroutines to complete
+				log.Info().Msg("All Kafka workers stopped")
+
+				// Consume all remaining error messages from errChan before shutting down
+			ConsumeErrors:
+				for {
+					select {
+					case workerErr, ok := <-errChan:
+						if ok {
+							log.Error().Err(workerErr.Err).Msgf("Kafka worker error for topic: %s, workerName: %s", workerErr.Topic, workerErr.WorkerName)
+						} else {
+							log.Info().Msg("All remaining Kafka worker errors consumed. Proceeding with shutdown.")
+							break ConsumeErrors // Break out of the labeled loop
+						}
+					default:
+						// No more error messages to consume
+						log.Info().Msg("No more worker errors to process.")
+						break ConsumeErrors // Break out of the labeled loop
+					}
+				}
+
+				// Now gracefully shut down the HTTP server
+				shutdownOnce.Do(func() {
+					shutdownServer(srv)
+				})
+				return
+
+			case workerErr, ok := <-errChan:
+				if !ok {
+					// If the channel is closed, all workers are done, so shut down
+					log.Info().Msg("Worker Error channel closed, All Kafka workers finished. Initiating server shutdown...")
+					shutdownOnce.Do(func() {
+						shutdownServer(srv)
+					})
+					return
+				}
+
+				log.Error().Err(workerErr.Err).Msgf("Kafka worker error for topic: %s, workerName: %s", workerErr.Topic, workerErr.WorkerName)
+
+				// Reduce worker count for the topic
+				remainingWorkers := workerTracker.DecrementWorker(workerErr.Topic)
+
+				if remainingWorkers == 1 {
+					log.Warn().Msgf("Only one worker remaining for topic: %s", workerErr.Topic)
+				} else if remainingWorkers == 0 {
+					log.Error().Msgf("No workers remaining for topic: %s", workerErr.Topic)
+				}
+			}
+		}
+	}()
 
 	// Start the HTTP server
+	log.Info().Msg("media-docker-server server is running...")
 	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Fatal().Err(err).Msg("HTTP server crashed")
+		cancel() // Ensure context is cancelled if server crashes
 	}
 
 	log.Info().Msg("Server stopped")
 }
 
-// shutdownGracefully handles server shutdown upon receiving interrupt signals
-func shutdownGracefully(server *http.Server) {
-	// Channel to listen for OS signals
-	signalChan := make(chan os.Signal, 1)
-	// Notify for SIGINT (Ctrl+C) or SIGTERM (termination signal)
-	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
+// shutdownServer gracefully shuts down the HTTP server
+func shutdownServer(srv *http.Server) {
+	log.Info().Msg("Shutting down the server...")
+	// Gracefully shut down the HTTP server
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer shutdownCancel()
 
-	// Wait for a signal
-	<-signalChan
-	log.Info().Msg("Received shutdown signal, gracefully shutting down...")
-
-	// Create a context with timeout for graceful shutdown
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	log.Info().Msg("Stopping all workers for all channels.")
-
-	// Shutdown the HTTP server
-	if err := server.Shutdown(ctx); err != nil {
-		log.Error().Err(err).Msg("Error during server shutdown")
-	} else {
-		log.Info().Msg("HTTP server stopped gracefully")
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		log.Error().Err(err).Msg("HTTP server shutdown error")
 	}
+	log.Info().Msg("Server shut down complete.")
 }

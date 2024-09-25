@@ -12,6 +12,7 @@ import (
 	"github.com/nvj9singhnavjot/media-docker/helper"
 	consumerKafka "github.com/nvj9singhnavjot/media-docker/internal/media-docker-kafka-consumer/consumerKafka"
 	"github.com/nvj9singhnavjot/media-docker/kafka"
+	"github.com/nvj9singhnavjot/media-docker/pkg"
 	"github.com/rs/zerolog/log"
 )
 
@@ -56,8 +57,8 @@ func main() {
 		topics, config.KafkaConsumeEnv.KAFKA_BROKERS, consumerKafka.ProcessMessage)
 
 	// Start additional worker routines for deleting files and directories
-	go consumerKafka.DeleteFileWorker()
-	go consumerKafka.DeleteDirWorker()
+	go pkg.DeleteFileWorker()
+	go pkg.DeleteDirWorker()
 
 	// Kafka consumers setup
 	go consumerKafka.KafkaConsumer.KafkaConsumeSetup()
@@ -80,7 +81,7 @@ func main() {
 
 			wg.Wait() // Wait for all worker goroutines to complete
 			log.Info().Msg("All Kafka workers stopped")
-			consumerKafka.CloseDeleteChannels()
+			pkg.CloseDeleteChannels()
 
 			// Simulate a graceful shutdown delay, for deleting workers
 			time.Sleep(5 * time.Second)

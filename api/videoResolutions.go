@@ -40,9 +40,9 @@ func VideoResolutions(w http.ResponseWriter, r *http.Request) {
 
 	// Pass the struct to the Kafka producer
 	if err := serverKafka.KafkaProducer.Produce("videoResolution", message); err != nil {
-		helper.Response(w, http.StatusInternalServerError, "error sending Kafka message", err.Error())
+		pkg.AddToFileDeleteChan(videoPath)
 		serverKafka.VideoResolutionRequestMap.Delete(videoPath)
-		go pkg.DeleteFile(videoPath)
+		helper.Response(w, http.StatusInternalServerError, "error sending Kafka message", err.Error())
 		return
 	}
 
@@ -53,7 +53,6 @@ func VideoResolutions(w http.ResponseWriter, r *http.Request) {
 	// Check if the processing was successful or failed
 	if !responseSuccess {
 		helper.Response(w, http.StatusInternalServerError, "video resolution conversion failed", nil)
-		go pkg.DeleteFile(videoPath)
 		return
 	}
 
@@ -65,6 +64,4 @@ func VideoResolutions(w http.ResponseWriter, r *http.Request) {
 			"720":  fmt.Sprintf("%s/%s/videos/%s/720", config.ServerEnv.BASE_URL, helper.Constants.MediaStorage, id),
 			"1080": fmt.Sprintf("%s/%s/videos/%s/1080", config.ServerEnv.BASE_URL, helper.Constants.MediaStorage, id),
 		})
-
-	go pkg.DeleteFile(videoPath)
 }

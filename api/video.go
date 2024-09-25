@@ -72,9 +72,9 @@ func Video(w http.ResponseWriter, r *http.Request) {
 
 	// Pass the struct to the Kafka producer
 	if err := serverKafka.KafkaProducer.Produce("video", message); err != nil {
-		helper.Response(w, http.StatusInternalServerError, "error sending Kafka message", err.Error())
+		pkg.AddToFileDeleteChan(videoPath)
 		serverKafka.VideoRequestMap.Delete(videoPath)
-		go pkg.DeleteFile(videoPath)
+		helper.Response(w, http.StatusInternalServerError, "error sending Kafka message", err.Error())
 		return
 	}
 
@@ -87,13 +87,10 @@ func Video(w http.ResponseWriter, r *http.Request) {
 	// Check if the processing was successful or failed
 	if !responseSuccess {
 		helper.Response(w, http.StatusInternalServerError, "video conversion failed", nil)
-		go pkg.DeleteFile(videoPath)
 		return
 	}
 
 	// Respond with success
 	videoUrl := fmt.Sprintf("%s/%s/index.m3u8", config.ServerEnv.BASE_URL, outputPath)
 	helper.Response(w, http.StatusCreated, "video uploaded successfully", map[string]any{"fileUrl": videoUrl})
-
-	go pkg.DeleteFile(videoPath)
 }

@@ -18,42 +18,6 @@ import (
 var KafkaProducer *ka.KafkaProducerManager
 var KafkaConsumer *ka.KafkaConsumerManager
 
-// Channels for file and directory deletion
-var fileDeleteChan = make(chan string)
-var dirDeleteChan = make(chan string)
-
-// DeleteFileWorker listens on the fileDeleteChan and deletes files as requested
-func DeleteFileWorker() {
-	for path := range fileDeleteChan {
-		// Call the DeleteFile function from pkg
-		pkg.DeleteFile(path)
-	}
-}
-
-// DeleteDirWorker listens on the dirDeleteChan and deletes directories as requested
-func DeleteDirWorker() {
-	for path := range dirDeleteChan {
-		// Call the DeleteDir function from pkg
-		pkg.DeleteDir(path)
-	}
-}
-
-// addToFileDeleteChan sends a file path to the fileDeleteChan
-func addToFileDeleteChan(path string) {
-	fileDeleteChan <- path
-}
-
-// addToDirDeleteChan sends a directory path to the dirDeleteChan
-func addToDirDeleteChan(path string) {
-	dirDeleteChan <- path
-}
-
-// CloseDeleteChannels closes the deletion channels
-func CloseDeleteChannels() {
-	close(fileDeleteChan)
-	close(dirDeleteChan)
-}
-
 // ProcessMessage processes the Kafka messages based on the topic
 func ProcessMessage(msg kafka.Message, workerName string) {
 	var err error
@@ -139,7 +103,7 @@ func processVideoMessage(kafkaMsg kafka.Message) (string, string, error) {
 	if err := helper.ValidateStruct(videoMsg); err != nil {
 		return "", "Validation failed for VideoMessage", err
 	}
-	defer addToFileDeleteChan(videoMsg.FilePath) // Ensure file is scheduled for deletion
+	defer pkg.AddToFileDeleteChan(videoMsg.FilePath) // Ensure file is scheduled for deletion
 
 	outputPath := fmt.Sprintf("%s/videos/%s", helper.Constants.MediaStorage, videoMsg.NewId)
 
@@ -160,7 +124,7 @@ func processVideoMessage(kafkaMsg kafka.Message) (string, string, error) {
 
 	// Execute the command
 	if err := cmd.Run(); err != nil {
-		addToDirDeleteChan(outputPath) // Schedule directory for deletion on error
+		pkg.AddToDirDeleteChan(outputPath) // Schedule directory for deletion on error
 		return videoMsg.NewId, "Video conversion failed", err
 	}
 
@@ -181,7 +145,7 @@ func processVideoResolutionMessage(kafkaMsg kafka.Message) (string, string, erro
 	if err := helper.ValidateStruct(videoResolutionMsg); err != nil {
 		return "", "Validation failed for VideoResolutionMessage", err
 	}
-	defer addToFileDeleteChan(videoResolutionMsg.FilePath) // Ensure file is scheduled for deletion
+	defer pkg.AddToFileDeleteChan(videoResolutionMsg.FilePath) // Ensure file is scheduled for deletion
 
 	// Prepare the output directories for each resolution
 	outputPaths := map[string]string{
@@ -204,7 +168,7 @@ func processVideoResolutionMessage(kafkaMsg kafka.Message) (string, string, erro
 		if err := cmd.Run(); err != nil {
 			// Schedule directories for deletion on error
 			for dirPath := range outputPaths {
-				addToDirDeleteChan(dirPath)
+				pkg.AddToDirDeleteChan(dirPath)
 			}
 			return videoResolutionMsg.NewId, "Video conversion failed for resolution " + res, err
 		}
@@ -227,7 +191,7 @@ func processImageMessage(kafkaMsg kafka.Message) (string, string, error) {
 	if err := helper.ValidateStruct(imageMsg); err != nil {
 		return "", "Validation failed for ImageMessage", err
 	}
-	defer addToFileDeleteChan(imageMsg.FilePath) // Ensure file is scheduled for deletion
+	defer pkg.AddToFileDeleteChan(imageMsg.FilePath) // Ensure file is scheduled for deletion
 
 	outputPath := fmt.Sprintf("%s/images/%s.jpeg", helper.Constants.MediaStorage, imageMsg.NewId)
 
@@ -256,7 +220,7 @@ func processAudioMessage(kafkaMsg kafka.Message) (string, string, error) {
 	if err := helper.ValidateStruct(audioMsg); err != nil {
 		return "", "Validation failed for AudioMessage", err
 	}
-	defer addToFileDeleteChan(audioMsg.FilePath) // Ensure file is scheduled for deletion
+	defer pkg.AddToFileDeleteChan(audioMsg.FilePath) // Ensure file is scheduled for deletion
 
 	outputPath := fmt.Sprintf("%s/audios/%s.mp3", helper.Constants.MediaStorage, audioMsg.NewId)
 
