@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"runtime"
+	"sync"
 	"syscall"
 	"time"
 
@@ -16,29 +16,62 @@ import (
 	"github.com/nvj9singhnavjot/media-docker/config"
 	"github.com/nvj9singhnavjot/media-docker/helper"
 	"github.com/nvj9singhnavjot/media-docker/internal/media-docker-server/routes"
+	"github.com/nvj9singhnavjot/media-docker/internal/media-docker-server/serverKafka"
+	"github.com/nvj9singhnavjot/media-docker/kafka"
 	mw "github.com/nvj9singhnavjot/media-docker/middleware"
+	"github.com/nvj9singhnavjot/media-docker/pkg"
 	"github.com/rs/zerolog/log"
 )
 
 func main() {
 
 	// environment variables are checked
-	err := config.ValidateMDSenvs()
+	err := config.ValidateServerEnv()
 	if err != nil {
 		fmt.Println("invalid environment variables", err)
 		panic(err)
 	}
 
 	// logger setup for server
-	config.SetUpLogger(config.MDSenvs.ENVIRONMENT)
+	config.SetUpLogger(config.ServerEnv.ENVIRONMENT)
 
-	// check dir setup for server
-	config.CreateDirSetup()
+	exist, err := pkg.DirExist(helper.Constants.UploadStorage)
+	if err != nil {
+		log.Fatal().Err(err).Msg("error while checking /" + helper.Constants.UploadStorage + " dir")
+	} else if !exist {
+		log.Fatal().Msg(helper.Constants.UploadStorage + " dir does not exist")
+	}
 
-	time.Sleep(5 * time.Second)
-	// HACK: Set max cores for the HTTP server
-	// Limit the server to 1 core
-	runtime.GOMAXPROCS(1)
+	exist, err = pkg.DirExist(helper.Constants.MediaStorage)
+	if err != nil {
+		log.Fatal().Err(err).Msg("error while checking /" + helper.Constants.MediaStorage + " dir")
+	} else if !exist {
+		log.Fatal().Msg(helper.Constants.MediaStorage + " dir does not exist")
+	}
+
+	err = kafka.CheckAllKafkaConnections(config.ServerEnv.KAFKA_BROKERS)
+	if err != nil {
+		log.Fatal().Err(err).Msg("Kafka connection failed for media-docker-server")
+	}
+
+	// Create a WaitGroup to track worker goroutines
+	var wg sync.WaitGroup
+
+	// Context for managing shutdown
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel() // Ensure context is cancelled on shutdown
+
+	// Error channel to listen to Kafka worker errors
+	errChan := make(chan kafka.WorkerError)
+
+	topics := []string{"videoResponse", "videoResolutionResponse", "imageResponse", "audioResponse"}
+	// Initialize WorkerTracker to track remaining workers per topic
+	workerTracker := kafka.NewWorkerTracker(config.ServerEnv.KAFKA_GROUP_WORKERS, topics)
+
+	serverKafka.KafkaProducer = kafka.NewKafkaProducerManager(config.ServerEnv.KAFKA_BROKERS)
+	serverKafka.KafkaConsumer = kafka.NewKafkaConsumerManager(ctx, errChan, config.ServerEnv.KAFKA_GROUP_WORKERS,
+		config.ServerEnv.KAFKA_GROUP_PREFIX_ID, &wg,
+		topics, config.ServerEnv.KAFKA_BROKERS, serverKafka.ProcessMessage)
 
 	// initialize validator
 	helper.InitializeValidator()
@@ -47,10 +80,10 @@ func main() {
 	router := chi.NewRouter()
 
 	// all default middlewares initialized
-	mw.DefaultMiddlewares(router, config.MDSenvs.ALLOWED_ORIGINS_SERVER, []string{"POST", "DELETE"}, 1000)
+	mw.DefaultMiddlewares(router, config.ServerEnv.ALLOWED_ORIGINS, []string{"POST", "DELETE"}, 1000)
 
 	// server key for accessing server
-	router.Use(mw.ServerKey(config.MDSenvs.SERVER_KEY))
+	router.Use(mw.ServerKey(config.ServerEnv.SERVER_KEY))
 
 	// middlewares for this router
 	router.Use(middleware.AllowContentEncoding("deflate", "gzip"))
@@ -69,7 +102,7 @@ func main() {
 
 	// Setup the server with a graceful shutdown
 	srv := &http.Server{
-		Addr:    ":" + config.MDSenvs.SERVER_PORT,
+		Addr:    ":" + config.ServerEnv.SERVER_PORT,
 		Handler: router,
 	}
 

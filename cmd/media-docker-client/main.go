@@ -19,28 +19,27 @@ import (
 func main() {
 
 	// environment variables are checked
-	err := config.ValidateMDCenvs()
+	err := config.ValidateClientEnv()
 	if err != nil {
 		fmt.Println("invalid environment variables", err)
 		panic(err)
 	}
 
 	// logger setup for server
-	config.SetUpLogger(config.MDCenvs.ENVIRONMENT)
+	config.SetUpLogger(config.ClientEnv.ENVIRONMENT)
 
 	exist, err := pkg.DirExist(helper.Constants.MediaStorage)
 	if err != nil {
-		log.Error().Str("error", err.Error()).Msg("error while checking /" + helper.Constants.MediaStorage + " dir")
-		panic(err)
+		log.Fatal().Err(err).Msg("error while checking /" + helper.Constants.MediaStorage + " dir")
 	} else if !exist {
-		panic(helper.Constants.MediaStorage + " dir does not exist")
+		log.Fatal().Msg(helper.Constants.MediaStorage + " dir does not exist")
 	}
 
 	// router intialized
 	router := chi.NewRouter()
 
 	// all default middlewares initialized
-	mw.DefaultMiddlewares(router, config.MDCenvs.ALLOWED_ORIGINS_CLIENT, []string{"GET"}, 5000)
+	mw.DefaultMiddlewares(router, config.ClientEnv.ALLOWED_ORIGINS, []string{"GET"}, 5000)
 
 	// middlewares for this router
 	router.Use(httprate.LimitByIP(10, 1*time.Minute))
@@ -59,12 +58,11 @@ func main() {
 	})
 
 	// port initialized
-	port := ":" + config.MDCenvs.CLIENT_PORT
+	port := ":" + config.ClientEnv.CLIENT_PORT
 	log.Info().Msg("media-docker-client server running...")
 
 	err = http.ListenAndServe(port, router)
 	if err != nil {
-		log.Error().Str("error", err.Error()).Msg("error while running server")
-		panic(err)
+		log.Fatal().Err(err).Str("error", err.Error()).Msg("error while running server")
 	}
 }

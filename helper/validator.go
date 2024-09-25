@@ -45,3 +45,12 @@ func ValidateRequest(r *http.Request, target interface{}) error {
 
 	return nil
 }
+
+// ValidateStruct validates any struct passed in
+func ValidateStruct(target interface{}) error {
+	if err := validate.Struct(target); err != nil {
+		return err
+	}
+
+	return nil
+}

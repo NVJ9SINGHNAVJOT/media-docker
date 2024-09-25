@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/nvj9singhnavjot/media-docker/helper"
-	"github.com/nvj9singhnavjot/media-docker/internal/media-docker-server/kafka"
+	"github.com/nvj9singhnavjot/media-docker/internal/media-docker-server/serverKafka"
 	"github.com/nvj9singhnavjot/media-docker/pkg"
 )
 
@@ -31,7 +31,7 @@ func DeleteFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := kafka.ProduceKafkaMessage("deleteFile", req); err != nil {
+	if err := serverKafka.KafkaProducer.Produce("deleteFile", req); err != nil {
 		helper.Response(w, http.StatusInternalServerError, "error deleting file", err.Error())
 		return
 	}

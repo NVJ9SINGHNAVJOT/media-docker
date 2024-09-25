@@ -10,12 +10,10 @@ func CreateDirSetup() {
 	// UploadStorage created if not existed
 	exist, err := pkg.DirExist(helper.Constants.UploadStorage)
 	if err != nil {
-		log.Error().Str("error", err.Error()).Msg("error while checking /" + helper.Constants.UploadStorage + " dir")
-		panic(err)
+		log.Fatal().Str("error", err.Error()).Msg("error while checking /" + helper.Constants.UploadStorage + " dir")
 	} else if !exist {
 		if err = pkg.CreateDir(helper.Constants.UploadStorage); err != nil {
-			log.Error().Str("error", err.Error()).Msg("error while creating /" + helper.Constants.UploadStorage + " dir")
-			panic(err)
+			log.Fatal().Str("error", err.Error()).Msg("error while creating /" + helper.Constants.UploadStorage + " dir")
 		}
 	}
 
@@ -27,23 +25,20 @@ func CreateDirSetup() {
 	// images
 	exist, err = pkg.DirExist(helper.Constants.MediaStorage + "/images")
 	if err != nil {
-		log.Error().Str("error", err.Error()).Msg("error while checking /" + helper.Constants.MediaStorage + "/images dir")
-		panic(err)
+		log.Fatal().Str("error", err.Error()).Msg("error while checking /" + helper.Constants.MediaStorage + "/images dir")
 	} else if !exist {
 		if err = pkg.CreateDir(helper.Constants.MediaStorage + "/images"); err != nil {
-			log.Error().Str("error", err.Error()).Msg("error while creating /" + helper.Constants.MediaStorage + "/images dir")
-			panic(err)
+			log.Fatal().Str("error", err.Error()).Msg("error while creating /" + helper.Constants.MediaStorage + "/images dir")
 		}
 	}
 	// audios
 	exist, err = pkg.DirExist(helper.Constants.MediaStorage + "/audios")
 	if err != nil {
-		log.Error().Str("error", err.Error()).Msg("error while checking /" + helper.Constants.MediaStorage + "/audios dir")
-		panic(err)
+		log.Fatal().Str("error", err.Error()).Msg("error while checking /" + helper.Constants.MediaStorage + "/audios dir")
+
 	} else if !exist {
 		if err = pkg.CreateDir(helper.Constants.MediaStorage + "/audios"); err != nil {
-			log.Error().Str("error", err.Error()).Msg("error while creating /" + helper.Constants.MediaStorage + "/audios dir")
-			panic(err)
+			log.Fatal().Str("error", err.Error()).Msg("error while creating /" + helper.Constants.MediaStorage + "/audios dir")
 		}
 	}
 }

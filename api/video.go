@@ -8,7 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/nvj9singhnavjot/media-docker/config"
 	"github.com/nvj9singhnavjot/media-docker/helper"
-	"github.com/nvj9singhnavjot/media-docker/internal/media-docker-server/kafka"
+	"github.com/nvj9singhnavjot/media-docker/internal/media-docker-server/serverKafka"
 	"github.com/nvj9singhnavjot/media-docker/pkg"
 )
 
@@ -17,7 +17,7 @@ type videoRequest struct {
 }
 
 // Struct for Kafka message// Struct for Kafka message with quality as an optional number
-type videoMessage struct {
+type VideoMessage struct {
 	FilePath string `json:"filePath" validate:"required"` // Mandatory field for the file path
 	NewId    string `json:"newId" validate:"required"`    // New id for file url
 	Quality  *int   `json:"quality" validate:"omitempty"` // Optional field for the video quality (using pointer for omitempty)
@@ -58,7 +58,7 @@ func Video(w http.ResponseWriter, r *http.Request) {
 	outputPath := fmt.Sprintf("%s/videos/%s", helper.Constants.MediaStorage, id)
 
 	// Create the VideoMessage struct to be passed to Kafka
-	message := videoMessage{
+	message := VideoMessage{
 		FilePath: videoPath, // Set the file path
 		NewId:    id,
 		Quality:  quality, // Set the optional quality (can be nil)
@@ -67,13 +67,13 @@ func Video(w http.ResponseWriter, r *http.Request) {
 	// Create a channel of size 1 to store the Kafka response for this request
 	responseChannel := make(chan bool, 1)
 
-	// Store the channel in the request map with the file path as the key
-	kafka.RequestMap.Store(videoPath, responseChannel)
+	// Store the channel in the request map with the id as the key
+	serverKafka.VideoRequestMap.Store(id, responseChannel)
 
 	// Pass the struct to the Kafka producer
-	if err := kafka.ProduceKafkaMessage("video", message); err != nil {
+	if err := serverKafka.KafkaProducer.Produce("video", message); err != nil {
 		helper.Response(w, http.StatusInternalServerError, "error sending Kafka message", err.Error())
-		kafka.RequestMap.Delete(videoPath)
+		serverKafka.VideoRequestMap.Delete(videoPath)
 		go pkg.DeleteFile(videoPath)
 		return
 	}
@@ -82,7 +82,7 @@ func Video(w http.ResponseWriter, r *http.Request) {
 	responseSuccess := <-responseChannel
 
 	// Delete the channel from the map once processing is complete
-	kafka.RequestMap.Delete(videoPath)
+	serverKafka.VideoRequestMap.Delete(videoPath)
 
 	// Check if the processing was successful or failed
 	if !responseSuccess {
@@ -92,7 +92,7 @@ func Video(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Respond with success
-	videoUrl := fmt.Sprintf("%s/%s/index.m3u8", config.MDSenvs.BASE_URL, outputPath)
+	videoUrl := fmt.Sprintf("%s/%s/index.m3u8", config.ServerEnv.BASE_URL, outputPath)
 	helper.Response(w, http.StatusCreated, "video uploaded successfully", map[string]any{"fileUrl": videoUrl})
 
 	go pkg.DeleteFile(videoPath)
