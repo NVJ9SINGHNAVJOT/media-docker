@@ -193,6 +193,7 @@ func main() {
 
 // shutdownServer gracefully shuts down the HTTP server
 func shutdownServer(srv *http.Server) {
+	pkg.CloseDeleteFileChannel()
 	log.Info().Msg("Shutting down the server...")
 	// Gracefully shut down the HTTP server
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)

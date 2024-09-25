@@ -63,9 +63,6 @@ func main() {
 	// Kafka consumers setup
 	go consumerKafka.KafkaConsumer.KafkaConsumeSetup()
 
-	// sync.Once to ensure shutdown happens only once
-	var shutdownOnce sync.Once
-
 	// Shutdown handling using signal and worker tracking
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
@@ -84,7 +81,7 @@ func main() {
 			pkg.CloseDeleteChannels()
 
 			// Simulate a graceful shutdown delay, for deleting workers
-			time.Sleep(5 * time.Second)
+			time.Sleep(10 * time.Second)
 
 			// Consume all remaining error messages from errChan before shutting down
 		ConsumeErrors:
@@ -104,19 +101,18 @@ func main() {
 				}
 			}
 
-			// Gracefully shut down the Kafka consumer service
-			shutdownOnce.Do(func() {
-				shutdownConsumer()
-			})
+			log.Info().Msg("Kafka consumer service shutdown complete.")
 			return
 
 		case workerErr, ok := <-errChan:
 			if !ok {
 				// If the channel is closed, all workers are done, so shut down
 				log.Info().Msg("Worker error channel closed, all Kafka workers finished. Initiating service shutdown...")
-				shutdownOnce.Do(func() {
-					shutdownConsumer()
-				})
+				pkg.CloseDeleteChannels()
+
+				// Simulate a graceful shutdown delay, for deleting workers
+				time.Sleep(10 * time.Second)
+				log.Info().Msg("Kafka consumer service shutdown complete.")
 				return
 			}
 
@@ -132,10 +128,4 @@ func main() {
 			}
 		}
 	}
-}
-
-// shutdownConsumer gracefully shuts down the Kafka consumer service
-func shutdownConsumer() {
-	log.Info().Msg("Shutting down the Kafka consumer service...")
-	log.Info().Msg("Kafka consumer service shutdown complete.")
 }

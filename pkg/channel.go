@@ -35,3 +35,8 @@ func CloseDeleteChannels() {
 	close(fileDeleteChan)
 	close(dirDeleteChan)
 }
+
+// CloseDeleteFileChannel closes the file deletion channel
+func CloseDeleteFileChannel() {
+	close(fileDeleteChan)
+}
