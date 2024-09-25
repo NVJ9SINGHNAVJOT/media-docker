@@ -25,6 +25,8 @@ services:
         - proxy
     ports: [7000:7000]
     env_file: .env
+    depends_on:
+      - media-docker-server
 
   media-docker-server:
     build:
@@ -39,6 +41,22 @@ services:
         - proxy
         - media-docker-proxy
     ports: [7007:7007]
+    env_file: .env
+    depends_on:
+      - media-docker-kafka
+      - media-docker-kafka-consumer
+  
+  media-docker-kafka-consumer:
+    build:
+      context: .
+      dockerfile: ./internal/media-docker-kafka-consumer/Dockerfile
+    container_name: media-docker-kafka-consumer
+    volumes:
+      # NOTE: do not change the mapping of volume (breaking changes)
+      - media-docker-upload-volume:/app/uploadStorage:ro
+      - media-docker-files-volume:/app/media_docker_files:ro
+    networks:
+        - media-docker-proxy
     env_file: .env
     depends_on:
       - media-docker-kafka

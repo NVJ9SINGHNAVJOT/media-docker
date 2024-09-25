@@ -49,12 +49,17 @@ func main() {
 	// Initialize WorkerTracker to track remaining workers per topic
 	workerTracker := kafka.NewWorkerTracker(config.KafkaConsumeEnv.KAFKA_GROUP_WORKERS, topics)
 
-	// Kafka consumers setup
+	// Set up Kafka producers and consumers
 	consumerKafka.KafkaProducer = kafka.NewKafkaProducerManager(config.KafkaConsumeEnv.KAFKA_BROKERS)
 	consumerKafka.KafkaConsumer = kafka.NewKafkaConsumerManager(ctx, errChan, config.KafkaConsumeEnv.KAFKA_GROUP_WORKERS,
 		config.KafkaConsumeEnv.KAFKA_GROUP_PREFIX_ID, &wg,
 		topics, config.KafkaConsumeEnv.KAFKA_BROKERS, consumerKafka.ProcessMessage)
 
+	// Start additional worker routines for deleting files and directories
+	go consumerKafka.DeleteFileWorker()
+	go consumerKafka.DeleteDirWorker()
+
+	// Kafka consumers setup
 	go consumerKafka.KafkaConsumer.KafkaConsumeSetup()
 
 	// sync.Once to ensure shutdown happens only once
@@ -73,11 +78,12 @@ func main() {
 			log.Info().Msg("Waiting for Kafka workers to complete...")
 			cancel() // Cancel context to signal Kafka workers to shut down
 
-			// Simulate a graceful shutdown delay
-			time.Sleep(5 * time.Second)
-
 			wg.Wait() // Wait for all worker goroutines to complete
 			log.Info().Msg("All Kafka workers stopped")
+			consumerKafka.CloseDeleteChannels()
+
+			// Simulate a graceful shutdown delay, for deleting workers
+			time.Sleep(5 * time.Second)
 
 			// Consume all remaining error messages from errChan before shutting down
 		ConsumeErrors:

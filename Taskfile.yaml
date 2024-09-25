@@ -23,6 +23,7 @@ tasks:
     cmds:
       - cd cmd/media-docker-server && go build -o ../../dist/server-main main.go
       - cd cmd/media-docker-client && go build -o ../../dist/client-main main.go
+      - cd cmd/media-docker-kafka-consumer && go build -o ../../dist/consumer-main main.go
 
   create-topics-development:
     desc: create topics for kafka from ./task_scripts/create_kafka_topics_development.sh
@@ -55,6 +56,11 @@ tasks:
     desc: run server main.go file
     cmds:
       - go run cmd/media-docker-server/main.go
+ 
+  consumer:
+    desc: run consumer main.go file
+    cmds:
+      - go run cmd/media-docker-kafka-consumer/main.go
 
   compose-up:
     desc: starts media-docker containers

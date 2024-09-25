@@ -26,8 +26,13 @@ func DeleteFile(w http.ResponseWriter, r *http.Request) {
 	path := fmt.Sprintf("%s/%ss/%s", helper.Constants.MediaStorage, req.Type, req.Id)
 
 	exist, err := pkg.DirExist(path)
-	if err != nil || !exist {
-		helper.Response(w, http.StatusBadRequest, "invalid video file for deleting", nil)
+	if err != nil {
+		helper.Response(w, http.StatusBadRequest, "invalid file for deleting", err.Error())
+		return
+	}
+
+	if !exist {
+		helper.Response(w, http.StatusBadRequest, "file doesn't exist for deleting", nil)
 		return
 	}
 
