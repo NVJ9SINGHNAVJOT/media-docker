@@ -73,7 +73,7 @@ func Video(w http.ResponseWriter, r *http.Request) {
 	// Pass the struct to the Kafka producer
 	if err := serverKafka.KafkaProducer.Produce("video", message); err != nil {
 		pkg.AddToFileDeleteChan(videoPath)
-		serverKafka.VideoRequestMap.Delete(videoPath)
+		serverKafka.VideoRequestMap.Delete(id)
 		helper.Response(w, http.StatusInternalServerError, "error sending Kafka message", err.Error())
 		return
 	}
@@ -82,7 +82,7 @@ func Video(w http.ResponseWriter, r *http.Request) {
 	responseSuccess := <-responseChannel
 
 	// Delete the channel from the map once processing is complete
-	serverKafka.VideoRequestMap.Delete(videoPath)
+	serverKafka.VideoRequestMap.Delete(id)
 
 	// Check if the processing was successful or failed
 	if !responseSuccess {

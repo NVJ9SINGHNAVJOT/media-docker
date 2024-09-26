@@ -44,7 +44,7 @@ func Audio(w http.ResponseWriter, r *http.Request) {
 	// Pass the struct to the Kafka producer (or processing worker)
 	if err := serverKafka.KafkaProducer.Produce("audio", message); err != nil {
 		pkg.AddToFileDeleteChan(audioPath)
-		serverKafka.AudioRequestMap.Delete(audioPath)
+		serverKafka.AudioRequestMap.Delete(id)
 		helper.Response(w, http.StatusInternalServerError, "error sending Kafka message", err.Error())
 		return
 	}
@@ -53,7 +53,7 @@ func Audio(w http.ResponseWriter, r *http.Request) {
 	responseSuccess := <-responseChannel
 
 	// Delete the channel from the map once processing is complete
-	serverKafka.AudioRequestMap.Delete(audioPath)
+	serverKafka.AudioRequestMap.Delete(id)
 
 	// Check if the processing was successful or failed
 	if !responseSuccess {
