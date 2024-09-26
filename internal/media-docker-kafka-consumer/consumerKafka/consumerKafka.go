@@ -3,7 +3,8 @@ package consumerKafka
 import (
 	"encoding/json" // For JSON marshaling and unmarshaling
 	"fmt"           // For formatted I/O operations
-	"os/exec"       // For executing external commands
+	"os"
+	"os/exec" // For executing external commands
 
 	"github.com/nvj9singhnavjot/media-docker/api"
 	"github.com/nvj9singhnavjot/media-docker/helper"
@@ -132,6 +133,12 @@ func processVideoMessage(kafkaMsg kafka.Message) (string, string, error) {
 	return videoMsg.NewId, "Video conversion completed successfully", nil
 }
 
+func cleanUpResolutions(outputPaths map[string]string) {
+	for _, outputPath := range outputPaths {
+		pkg.AddToDirDeleteChan(outputPath)
+	}
+}
+
 // processVideoResolutionMessage processes video resolution conversion and returns the new ID, message, or an error
 func processVideoResolutionMessage(kafkaMsg kafka.Message) (string, string, error) {
 	var videoResolutionMsg api.VideoResolutionMessage
@@ -160,18 +167,16 @@ func processVideoResolutionMessage(kafkaMsg kafka.Message) (string, string, erro
 		return videoResolutionMsg.NewId, "Error creating output directories", err
 	}
 
-	// Convert the video for each resolution
+	// Assume outputPaths is a map with resolution as key and output path as value
 	for res, outputPath := range outputPaths {
 		cmd := pkg.ConvertVideoResolution(videoResolutionMsg.FilePath, outputPath, res)
 
 		// Run the command and check for errors
 		if err := cmd.Run(); err != nil {
-			// Schedule directories for deletion on error
-			for dirPath := range outputPaths {
-				pkg.AddToDirDeleteChan(dirPath)
-			}
+			cleanUpResolutions(outputPaths)
 			return videoResolutionMsg.NewId, "Video conversion failed for resolution " + res, err
 		}
+
 	}
 
 	// Return success: new ID and success message
@@ -276,11 +281,11 @@ func processDeleteFileMessage(kafkaMsg kafka.Message, workerName string) {
 	var err error
 	// Determine the media type and call the appropriate deletion function
 	if deleteFileMsg.Type == "image" {
-		err = pkg.DeleteFile(path + ".jpeg") // Delete the image file with a .jpeg extension
+		err = os.Remove(path + ".jpeg") // Delete the image file with a .jpeg extension
 	} else if deleteFileMsg.Type == "audio" {
-		err = pkg.DeleteFile(path + ".mp3") // Delete the audio file with a .mp3 extension
+		err = os.Remove(path + ".mp3") // Delete the audio file with a .mp3 extension
 	} else {
-		err = pkg.DeleteDir(path) // Delete the directory for other types
+		err = os.RemoveAll(path) // Delete the directory for other types
 	}
 
 	// Log any error that occurs during deletion, along with relevant details for troubleshooting
