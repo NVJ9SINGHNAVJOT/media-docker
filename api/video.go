@@ -35,8 +35,8 @@ func Video(w http.ResponseWriter, r *http.Request) {
 	var req videoRequest
 	// Parse the JSON request and populate the VideoRequest struct.
 	if err := helper.ValidateRequest(r, &req); err != nil {
+		pkg.AddToFileDeleteChan(videoPath)
 		helper.Response(w, http.StatusBadRequest, "invalid data", err.Error())
-		go pkg.DeleteFile(videoPath)
 		return
 	}
 
@@ -47,8 +47,8 @@ func Video(w http.ResponseWriter, r *http.Request) {
 	if req.Quality != "" {
 		q, err := strconv.Atoi(req.Quality) // Convert string to int
 		if err != nil {
+			pkg.AddToFileDeleteChan(videoPath)
 			helper.Response(w, http.StatusBadRequest, "invalid quality value", err.Error())
-			go pkg.DeleteFile(videoPath)
 			return
 		}
 		quality = &q // Set quality as a pointer to the integer value

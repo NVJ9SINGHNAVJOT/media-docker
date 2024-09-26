@@ -2,8 +2,6 @@ package pkg
 
 import (
 	"os"
-
-	"github.com/rs/zerolog/log"
 )
 
 func DirExist(dirPath string) (bool, error) {
@@ -19,11 +17,7 @@ func DirExist(dirPath string) (bool, error) {
 }
 
 func CreateDir(outputPath string) error {
-	err := os.MkdirAll(outputPath, os.ModePerm)
-	if err != nil {
-		return err
-	}
-	return nil
+	return os.MkdirAll(outputPath, os.ModePerm)
 }
 
 func CreateDirs(outputPaths []string) error {
@@ -32,24 +26,6 @@ func CreateDirs(outputPaths []string) error {
 		if err != nil {
 			return err
 		}
-	}
-	return nil
-}
-
-func DeleteFile(filePath string) error {
-	err := os.Remove(filePath)
-	if err != nil {
-		log.Error().Err(err).Str("filePath", filePath).Msg("error deleting file")
-		return err
-	}
-	return nil
-}
-
-func DeleteDir(path string) error {
-	err := os.RemoveAll(path)
-	if err != nil {
-		log.Error().Err(err).Str("path", path).Msg("error deleting file")
-		return err
 	}
 	return nil
 }

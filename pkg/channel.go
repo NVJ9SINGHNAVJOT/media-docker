@@ -1,5 +1,11 @@
 package pkg
 
+import (
+	"os"
+
+	"github.com/rs/zerolog/log"
+)
+
 // Channels for file and directory deletion
 var fileDeleteChan = make(chan string)
 var dirDeleteChan = make(chan string)
@@ -7,16 +13,20 @@ var dirDeleteChan = make(chan string)
 // DeleteFileWorker listens on the fileDeleteChan and deletes files as requested
 func DeleteFileWorker() {
 	for path := range fileDeleteChan {
-		// Call the DeleteFile function
-		DeleteFile(path)
+		err := os.Remove(path)
+		if err != nil {
+			log.Error().Err(err).Str("filePath", path).Msg("error deleting file")
+		}
 	}
 }
 
 // DeleteDirWorker listens on the dirDeleteChan and deletes directories as requested
 func DeleteDirWorker() {
 	for path := range dirDeleteChan {
-		// Call the DeleteDir function
-		DeleteDir(path)
+		err := os.RemoveAll(path)
+		if err != nil {
+			log.Error().Err(err).Str("path", path).Msg("error deleting directory")
+		}
 	}
 }
 
