@@ -90,7 +90,7 @@ func ValidateServerEnv() error {
 		return fmt.Errorf("minimum size required for Kafka consume group workers is 1")
 	}
 
-	groupID, exists := os.LookupEnv("KAFKA_GROUP_ID")
+	groupID, exists := os.LookupEnv("KAFKA_GROUP_PREFIX_ID")
 	if !exists {
 		return fmt.Errorf("kafka consume group ID is not provided")
 	}
@@ -143,7 +143,7 @@ func ValidateKafkaConsumeEnv() error {
 		return fmt.Errorf("minimum size required for Kafka consume group workers is 1")
 	}
 
-	groupID, exists := os.LookupEnv("KAFKA_GROUP_ID")
+	groupID, exists := os.LookupEnv("KAFKA_GROUP_PREFIX_ID")
 	if !exists {
 		return fmt.Errorf("kafka consume group ID is not provided")
 	}

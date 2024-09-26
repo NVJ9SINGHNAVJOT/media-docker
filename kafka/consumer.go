@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nvj9singhnavjot/media-docker/config"
 	"github.com/rs/zerolog/log"
 	"github.com/segmentio/kafka-go"
 )
@@ -91,7 +90,7 @@ func (k *KafkaConsumerManager) KafkaConsumeSetup() {
 	// Iterate over each topic to create a consumer group and spawn workers.
 	for _, topic := range k.topics {
 		// Create a consumer group name for each topic.
-		groupName := fmt.Sprintf(config.KafkaConsumeEnv.KAFKA_GROUP_PREFIX_ID+"-%s-group", topic)
+		groupName := fmt.Sprintf(k.groupID+"-%s-group", topic)
 		log.Info().Msgf("Starting consumer group: %s for topic: %s", groupName, topic)
 
 		// Create workers for the current consumer group and topic.

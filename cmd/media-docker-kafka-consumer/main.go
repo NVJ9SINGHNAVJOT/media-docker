@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/signal"
 	"sync"
@@ -16,15 +17,27 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+var topics = []string{"video", "videoResolution", "image", "audio", "deleteFile"}
+
 func main() {
-	// Validate environment variables
-	err := config.ValidateKafkaConsumeEnv()
+	// Load env file
+	err := pkg.LoadEnv(".env.consumer")
 	if err != nil {
-		log.Fatal().Err(err).Msg("Invalid environment variables")
+		fmt.Println("Error loading env file", err)
+		panic(err)
+	}
+
+	// Validate environment variables
+	err = config.ValidateKafkaConsumeEnv()
+	if err != nil {
+		fmt.Println("Invalid environment variables", err)
+		panic(err)
 	}
 
 	// Setup logger
 	config.SetUpLogger(config.KafkaConsumeEnv.ENVIRONMENT)
+
+	config.CreateDirSetup()
 
 	// Check Kafka connection
 	err = kafka.CheckAllKafkaConnections(config.KafkaConsumeEnv.KAFKA_BROKERS)
@@ -44,8 +57,6 @@ func main() {
 
 	// Error channel to listen to Kafka worker errors
 	errChan := make(chan kafka.WorkerError)
-
-	topics := []string{"video", "videoResolution", "image", "audio", "deleteFile"}
 
 	// Initialize WorkerTracker to track remaining workers per topic
 	workerTracker := kafka.NewWorkerTracker(config.KafkaConsumeEnv.KAFKA_GROUP_WORKERS, topics)

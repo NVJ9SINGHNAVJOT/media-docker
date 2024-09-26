@@ -19,9 +19,15 @@ import (
 )
 
 func main() {
+	// Load env file
+	err := pkg.LoadEnv(".env.client")
+	if err != nil {
+		fmt.Println("Error loading env file", err)
+		panic(err)
+	}
 
 	// Validate environment variables necessary for the application
-	err := config.ValidateClientEnv()
+	err = config.ValidateClientEnv()
 	if err != nil {
 		fmt.Println("invalid environment variables", err)
 		panic(err) // Terminate if environment variables are invalid
@@ -71,29 +77,29 @@ func main() {
 		Handler: router,
 	}
 
-	// Channel to listen for OS interrupt signals for graceful shutdown
-	srvDone := make(chan os.Signal, 1)
-	signal.Notify(srvDone, os.Interrupt)
-
-	// Start the server in a separate goroutine
 	go func() {
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatal().Err(err).Str("error", err.Error()).Msg("error while running server") // Log fatal error if the server fails to start
+		// Channel to listen for OS interrupt signals for graceful shutdown
+		srvDone := make(chan os.Signal, 1)
+		signal.Notify(srvDone, os.Interrupt)
+
+		// Wait for interrupt signal to gracefully shutdown the server
+		<-srvDone // Block until a signal is received
+
+		log.Info().Msg("shutting down server...") // Log shutdown process
+
+		// Create a context with a timeout for the shutdown
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+
+		// Shutdown the server gracefully
+		if err := server.Shutdown(ctx); err != nil {
+			log.Error().Err(err).Msg("error while shutting down server") // Log error if the shutdown fails
 		}
 	}()
 
-	// Wait for interrupt signal to gracefully shutdown the server
-	<-srvDone // Block until a signal is received
-
-	log.Info().Msg("shutting down server...") // Log shutdown process
-
-	// Create a context with a timeout for the shutdown
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	// Shutdown the server gracefully
-	if err := server.Shutdown(ctx); err != nil {
-		log.Fatal().Err(err).Msg("error while shutting down server") // Log error if the shutdown fails
+	// Start the server
+	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		log.Fatal().Err(err).Str("error", err.Error()).Msg("error while running server") // Log fatal error if the server fails to start
 	}
 
 	log.Info().Msg("server gracefully stopped") // Log that the server has stopped gracefully

@@ -24,7 +24,7 @@ services:
     networks:
         - proxy
     ports: [7000:7000]
-    env_file: .env
+    env_file: .env.client
     depends_on:
       - media-docker-server
 
@@ -41,7 +41,7 @@ services:
         - proxy
         - media-docker-proxy
     ports: [7007:7007]
-    env_file: .env
+    env_file: .env.server
     depends_on:
       - media-docker-kafka
       - media-docker-kafka-consumer
@@ -57,7 +57,7 @@ services:
       - media-docker-files-volume:/app/media_docker_files:ro
     networks:
         - media-docker-proxy
-    env_file: .env
+    env_file: .env.consumer
     depends_on:
       - media-docker-kafka
 

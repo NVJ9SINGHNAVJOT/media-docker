@@ -23,10 +23,18 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+var topics = []string{"videoResponse", "videoResolutionResponse", "imageResponse", "audioResponse"}
+
 func main() {
+	// Load env file
+	err := pkg.LoadEnv(".env.server")
+	if err != nil {
+		fmt.Println("Error loading env file", err)
+		panic(err)
+	}
 
 	// environment variables are checked
-	err := config.ValidateServerEnv()
+	err = config.ValidateServerEnv()
 	if err != nil {
 		fmt.Println("invalid environment variables", err)
 		panic(err)
@@ -64,7 +72,6 @@ func main() {
 	// Error channel to listen to Kafka worker errors
 	errChan := make(chan kafka.WorkerError)
 
-	topics := []string{"videoResponse", "videoResolutionResponse", "imageResponse", "audioResponse"}
 	// Initialize WorkerTracker to track remaining workers per topic
 	workerTracker := kafka.NewWorkerTracker(config.ServerEnv.KAFKA_GROUP_WORKERS, topics)
 
