@@ -201,6 +201,7 @@ func main() {
 
 // shutdownServer gracefully shuts down the HTTP server
 func shutdownServer(srv *http.Server) {
+	// TODO: media-docker-kafka-consumer to be notified for stopping workers
 	pkg.CloseDeleteFileChannel()
 	log.Info().Msg("Shutting down the server...")
 	// Gracefully shut down the HTTP server
