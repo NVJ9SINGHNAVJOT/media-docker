@@ -21,11 +21,11 @@ RUN cd cmd/media-docker-kafka-consumer && go build -o ../../dist/main main.go
 
 # Ensure the Kafka topic creation script is executable
 # This step grants execute permissions to the script
-RUN chmod +x task_scripts/create_kafka_topics.sh
+RUN chmod +x task_scripts/manage_kafka_topics.sh
 
 # Create Kafka topics using the hardcoded Kafka container name
 # This step runs the script to create the necessary Kafka topics
-RUN ./task_scripts/create_kafka_topics.sh "media-docker-kafka"
+RUN ./task_scripts/manage_kafka_topics.sh "media-docker-kafka" "create"
 
 # Runner Stage
 # Start a new stage for running the application using a minimal Alpine image

@@ -23,27 +23,27 @@ tasks:
       - cd cmd/media-docker-kafka-consumer && go build -o ../../dist/consumer-main main.go
 
   create-topics-development:
-    desc: create topics for kafka from ./task_scripts/create_kafka_topics_development.sh
+    desc: create topics for kafka from ./task_scripts/manage_kafka_topics_development.sh
     vars:
       KAFKA_CONTAINER: "media-docker-kafka-development" # Dynamically defined container name
     cmd:
       # Windows (Git Bash)
-      bash ./task_scripts/create_kafka_topics.sh "{{.KAFKA_CONTAINER}}"
+      bash ./task_scripts/manage_kafka_topics.sh "{{.KAFKA_CONTAINER}}" "create"
 
   create-topics:
-    desc: create topics for kafka from ./task_scripts/create_kafka_topics.sh
+    desc: create topics for kafka from ./task_scripts/manage_kafka_topics.sh
     vars:
       KAFKA_CONTAINER: "media-docker-kafka" # Dynamically defined container name
     cmd:
       # Windows (Git Bash)
-      bash ./task_scripts/create_kafka_topics.sh "{{.KAFKA_CONTAINER}}"
+      bash ./task_scripts/manage_kafka_topics.sh "{{.KAFKA_CONTAINER}}" "create"
 
   dev-kafka:
     desc: start the Kafka container for development
     cmd:
       # Windows (Git Bash)
       bash ./task_scripts/media_docker_kafka_development.sh
-        
+
   client:
     desc: run client main.go file
     cmds:
@@ -53,7 +53,7 @@ tasks:
     desc: run server main.go file
     cmds:
       - go run cmd/media-docker-server/main.go
- 
+
   consumer:
     desc: run consumer main.go file
     cmds:
