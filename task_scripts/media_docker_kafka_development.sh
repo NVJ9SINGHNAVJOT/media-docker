@@ -39,7 +39,7 @@ else
       --network proxy \
       -p 9092:9092 \
       -v media-docker-kafka_data-development:/bitnami/kafka \
-      -e KAFKA_KRAFT_CLUSTER_ID=Uio2v8VHTlsb098WERVisdg \
+      -e KAFKA_KRAFT_CLUSTER_ID=eWr0VGANOXqQHIvQLPE5ug \
       -e KAFKA_ENABLE_KRAFT=yes \
       -e KAFKA_CFG_PROCESS_ROLES=broker,controller \
       -e KAFKA_CFG_NODE_ID=1 \

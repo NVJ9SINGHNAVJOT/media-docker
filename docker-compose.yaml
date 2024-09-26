@@ -73,7 +73,7 @@ services:
     restart: unless-stopped
     environment:
       # KRaft settings
-      - KAFKA_KRAFT_CLUSTER_ID=HuU5OTVkdTcbRTJioJl2Qk
+      - KAFKA_KRAFT_CLUSTER_ID=gZpsEhujeRQwA249Kx5KKg
       - KAFKA_ENABLE_KRAFT=yes
       - KAFKA_CFG_PROCESS_ROLES=broker,controller
       - KAFKA_CFG_NODE_ID=1

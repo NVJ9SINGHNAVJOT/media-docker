@@ -132,6 +132,7 @@ func main() {
 				// Stop accepting new connections immediately
 				srv.SetKeepAlivesEnabled(false)
 
+				log.Info().Msg("Shutting down in 1 minute")
 				time.Sleep(1 * time.Minute)
 				cancel() // Cancel context to signal Kafka workers to shut down
 
