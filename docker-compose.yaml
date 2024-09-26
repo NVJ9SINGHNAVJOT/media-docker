@@ -4,10 +4,13 @@ version: '3.8'
 volumes:
   # NOTE: do not change this name (breaking changes)
   media-docker-files-volume:
+  media-docker-upload-volume:
+  media-docker-kafka_data:
 
 networks:
   proxy:
     external: true
+  media-docker-proxy:
 
 services:
   media-docker-client:
@@ -21,7 +24,9 @@ services:
     networks:
         - proxy
     ports: [7000:7000]
-    env_file: .env
+    env_file: .env.client
+    depends_on:
+      - media-docker-server  # If only the client is required to access media files, comment out this line.
 
   media-docker-server:
     build:
@@ -30,8 +35,53 @@ services:
     container_name: media-docker-server
     volumes:
       # NOTE: do not change the mapping of volume (breaking changes)
-      - media-docker-files-volume:/app/media_docker_files:rw
+      - media-docker-upload-volume:/app/uploadStorage:rw
+      - media-docker-files-volume:/app/media_docker_files:ro
     networks:
         - proxy
+        - media-docker-proxy
     ports: [7007:7007]
-    env_file: .env
+    env_file: .env.server
+    depends_on:
+      - media-docker-kafka
+      - media-docker-kafka-consumer
+  
+  media-docker-kafka-consumer:
+    build:
+      context: .
+      dockerfile: ./internal/media-docker-kafka-consumer/Dockerfile
+    container_name: media-docker-kafka-consumer
+    volumes:
+      # NOTE: do not change the mapping of volume (breaking changes)
+      - media-docker-upload-volume:/app/uploadStorage:ro
+      - media-docker-files-volume:/app/media_docker_files:ro
+    networks:
+        - media-docker-proxy
+    env_file: .env.consumer
+    depends_on:
+      - media-docker-kafka
+
+  media-docker-kafka:
+    image: docker.io/bitnami/kafka:3.3.2
+    container_name: media-docker-kafka
+    ports:
+      - "9092:9092"
+    volumes:
+      - media-docker-kafka_data:/bitnami/kafka
+    networks: 
+      - media-docker-proxy
+    restart: unless-stopped
+    environment:
+      # KRaft settings
+      - KAFKA_KRAFT_CLUSTER_ID=gZpsEhujeRQwA249Kx5KKg
+      - KAFKA_ENABLE_KRAFT=yes
+      - KAFKA_CFG_PROCESS_ROLES=broker,controller
+      - KAFKA_CFG_NODE_ID=1
+      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=1@media-docker-kafka:9093
+      # Listeners
+      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
+      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://media-docker-kafka:9092
+      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=PLAINTEXT
+      - ALLOW_PLAINTEXT_LISTENER=yes  

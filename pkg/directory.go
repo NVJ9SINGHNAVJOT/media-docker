@@ -39,7 +39,7 @@ func CreateDirs(outputPaths []string) error {
 func DeleteFile(filePath string) error {
 	err := os.Remove(filePath)
 	if err != nil {
-		log.Error().Str("error", err.Error()).Msg("error deleting file")
+		log.Error().Err(err).Str("filePath", filePath).Msg("error deleting file")
 		return err
 	}
 	return nil
@@ -48,7 +48,7 @@ func DeleteFile(filePath string) error {
 func DeleteDir(path string) error {
 	err := os.RemoveAll(path)
 	if err != nil {
-		log.Error().Str("error", err.Error()).Msg("error deleting file")
+		log.Error().Err(err).Str("path", path).Msg("error deleting file")
 		return err
 	}
 	return nil
