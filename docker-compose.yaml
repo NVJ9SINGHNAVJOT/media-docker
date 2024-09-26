@@ -26,7 +26,7 @@ services:
     ports: [7000:7000]
     env_file: .env.client
     depends_on:
-      - media-docker-server
+      - media-docker-server  # If only the client is required to access media files, comment out this line.
 
   media-docker-server:
     build:
