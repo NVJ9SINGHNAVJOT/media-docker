@@ -30,14 +30,6 @@ tasks:
       # Windows (Git Bash)
       bash ./task_scripts/manage_kafka_topics.sh "{{.KAFKA_CONTAINER}}" "create"
 
-  create-topics:
-    desc: create topics for kafka from ./task_scripts/manage_kafka_topics.sh
-    vars:
-      KAFKA_CONTAINER: "media-docker-kafka" # Dynamically defined container name
-    cmd:
-      # Windows (Git Bash)
-      bash ./task_scripts/manage_kafka_topics.sh "{{.KAFKA_CONTAINER}}" "create"
-
   dev-kafka:
     desc: start the Kafka container for development
     cmd:
