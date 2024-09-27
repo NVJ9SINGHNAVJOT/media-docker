@@ -11,7 +11,7 @@ import (
 	"github.com/nvj9singhnavjot/media-docker/pkg"
 )
 
-type VideoResolutionMessage struct {
+type VideoResolutionsMessage struct {
 	FilePath string `json:"filePath" validate:"required"` // Mandatory field for the file path
 	NewId    string `json:"newId" validate:"required"`    // New ID for video URL
 }
@@ -26,8 +26,8 @@ func VideoResolutions(w http.ResponseWriter, r *http.Request) {
 	videoPath := header.Header.Get("path")
 	id := uuid.New().String()
 
-	// Create the VideoResolutionMessage struct to be passed to Kafka
-	message := VideoResolutionMessage{
+	// Create the VideoResolutionsMessage struct to be passed to Kafka
+	message := VideoResolutionsMessage{
 		FilePath: videoPath,
 		NewId:    id,
 	}
@@ -36,19 +36,19 @@ func VideoResolutions(w http.ResponseWriter, r *http.Request) {
 	responseChannel := make(chan bool, 1)
 
 	// Store the channel in the request map with the id as the key
-	serverKafka.VideoResolutionRequestMap.Store(id, responseChannel)
+	serverKafka.VideoResolutionsRequestMap.Store(id, responseChannel)
 
 	// Pass the struct to the Kafka producer
-	if err := serverKafka.KafkaProducer.Produce("videoResolution", message); err != nil {
+	if err := serverKafka.KafkaProducer.Produce("videoResolutions", message); err != nil {
 		pkg.AddToFileDeleteChan(videoPath)
-		serverKafka.VideoResolutionRequestMap.Delete(id)
+		serverKafka.VideoResolutionsRequestMap.Delete(id)
 		helper.Response(w, http.StatusInternalServerError, "error sending Kafka message", err.Error())
 		return
 	}
 
 	// Wait for the response from the Kafka processor
 	responseSuccess := <-responseChannel
-	serverKafka.VideoResolutionRequestMap.Delete(id)
+	serverKafka.VideoResolutionsRequestMap.Delete(id)
 
 	// Check if the processing was successful or failed
 	if !responseSuccess {
