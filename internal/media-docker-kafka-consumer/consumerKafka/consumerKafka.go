@@ -32,9 +32,9 @@ func ProcessMessage(msg kafka.Message, workerName string) {
 	case "video":
 		topic = "videoResponse"
 		id, resMessage, err = processVideoMessage(msg)
-	case "videoResolution":
-		topic = "videoResolutionResponse"
-		id, resMessage, err = processVideoResolutionMessage(msg)
+	case "videoResolutions":
+		topic = "videoResolutionsResponse"
+		id, resMessage, err = processVideoResolutionsMessage(msg)
 	case "image":
 		topic = "imageResponse"
 		id, resMessage, err = processImageMessage(msg)
@@ -139,48 +139,48 @@ func cleanUpResolutions(outputPaths map[string]string) {
 	}
 }
 
-// processVideoResolutionMessage processes video resolution conversion and returns the new ID, message, or an error
-func processVideoResolutionMessage(kafkaMsg kafka.Message) (string, string, error) {
-	var videoResolutionMsg api.VideoResolutionMessage
+// processVideoResolutionsMessage processes video resolution conversion and returns the new ID, message, or an error
+func processVideoResolutionsMessage(kafkaMsg kafka.Message) (string, string, error) {
+	var videoResolutionsMsg api.VideoResolutionsMessage
 
-	// Unmarshal the Kafka message into VideoResolutionMessage struct
-	if err := json.Unmarshal(kafkaMsg.Value, &videoResolutionMsg); err != nil {
-		return "", "Failed to unmarshal VideoResolutionMessage", err
+	// Unmarshal the Kafka message into VideoResolutionsMessage struct
+	if err := json.Unmarshal(kafkaMsg.Value, &videoResolutionsMsg); err != nil {
+		return "", "Failed to unmarshal VideoResolutionsMessage", err
 	}
 
 	// Validate the unmarshaled struct
-	if err := helper.ValidateStruct(videoResolutionMsg); err != nil {
-		return "", "Validation failed for VideoResolutionMessage", err
+	if err := helper.ValidateStruct(videoResolutionsMsg); err != nil {
+		return "", "Validation failed for VideoResolutionsMessage", err
 	}
-	defer pkg.AddToFileDeleteChan(videoResolutionMsg.FilePath) // Ensure file is scheduled for deletion
+	defer pkg.AddToFileDeleteChan(videoResolutionsMsg.FilePath) // Ensure file is scheduled for deletion
 
 	// Prepare the output directories for each resolution
 	outputPaths := map[string]string{
-		"360":  fmt.Sprintf("%s/videos/%s/360", helper.Constants.MediaStorage, videoResolutionMsg.NewId),
-		"480":  fmt.Sprintf("%s/videos/%s/480", helper.Constants.MediaStorage, videoResolutionMsg.NewId),
-		"720":  fmt.Sprintf("%s/videos/%s/720", helper.Constants.MediaStorage, videoResolutionMsg.NewId),
-		"1080": fmt.Sprintf("%s/videos/%s/1080", helper.Constants.MediaStorage, videoResolutionMsg.NewId),
+		"360":  fmt.Sprintf("%s/videos/%s/360", helper.Constants.MediaStorage, videoResolutionsMsg.NewId),
+		"480":  fmt.Sprintf("%s/videos/%s/480", helper.Constants.MediaStorage, videoResolutionsMsg.NewId),
+		"720":  fmt.Sprintf("%s/videos/%s/720", helper.Constants.MediaStorage, videoResolutionsMsg.NewId),
+		"1080": fmt.Sprintf("%s/videos/%s/1080", helper.Constants.MediaStorage, videoResolutionsMsg.NewId),
 	}
 
 	// Create the output directories
 	if err := pkg.CreateDirs([]string{outputPaths["360"], outputPaths["480"], outputPaths["720"], outputPaths["1080"]}); err != nil {
-		return videoResolutionMsg.NewId, "Error creating output directories", err
+		return videoResolutionsMsg.NewId, "Error creating output directories", err
 	}
 
 	// Assume outputPaths is a map with resolution as key and output path as value
 	for res, outputPath := range outputPaths {
-		cmd := pkg.ConvertVideoResolution(videoResolutionMsg.FilePath, outputPath, res)
+		cmd := pkg.ConvertVideoResolutions(videoResolutionsMsg.FilePath, outputPath, res)
 
 		// Run the command and check for errors
 		if err := cmd.Run(); err != nil {
 			cleanUpResolutions(outputPaths)
-			return videoResolutionMsg.NewId, "Video conversion failed for resolution " + res, err
+			return videoResolutionsMsg.NewId, "Video conversion failed for resolution " + res, err
 		}
 
 	}
 
 	// Return success: new ID and success message
-	return videoResolutionMsg.NewId, "Video resolution conversion completed successfully", nil
+	return videoResolutionsMsg.NewId, "Video resolution conversion completed successfully", nil
 }
 
 // processImageMessage processes image conversion and returns the new ID, message, or an error

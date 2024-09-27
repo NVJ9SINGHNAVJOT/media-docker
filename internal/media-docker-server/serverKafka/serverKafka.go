@@ -13,10 +13,10 @@ import (
 
 // Global Maps for Request to Kafka Consumer
 var (
-	VideoRequestMap           sync.Map // Map for tracking video requests
-	VideoResolutionRequestMap sync.Map // Map for tracking video resolution requests
-	ImageRequestMap           sync.Map // Map for tracking image requests
-	AudioRequestMap           sync.Map // Map for tracking audio requests
+	VideoRequestMap            sync.Map // Map for tracking video requests
+	VideoResolutionsRequestMap sync.Map // Map for tracking video resolution requests
+	ImageRequestMap            sync.Map // Map for tracking image requests
+	AudioRequestMap            sync.Map // Map for tracking audio requests
 )
 
 // Global KafkaProducer variable
@@ -80,8 +80,8 @@ func handleResponse(response KafkaResponseMessage, topic string) error {
 	switch topic {
 	case "videoResponse":
 		requestMap = &VideoRequestMap // Use the video request map
-	case "videoResolutionResponse":
-		requestMap = &VideoResolutionRequestMap // Use the video resolution request map
+	case "videoResolutionsResponse":
+		requestMap = &VideoResolutionsRequestMap // Use the video resolution request map
 	case "imageResponse":
 		requestMap = &ImageRequestMap // Use the image request map
 	case "audioResponse":

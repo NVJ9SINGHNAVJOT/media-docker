@@ -47,7 +47,7 @@ The **media-docker-kafka** component receives messages for various topics, enabl
 
 - **video**: Manages video conversion and segmentation tasks.
   
-- **videoResolution**: Handles resolution conversion for videos.
+- **videoResolutions**: Handles resolution conversion for videos.
   
 - **audio**: Processes and stores audio files based on the specified bitrate.
   

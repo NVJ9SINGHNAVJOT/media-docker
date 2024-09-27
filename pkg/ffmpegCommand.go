@@ -40,9 +40,9 @@ func ConvertVideo(videoPath, outputPath string, quality ...int) *exec.Cmd {
 // heights maps common video resolutions to their corresponding widths.
 var heights = map[string]string{"360": "740", "480": "854", "720": "1280", "1080": "1920"}
 
-// ConvertVideoResolution returns a pointer to the Cmd struct to execute the
+// ConvertVideoResolutions returns a pointer to the Cmd struct to execute the
 // video conversion command with the given video file path, output path, and resolution.
-func ConvertVideoResolution(videoPath, outputPath string, resolution string) *exec.Cmd {
+func ConvertVideoResolutions(videoPath, outputPath string, resolution string) *exec.Cmd {
 	return exec.Command("ffmpeg",
 		"-i", videoPath, // Input file
 		"-codec:v", "libx264", // Video codec

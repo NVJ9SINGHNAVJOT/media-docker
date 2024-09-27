@@ -117,8 +117,8 @@ process_topics() {
         "create")
             create_topic_if_not_exists "video" 10 1
             create_topic_if_not_exists "videoResponse" 10 1
-            create_topic_if_not_exists "videoResolution" 10 1
-            create_topic_if_not_exists "videoResolutionResponse" 10 1
+            create_topic_if_not_exists "videoResolutions" 10 1
+            create_topic_if_not_exists "videoResolutionsResponse" 10 1
             create_topic_if_not_exists "image" 10 1
             create_topic_if_not_exists "imageResponse" 10 1
             create_topic_if_not_exists "audio" 10 1
@@ -129,8 +129,8 @@ process_topics() {
         "delete")
             delete_topic_if_exists "video"
             delete_topic_if_exists "videoResponse"
-            delete_topic_if_exists "videoResolution"
-            delete_topic_if_exists "videoResolutionResponse"
+            delete_topic_if_exists "videoResolutions"
+            delete_topic_if_exists "videoResolutionsResponse"
             delete_topic_if_exists "image"
             delete_topic_if_exists "imageResponse"
             delete_topic_if_exists "audio"
