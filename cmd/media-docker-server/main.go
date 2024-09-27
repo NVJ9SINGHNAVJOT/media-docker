@@ -128,6 +128,7 @@ func main() {
 				log.Info().Msg("Waiting for Kafka workers to complete...")
 				wg.Wait() // Wait for all worker goroutines to complete
 				log.Info().Msg("All Kafka workers stopped")
+				time.Sleep(5 * time.Second)
 
 				// Consume all remaining error messages from errChan before shutting down
 			ConsumeErrors:
