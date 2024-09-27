@@ -7,6 +7,26 @@ import (
 	"strings"
 )
 
+// getAndValidateWorkerCount retrieves and validates worker count from environment variables.
+// It checks that the worker count is not below 1, otherwise returns an error.
+func getAndValidateWorkerCount(envVar string) (int, error) {
+	workerCountStr, exists := os.LookupEnv(envVar)
+	if !exists {
+		return 0, fmt.Errorf("%s is not provided", envVar)
+	}
+
+	workerCount, err := strconv.Atoi(workerCountStr)
+	if err != nil {
+		return 0, fmt.Errorf("invalid worker count for %s: %v", envVar, err)
+	}
+
+	if workerCount < 1 {
+		return 0, fmt.Errorf("minimum size required for %s is 1", envVar)
+	}
+
+	return workerCount, nil
+}
+
 type clientConfig struct {
 	ENVIRONMENT     string
 	ALLOWED_ORIGINS []string
@@ -17,18 +37,18 @@ type serverConfig struct {
 	ENVIRONMENT           string
 	ALLOWED_ORIGINS       []string
 	SERVER_KEY            string
-	KAFKA_GROUP_WORKERS   int
 	KAFKA_GROUP_PREFIX_ID string
 	KAFKA_BROKERS         []string
 	BASE_URL              string
 	SERVER_PORT           string
+	KAFKA_TOPIC_WORKERS   map[string]int
 }
 
 type kafkaConsumeConfig struct {
 	ENVIRONMENT           string
-	KAFKA_GROUP_WORKERS   int
 	KAFKA_GROUP_PREFIX_ID string
 	KAFKA_BROKERS         []string
+	KAFKA_TOPIC_WORKERS   map[string]int
 }
 
 var ClientEnv = clientConfig{}
@@ -61,102 +81,123 @@ func ValidateClientEnv() error {
 
 // ValidateServerEnv validates the environment variables for the server configuration.
 func ValidateServerEnv() error {
+	// ENVIRONMENT validation
 	environment, exists := os.LookupEnv("ENVIRONMENT")
 	if !exists {
 		return fmt.Errorf("environment is not provided")
 	}
 
+	// ALLOWED_ORIGINS_SERVER validation
 	allowedOrigins, exists := os.LookupEnv("ALLOWED_ORIGINS_SERVER")
 	if !exists {
 		return fmt.Errorf("allowed origins are not provided")
 	}
 
+	// SERVER_KEY validation
 	serverKey, exists := os.LookupEnv("SERVER_KEY")
 	if !exists {
 		return fmt.Errorf("server key is not provided")
 	}
 
-	groupWorkersStr, exists := os.LookupEnv("KAFKA_GROUP_WORKERS")
-	if !exists {
-		return fmt.Errorf("kafka consume group workers are not provided")
-	}
-
-	groupWorkers, err := strconv.Atoi(groupWorkersStr)
-	if err != nil {
-		return fmt.Errorf("invalid Kafka consume group workers size: %v", err)
-	}
-
-	if groupWorkers < 1 {
-		return fmt.Errorf("minimum size required for Kafka consume group workers is 1")
-	}
-
+	// KAFKA_GROUP_PREFIX_ID validation
 	groupID, exists := os.LookupEnv("KAFKA_GROUP_PREFIX_ID")
 	if !exists {
 		return fmt.Errorf("kafka consume group ID is not provided")
 	}
 
+	// KAFKA_BROKERS validation
 	brokers, exists := os.LookupEnv("KAFKA_BROKERS")
 	if !exists {
 		return fmt.Errorf("kafka brokers are not provided")
 	}
 
+	// SERVER_PORT validation
 	serverPort, exists := os.LookupEnv("SERVER_PORT")
 	if !exists {
 		return fmt.Errorf("server port is not provided")
 	}
 
+	// BASE_URL validation
 	baseURL, exists := os.LookupEnv("BASE_URL")
 	if !exists {
 		return fmt.Errorf("base URL is not provided")
 	}
 
+	// Validate worker counts for each Kafka topic
+	topicWorkers := map[string]string{
+		"videoResponse":           "KAFKA_VIDEORESPONSE_WORKERS",
+		"videoResolutionResponse": "KAFKA_VIDEORESOLUTION_WORKERS",
+		"imageResponse":           "KAFKA_IMAGERESPONSE_WORKERS",
+		"audioResponse":           "KAFKA_AUDIORESPONSE_WORKERS",
+	}
+
+	workerCounts := make(map[string]int)
+
+	for topic, envVar := range topicWorkers {
+		workerCount, err := getAndValidateWorkerCount(envVar)
+		if err != nil {
+			return err
+		}
+		workerCounts[topic] = workerCount
+	}
+
+	// Populate the ServerEnv struct
 	ServerEnv.ENVIRONMENT = environment
 	ServerEnv.ALLOWED_ORIGINS = strings.Split(allowedOrigins, ",")
 	ServerEnv.SERVER_KEY = serverKey
 	ServerEnv.SERVER_PORT = serverPort
 	ServerEnv.BASE_URL = baseURL
-	ServerEnv.KAFKA_GROUP_WORKERS = groupWorkers
 	ServerEnv.KAFKA_GROUP_PREFIX_ID = groupID
 	ServerEnv.KAFKA_BROKERS = strings.Split(brokers, ",")
+	ServerEnv.KAFKA_TOPIC_WORKERS = workerCounts
 
 	return nil
 }
 
 // ValidateKafkaConsumeEnv validates the environment variables for Kafka consume configuration.
 func ValidateKafkaConsumeEnv() error {
+	// Validate ENVIRONMENT
 	environment, exists := os.LookupEnv("ENVIRONMENT")
 	if !exists {
 		return fmt.Errorf("environment is not provided")
 	}
 
-	groupWorkersStr, exists := os.LookupEnv("KAFKA_GROUP_WORKERS")
-	if !exists {
-		return fmt.Errorf("kafka consume group workers are not provided")
-	}
-
-	groupWorkers, err := strconv.Atoi(groupWorkersStr)
-	if err != nil {
-		return fmt.Errorf("invalid Kafka consume group workers size: %v", err)
-	}
-
-	if groupWorkers < 1 {
-		return fmt.Errorf("minimum size required for Kafka consume group workers is 1")
-	}
-
+	// Validate KAFKA_GROUP_PREFIX_ID
 	groupID, exists := os.LookupEnv("KAFKA_GROUP_PREFIX_ID")
 	if !exists {
 		return fmt.Errorf("kafka consume group ID is not provided")
 	}
 
+	// Validate KAFKA_BROKERS
 	brokers, exists := os.LookupEnv("KAFKA_BROKERS")
 	if !exists {
 		return fmt.Errorf("kafka brokers are not provided")
 	}
 
+	// Validate worker counts for each Kafka topic
+	topicWorkers := map[string]string{
+		"video":           "KAFKA_VIDEO_WORKERS",
+		"videoResolution": "KAFKA_VIDEORESOLUTION_WORKERS",
+		"image":           "KAFKA_IMAGE_WORKERS",
+		"audio":           "KAFKA_AUDIO_WORKERS",
+		"deleteFile":      "KAFKA_DELETEFILE_WORKERS",
+	}
+
+	workerCounts := make(map[string]int)
+
+	for topic, envVar := range topicWorkers {
+		workerCount, err := getAndValidateWorkerCount(envVar)
+		if err != nil {
+			return err
+		}
+		workerCounts[topic] = workerCount
+	}
+
+	// Set the validated environment variables in KafkaConsumeEnv
 	KafkaConsumeEnv.ENVIRONMENT = environment
-	KafkaConsumeEnv.KAFKA_GROUP_WORKERS = groupWorkers
 	KafkaConsumeEnv.KAFKA_GROUP_PREFIX_ID = groupID
 	KafkaConsumeEnv.KAFKA_BROKERS = strings.Split(brokers, ",")
+	KafkaConsumeEnv.KAFKA_TOPIC_WORKERS = workerCounts
 
 	return nil
 }

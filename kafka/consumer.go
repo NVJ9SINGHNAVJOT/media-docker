@@ -29,12 +29,12 @@ type workerTracker struct {
 }
 
 // NewWorkerTracker initializes a worker tracker for managing the count of workers per topic.
-func NewWorkerTracker(workersPerGroup int, topics []string) *workerTracker {
+func NewWorkerTracker(workersPerTopic map[string]int) *workerTracker {
 	workerCount := make(map[string]int)
 
-	// Initialize worker count for each topic based on the number of workers per group.
-	for _, topic := range topics {
-		workerCount[topic] = workersPerGroup
+	// Initialize worker count for each topic based on the number of workers specified per topic.
+	for topic, count := range workersPerTopic {
+		workerCount[topic] = count
 	}
 
 	return &workerTracker{
@@ -61,17 +61,16 @@ func (w *workerTracker) DecrementWorker(topic string) int {
 type KafkaConsumerManager struct {
 	ctx             context.Context                            // Context for cancellation and timeouts
 	errChan         chan<- WorkerError                         // Channel for passing error information
-	workersPerTopic int                                        // Number of workers per topic
+	workersPerTopic map[string]int                             // Map of topic to number of workers
 	groupID         string                                     // Consumer group ID for coordinating workers
 	wg              *sync.WaitGroup                            // WaitGroup for synchronizing goroutines
-	topics          []string                                   // List of topics to consume from
 	brokers         []string                                   // List of Kafka broker addresses
 	ProcessMessage  func(msg kafka.Message, workerName string) // Function for processing consumed messages
 }
 
 // NewKafkaConsumerManager initializes a new KafkaConsumerManager with the necessary parameters.
-func NewKafkaConsumerManager(ctx context.Context, errChan chan<- WorkerError, workersPerTopic int,
-	groupID string, wg *sync.WaitGroup, topics, brokers []string,
+func NewKafkaConsumerManager(ctx context.Context, errChan chan<- WorkerError, workersPerTopic map[string]int,
+	groupID string, wg *sync.WaitGroup, brokers []string,
 	processMsg func(msg kafka.Message, workerName string)) *KafkaConsumerManager {
 	return &KafkaConsumerManager{
 		ctx:             ctx,
@@ -79,7 +78,6 @@ func NewKafkaConsumerManager(ctx context.Context, errChan chan<- WorkerError, wo
 		workersPerTopic: workersPerTopic,
 		groupID:         groupID,
 		wg:              wg,
-		topics:          topics,
 		brokers:         brokers,
 		ProcessMessage:  processMsg, // Assign the message processing function to the struct
 	}
@@ -88,32 +86,50 @@ func NewKafkaConsumerManager(ctx context.Context, errChan chan<- WorkerError, wo
 // KafkaConsumeSetup creates a consumer group for each topic and spawns workers within that group.
 func (k *KafkaConsumerManager) KafkaConsumeSetup() {
 	// Iterate over each topic to create a consumer group and spawn workers.
-	for _, topic := range k.topics {
+	for topic, workersCount := range k.workersPerTopic {
 		// Create a consumer group name for each topic.
 		groupName := fmt.Sprintf(k.groupID+"-%s-group", topic)
-		log.Info().Msgf("Starting consumer group: %s for topic: %s", groupName, topic)
+		// Log the start of a new consumer group
+		log.Info().
+			Str("group", groupName).
+			Str("topic", topic).
+			Int("workersCount", workersCount).
+			Msg("Starting consumer group")
 
 		// Create workers for the current consumer group and topic.
-		for workerID := 1; workerID <= k.workersPerTopic; workerID++ {
+		for workerID := 1; workerID <= workersCount; workerID++ {
 			k.wg.Add(1) // Increment the WaitGroup counter
 			go func(group string, topic string, workerID int) {
 				defer k.wg.Done()                                          // Decrement the counter when the goroutine completes
 				workerName := fmt.Sprintf("%s-worker-%d", group, workerID) // Name for the worker
-				log.Info().Msgf("Starting worker: %s", workerName)
+				// Log worker start
+				log.Info().
+					Str("worker", workerName).
+					Str("topic", topic).
+					Msg("Starting worker")
 
 				// Start consuming messages with retry logic
 				if err := k.consumeWithRetry(group, topic, workerName); err != nil {
 					// Send error details to the error channel if consumption fails
 					k.errChan <- WorkerError{Topic: topic, Err: err, WorkerName: workerName}
 				}
-				log.Warn().Msgf("Shutting down worker: %s", workerName)
+				// Log worker shutdown
+				log.Warn().
+					Str("worker", workerName).
+					Str("topic", topic).
+					Msg("Shutting down worker")
 			}(groupName, topic, workerID) // Pass arguments to the goroutine
 		}
 	}
 
 	// Wait for all workers to finish processing
 	k.wg.Wait()
-	close(k.errChan) // Close the error channel after all workers are done
+	// Log completion of all workers
+	log.Info().Msg("All workers have completed processing")
+
+	log.Info().Msg("Closing Worker error channel")
+	// Close the error channel after all workers are done
+	close(k.errChan)
 }
 
 // consumeWithRetry attempts to consume messages and retries on failure.
@@ -123,9 +139,19 @@ func (k *KafkaConsumerManager) consumeWithRetry(group, topic, workerName string)
 
 		if err != nil && !errors.Is(err, context.Canceled) {
 			// Log the error and retry if not cancelled
-			log.Error().Err(err).Msgf("Error in %s, retrying (%d/%d)", workerName, attempt, retryAttempts)
+			log.Error().
+				Err(err).
+				Str("worker", workerName).
+				Str("topic", topic).
+				Str("attempt", fmt.Sprintf("%d/%d", attempt, retryAttempts)).
+				Msg("Error during message consumption, retrying")
 			time.Sleep(backoff) // Wait before retrying
 		} else {
+			// Log successful consumption
+			log.Info().
+				Str("worker", workerName).
+				Str("topic", topic).
+				Msg("Successfully consumed messages")
 			return nil // Successfully consumed messages
 		}
 	}

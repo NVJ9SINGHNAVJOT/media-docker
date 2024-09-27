@@ -9,15 +9,10 @@ import (
 )
 
 // LoadEnv loads environment variables from a given file, handling comments and preserving existing variables.
+// The function directly terminates the program if the file does not exist, using DirExist.
 func LoadEnv(filePath string) error {
-	// Use DirExist to check if the file exists and handle potential errors.
-	exists, err := DirExist(filePath)
-	if err != nil {
-		return fmt.Errorf("error checking env file: %v", err)
-	}
-	if !exists {
-		return fmt.Errorf("env file does not exist: %s", filePath)
-	}
+	// Use DirExist to check if the file exists, and terminate the program if it does not.
+	DirExist(filePath)
 
 	// Open the specified environment variable file.
 	file, err := os.Open(filePath)

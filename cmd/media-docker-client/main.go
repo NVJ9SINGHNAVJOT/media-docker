@@ -37,12 +37,7 @@ func main() {
 	config.SetUpLogger(config.ClientEnv.ENVIRONMENT)
 
 	// Check if the media storage directory exists
-	exist, err := pkg.DirExist(helper.Constants.MediaStorage)
-	if err != nil {
-		log.Fatal().Err(err).Msg("error while checking /" + helper.Constants.MediaStorage + " dir")
-	} else if !exist {
-		log.Fatal().Msg(helper.Constants.MediaStorage + " dir does not exist")
-	}
+	pkg.DirExist(helper.Constants.MediaStorage)
 
 	// Initialize a new Chi router for handling HTTP requests
 	router := chi.NewRouter()
