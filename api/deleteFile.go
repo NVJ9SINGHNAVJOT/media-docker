@@ -3,11 +3,23 @@ package api
 import (
 	"fmt"
 	"net/http"
+	"os"
 
 	"github.com/nvj9singhnavjot/media-docker/helper"
 	"github.com/nvj9singhnavjot/media-docker/internal/media-docker-server/serverKafka"
-	"github.com/nvj9singhnavjot/media-docker/pkg"
 )
+
+func dirExist(dirPath string) (bool, error) {
+	_, err := os.Stat(dirPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		} else {
+			return false, err
+		}
+	}
+	return true, nil
+}
 
 type DeleteFileRequest struct {
 	Id   string `json:"id" validate:"required,uuid4"`
@@ -25,7 +37,7 @@ func DeleteFile(w http.ResponseWriter, r *http.Request) {
 
 	path := fmt.Sprintf("%s/%ss/%s", helper.Constants.MediaStorage, req.Type, req.Id)
 
-	exist, err := pkg.DirExist(path)
+	exist, err := dirExist(path)
 	if err != nil {
 		helper.Response(w, http.StatusBadRequest, "invalid file for deleting", err.Error())
 		return

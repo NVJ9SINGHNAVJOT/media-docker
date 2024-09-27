@@ -23,8 +23,6 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-var topics = []string{"videoResponse", "videoResolutionResponse", "imageResponse", "audioResponse"}
-
 func main() {
 	// Load env file
 	err := pkg.LoadEnv(".env.server")
@@ -43,19 +41,8 @@ func main() {
 	// logger setup for server
 	config.SetUpLogger(config.ServerEnv.ENVIRONMENT)
 
-	exist, err := pkg.DirExist(helper.Constants.UploadStorage)
-	if err != nil {
-		log.Fatal().Err(err).Msg("error while checking /" + helper.Constants.UploadStorage + " dir")
-	} else if !exist {
-		log.Fatal().Msg(helper.Constants.UploadStorage + " dir does not exist")
-	}
-
-	exist, err = pkg.DirExist(helper.Constants.MediaStorage)
-	if err != nil {
-		log.Fatal().Err(err).Msg("error while checking /" + helper.Constants.MediaStorage + " dir")
-	} else if !exist {
-		log.Fatal().Msg(helper.Constants.MediaStorage + " dir does not exist")
-	}
+	pkg.DirExist(helper.Constants.UploadStorage)
+	pkg.DirExist(helper.Constants.MediaStorage)
 
 	err = kafka.CheckAllKafkaConnections(config.ServerEnv.KAFKA_BROKERS)
 	if err != nil {
@@ -73,12 +60,13 @@ func main() {
 	errChan := make(chan kafka.WorkerError)
 
 	// Initialize WorkerTracker to track remaining workers per topic
-	workerTracker := kafka.NewWorkerTracker(config.ServerEnv.KAFKA_GROUP_WORKERS, topics)
+	workerTracker := kafka.NewWorkerTracker(config.ServerEnv.KAFKA_TOPIC_WORKERS)
 
 	serverKafka.KafkaProducer = kafka.NewKafkaProducerManager(config.ServerEnv.KAFKA_BROKERS)
-	serverKafka.KafkaConsumer = kafka.NewKafkaConsumerManager(ctx, errChan, config.ServerEnv.KAFKA_GROUP_WORKERS,
+	serverKafka.KafkaConsumer = kafka.NewKafkaConsumerManager(
+		ctx, errChan, config.ServerEnv.KAFKA_TOPIC_WORKERS,
 		config.ServerEnv.KAFKA_GROUP_PREFIX_ID, &wg,
-		topics, config.ServerEnv.KAFKA_BROKERS, serverKafka.ProcessMessage)
+		config.ServerEnv.KAFKA_BROKERS, serverKafka.ProcessMessage)
 
 	go pkg.DeleteFileWorker()
 	go serverKafka.KafkaConsumer.KafkaConsumeSetup()
@@ -201,6 +189,7 @@ func main() {
 
 // shutdownServer gracefully shuts down the HTTP server
 func shutdownServer(srv *http.Server) {
+	// TODO: media-docker-kafka-consumer to be notified for stopping workers
 	pkg.CloseDeleteFileChannel()
 	log.Info().Msg("Shutting down the server...")
 	// Gracefully shut down the HTTP server

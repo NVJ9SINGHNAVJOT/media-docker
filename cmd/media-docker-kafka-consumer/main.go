@@ -17,8 +17,6 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-var topics = []string{"video", "videoResolution", "image", "audio", "deleteFile"}
-
 func main() {
 	// Load env file
 	err := pkg.LoadEnv(".env.consumer")
@@ -59,13 +57,14 @@ func main() {
 	errChan := make(chan kafka.WorkerError)
 
 	// Initialize WorkerTracker to track remaining workers per topic
-	workerTracker := kafka.NewWorkerTracker(config.KafkaConsumeEnv.KAFKA_GROUP_WORKERS, topics)
+	workerTracker := kafka.NewWorkerTracker(config.KafkaConsumeEnv.KAFKA_TOPIC_WORKERS)
 
 	// Set up Kafka producers and consumers
 	consumerKafka.KafkaProducer = kafka.NewKafkaProducerManager(config.KafkaConsumeEnv.KAFKA_BROKERS)
-	consumerKafka.KafkaConsumer = kafka.NewKafkaConsumerManager(ctx, errChan, config.KafkaConsumeEnv.KAFKA_GROUP_WORKERS,
+	consumerKafka.KafkaConsumer = kafka.NewKafkaConsumerManager(
+		ctx, errChan, config.KafkaConsumeEnv.KAFKA_TOPIC_WORKERS,
 		config.KafkaConsumeEnv.KAFKA_GROUP_PREFIX_ID, &wg,
-		topics, config.KafkaConsumeEnv.KAFKA_BROKERS, consumerKafka.ProcessMessage)
+		config.KafkaConsumeEnv.KAFKA_BROKERS, consumerKafka.ProcessMessage)
 
 	// Start additional worker routines for deleting files and directories
 	go pkg.DeleteFileWorker()
