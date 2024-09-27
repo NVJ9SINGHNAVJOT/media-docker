@@ -3,9 +3,9 @@
    <p align="center">Streamline Your Media Management: On-Demand Streaming and Scalable Storage with Media-Docker</p>
 </p>
 
-# Media-Docker
+# Media-Docker Project - Version 2
 
-Media-Docker is a Docker service designed for storing media files for static use by servers.
+**Media-Docker** is a media management service designed to handle video, audio, and image processing with the power of **FFmpeg** for conversion, storage, and on-demand streaming. This version introduces several new components, including a client, server, Kafka-based message queuing, and worker-based message consumption for media processing tasks.
 
 ## Note
 
@@ -14,19 +14,64 @@ Media-Docker is a Docker service designed for storing media files for static use
 
 ---
 
+## Project Structure
+
+- **media-docker-client**: Serves static media assets and processes frontend requests for video streaming, image, and audio retrieval.
+
+- **media-docker-server**: The backend service that handles media upload requests, validating them and sending messages to Kafka for processing.
+
+- **media-docker-kafka**: Manages messages from both the server and consumer, distributing them across Kafka topics to facilitate media processing tasks. It also enables responses from consumers back to the server after conversion.
+
+- **media-docker-kafka-consumer**: Consumes messages from Kafka topics and performs media-related operations, such as creating video segments or converting audio bitrates with **FFmpeg**. This component handles resource-intensive tasks.
+
 ## Features
 
-#### Video Streaming :
+### Video Streaming
 
-   - Media-Docker leverages **FFmpeg** to convert video files into segments, allowing for on-demand streaming to the frontend. It also enables video quality adjustment and supports conversion and storage in          multiple resolutions, including **360p, 480p, 720p, and 1080p**.
+- **Media-Docker** utilizes **FFmpeg** to convert uploaded video files into various resolutions (360p, 480p, 720p, 1080p), making them available for on-demand streaming.
+- Videos are segmented for seamless playback and adaptive quality streaming, allowing users to switch between different qualities dynamically.
 
-#### Audio files :
+### Audio Processing
 
-   - Audio files are stored based on the required **bitrate** provided by the backend service.
+- Audio files are stored with the required **bitrate**, as specified by the backend, ensuring flexibility and support for various audio quality needs.
+- Dedicated **consumer workers** manage audio processing tasks, ensuring efficient and scalable handling of large media libraries.
 
-#### Image files :
+### Image Compression
 
-   - Image files are stored according to the **compression** settings provided by the backend service.
+- Images are compressed and stored according to custom **compression settings** provided by the backend service.
+- Processing and compression of images are managed by consumer workers, optimizing efficiency and storage.
+
+## Kafka Integration
+
+The **media-docker-kafka** component receives messages for various topics, enabling scalable and asynchronous media processing. The **media-docker-kafka-consumer** executes the primary tasks associated with each topic. Key topics and their respective responsibilities include:
+
+- **video**: Manages video conversion and segmentation tasks.
+  
+- **videoResolution**: Handles resolution conversion for videos.
+  
+- **audio**: Processes and stores audio files based on the specified bitrate.
+  
+- **image**: Manages image compression and storage.
+  
+- **deleteFile**: Oversees requests for media file deletion.
+
+By leveraging **Kafka** and **FFmpeg**, the project guarantees scalable, efficient media processing with dedicated workers for each topic.
+
+## FFmpeg Integration
+
+- **FFmpeg** serves as the primary tool for converting video and audio files, segmenting videos into streamable parts, adjusting resolutions, and compressing images for storage.
+
+## Usage
+
+After setting up all components, upload media files through the server, which processes the uploads and sends messages to Kafka for various media tasks. Consumers will handle the intensive operations, while the client serves the processed files.
+
+## Contributing
+
+Contributions to Media-Docker are welcome! Please submit a pull request or open an issue for any feature requests or bug reports.
+
+## Conclusion
+
+The **Media-Docker** project, now in version 2, is a complete media processing solution built for scalability and efficiency using **Kafka** workers, **FFmpeg**, and a robust client-server architecture. It supports advanced video streaming, flexible audio processing, and image compression tailored to specific needs, making it an ideal solution for media-heavy applications.
 
 ## Installation
 
@@ -35,7 +80,7 @@ Media-Docker is a Docker service designed for storing media files for static use
   git clone https://github.com/NVJ9SINGHNAVJOT/media-docker.git
   ```
 - Set up environment variables.
-  In the root directory **.env.example** file is present. Replace it with **.env** file and set the required variables running application _(.env.example contains all variables examples)_.
+  In the root directory **.env.example** file is present. Replace it with **.env.client**, **.env.server**, **.env.consumer** file and set the required variables running application _(.env.example contains all variables examples for all envs)_.
 - Project can be run on local machine by Docker or by installing dependencies locally.
 - **Using Docker**
 
@@ -47,10 +92,14 @@ Media-Docker is a Docker service designed for storing media files for static use
 - **Using local machine dependencies**
 
 1. Install golang (if not already installed).
-2. Install the required modules and start server.
+2. Install the required modules and components.
+3. If you have Apache Kafka installed locally, skip *task dev-kafka* step. Otherwise, start Docker (Apache Kafka is used in this project with Docker)
    ```
    cd media-docker
    task i
+   task dev-kafka
+   task create-topics-development
+   task consumer
    task server
    task client
    ```
