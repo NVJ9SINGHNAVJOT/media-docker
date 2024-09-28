@@ -199,7 +199,13 @@ func (k *KafkaConsumerManager) consumeKafkaTopic(group, topic, workerName string
 
 			// Commit the message offset to Kafka to mark it as consumed.
 			if err := r.CommitMessages(k.ctx, msg); err != nil {
-				log.Error().Err(err).Msgf("Failed to commit message in %s", workerName) // Log error if commit fails.
+				// Log error if commit fails.
+				log.Error().
+					Err(err).
+					Str("topic", msg.Topic).
+					Int("partition", msg.Partition).
+					Str("worker", workerName).
+					Str("kafka_message", string(msg.Value))
 			}
 		}
 	}
