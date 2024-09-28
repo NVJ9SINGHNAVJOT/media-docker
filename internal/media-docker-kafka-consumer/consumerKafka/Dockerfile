@@ -1,8 +1,6 @@
 # Build Stage
-# Use the official Go image based on Alpine for a lightweight build environment
 FROM golang:1.22-alpine AS builder
 
-# Set the working directory inside the container for the build process
 WORKDIR /app
 
 # Pre-copy go.mod and go.sum to leverage Docker caching
@@ -28,10 +26,8 @@ RUN chmod +x task_scripts/manage_kafka_topics.sh
 RUN ./task_scripts/manage_kafka_topics.sh "media-docker-kafka" "create"
 
 # Runner Stage
-# Start a new stage for running the application using a minimal Alpine image
 FROM alpine:latest AS runner
 
-# Set the working directory for the runtime environment
 WORKDIR /app
 
 # Copy the built binary from the builder stage to the runner stage
@@ -42,6 +38,4 @@ COPY --from=builder /app/dist .
 # The --no-cache option ensures no cache is used, keeping the image size smaller
 RUN apk add --no-cache ffmpeg
 
-# Set the entry point for the container to execute the compiled Go binary
-# This is the command that will run when the container starts
 ENTRYPOINT ["/app/main"]

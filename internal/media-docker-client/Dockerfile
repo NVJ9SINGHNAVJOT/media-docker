@@ -1,8 +1,6 @@
 # Build Stage
-# Use the official Go image as the build stage with Alpine Linux for a lightweight image
 FROM golang:1.22-alpine AS builder
 
-# Set the working directory inside the container
 WORKDIR /app
 
 # Pre-copy go.mod and go.sum to leverage Docker cache
@@ -18,17 +16,13 @@ COPY . .
 RUN cd cmd/media-docker-client && go build -o ../../dist/main main.go
 
 # Runner Stage
-# Start a new stage for the runtime environment
 FROM builder AS runner
 
-# Set the working directory in the runner image
 WORKDIR /app
 
 # Copy the built binary from the builder stage to the runner stage
 COPY --from=builder /app/dist .
 
-# Expose port 7000 to allow external access to the application
 EXPOSE 7000
 
-# Set the entry point for the container to execute the compiled Go binary
 ENTRYPOINT [ "/app/main" ]

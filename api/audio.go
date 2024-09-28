@@ -11,28 +11,30 @@ import (
 	"github.com/nvj9singhnavjot/media-docker/pkg"
 )
 
-// Struct for Kafka message without bitrate field
+// AudioMessage represents the structure of the message sent to Kafka for audio processing.
 type AudioMessage struct {
 	FilePath string `json:"filePath" validate:"required"` // Mandatory field for the file path
-	NewId    string `json:"newId" validate:"required"`    // New id for file url
+	NewId    string `json:"newId" validate:"required"`    // New unique identifier for the audio file URL
 }
 
+// Audio handles audio file upload requests and sends processing messages to Kafka.
 func Audio(w http.ResponseWriter, r *http.Request) {
-
+	// Read the audio file from the request
 	_, header, err := r.FormFile("audioFile")
 	if err != nil {
+		// Respond with an error if the file cannot be read
 		helper.Response(w, http.StatusBadRequest, "error reading file", err.Error())
 		return
 	}
-	audioPath := header.Header.Get("path")
+	audioPath := header.Header.Get("path") // Get the file path from the header
 
-	id := uuid.New().String()
-	outputPath := fmt.Sprintf("%s/audios/%s.mp3", helper.Constants.MediaStorage, id)
+	id := uuid.New().String()                                                        // Generate a new UUID for the audio file
+	outputPath := fmt.Sprintf("%s/audios/%s.mp3", helper.Constants.MediaStorage, id) // Define the output path for the audio file
 
 	// Create the AudioMessage struct without bitrate
 	message := AudioMessage{
 		FilePath: audioPath, // Set the file path
-		NewId:    id,        // Set the new ID for file URL
+		NewId:    id,        // Set the new ID for the file URL
 	}
 
 	// Create a channel of size 1 to store the Kafka-like processing response for this request
@@ -43,8 +45,8 @@ func Audio(w http.ResponseWriter, r *http.Request) {
 
 	// Pass the struct to the Kafka producer (or processing worker)
 	if err := serverKafka.KafkaProducer.Produce("audio", message); err != nil {
-		pkg.AddToFileDeleteChan(audioPath)
-		serverKafka.AudioRequestMap.Delete(id)
+		pkg.AddToFileDeleteChan(audioPath)     // Add to deletion channel on error
+		serverKafka.AudioRequestMap.Delete(id) // Remove the channel from the map on error
 		helper.Response(w, http.StatusInternalServerError, "error sending Kafka message", err.Error())
 		return
 	}
@@ -61,7 +63,7 @@ func Audio(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Respond with success
-	audioUrl := fmt.Sprintf("%s/%s", config.ServerEnv.BASE_URL, outputPath)
+	// Respond with success, providing the audio URL
+	audioUrl := fmt.Sprintf("%s/%s", config.ServerEnv.BASE_URL, outputPath) // Construct the audio file URL
 	helper.Response(w, http.StatusCreated, "audio uploaded and processed successfully", map[string]any{"fileUrl": audioUrl})
 }
