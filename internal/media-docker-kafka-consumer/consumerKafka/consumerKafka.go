@@ -126,7 +126,7 @@ func processVideoMessage(kafkaMsg kafka.Message) (string, string, error) {
 	// Execute the command
 	if err := cmd.Run(); err != nil {
 		pkg.AddToDirDeleteChan(outputPath) // Schedule directory for deletion on error
-		return videoMsg.NewId, "Video conversion failed", err
+		return videoMsg.NewId, "Video conversion failed", fmt.Errorf("command: %s, %s", cmd.String(), err)
 	}
 
 	// Return success: new ID and a success message
@@ -174,7 +174,7 @@ func processVideoResolutionsMessage(kafkaMsg kafka.Message) (string, string, err
 		// Run the command and check for errors
 		if err := cmd.Run(); err != nil {
 			cleanUpResolutions(outputPaths)
-			return videoResolutionsMsg.NewId, "Video conversion failed for resolution " + res, err
+			return videoResolutionsMsg.NewId, "Video conversion failed for resolution " + res, fmt.Errorf("command: %s, %s", cmd.String(), err)
 		}
 
 	}
@@ -205,7 +205,7 @@ func processImageMessage(kafkaMsg kafka.Message) (string, string, error) {
 
 	// Execute the command
 	if err := cmd.Run(); err != nil {
-		return imageMsg.NewId, "Image conversion failed", err
+		return imageMsg.NewId, "Image conversion failed", fmt.Errorf("command: %s, %s", cmd.String(), err)
 	}
 
 	// Return success: new ID and a success message
@@ -229,12 +229,17 @@ func processAudioMessage(kafkaMsg kafka.Message) (string, string, error) {
 
 	outputPath := fmt.Sprintf("%s/audios/%s.mp3", helper.Constants.MediaStorage, audioMsg.NewId)
 
-	// Prepare the command for audio conversion
-	cmd := pkg.ConvertAudio(audioMsg.FilePath, outputPath)
+	// Prepare the command for audio conversion using the provided bitrate (if any)
+	var cmd *exec.Cmd
+	if audioMsg.Bitrate != nil {
+		cmd = pkg.ConvertAudio(audioMsg.FilePath, outputPath, *audioMsg.Bitrate)
+	} else {
+		cmd = pkg.ConvertAudio(audioMsg.FilePath, outputPath) // Call without bitrate
+	}
 
 	// Execute the command
 	if err := cmd.Run(); err != nil {
-		return audioMsg.NewId, "Audio conversion failed", err
+		return audioMsg.NewId, "Audio conversion failed", fmt.Errorf("command: %s, %s", cmd.String(), err)
 	}
 
 	// Return success: new ID and a success message

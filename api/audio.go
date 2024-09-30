@@ -11,10 +11,15 @@ import (
 	"github.com/nvj9singhnavjot/media-docker/pkg"
 )
 
+type audioRequest struct {
+	Bitrate string `json:"bitrate" validate:"omitempty,oneof=128k 192k 256k 320k"` // Optional quality parameter
+}
+
 // AudioMessage represents the structure of the message sent to Kafka for audio processing.
 type AudioMessage struct {
-	FilePath string `json:"filePath" validate:"required"` // Mandatory field for the file path
-	NewId    string `json:"newId" validate:"required"`    // New unique identifier for the audio file URL
+	FilePath string  `json:"filePath" validate:"required"` // Mandatory field for the file path
+	NewId    string  `json:"newId" validate:"required"`    // New unique identifier for the audio file URL
+	Bitrate  *string `json:"bitrate" validate:"omitempty"` // Optional quality parameter
 }
 
 // Audio handles audio file upload requests and sends processing messages to Kafka.
@@ -28,6 +33,14 @@ func Audio(w http.ResponseWriter, r *http.Request) {
 	}
 	audioPath := header.Header.Get("path") // Get the file path from the header
 
+	var req audioRequest
+	// Parse the JSON request and populate the AudioRequest struct
+	if err := helper.ValidateRequest(r, &req); err != nil {
+		pkg.AddToFileDeleteChan(audioPath) // Add to deletion channel on error
+		helper.Response(w, http.StatusBadRequest, "invalid data", err.Error())
+		return
+	}
+
 	id := uuid.New().String()                                                        // Generate a new UUID for the audio file
 	outputPath := fmt.Sprintf("%s/audios/%s.mp3", helper.Constants.MediaStorage, id) // Define the output path for the audio file
 
@@ -35,6 +48,11 @@ func Audio(w http.ResponseWriter, r *http.Request) {
 	message := AudioMessage{
 		FilePath: audioPath, // Set the file path
 		NewId:    id,        // Set the new ID for the file URL
+	}
+
+	// If a bitrate is provided, set it in the message
+	if req.Bitrate != "" {
+		message.Bitrate = &req.Bitrate
 	}
 
 	// Create a channel of size 1 to store the Kafka-like processing response for this request

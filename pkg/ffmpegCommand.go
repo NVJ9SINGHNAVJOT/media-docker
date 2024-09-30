@@ -69,17 +69,33 @@ func ConvertImage(imagePath, outputPath, compression string) *exec.Cmd {
 }
 
 // ConvertAudio returns a pointer to the Cmd struct to execute the
-// audio conversion command with the given audio file path and output path.
+// audio conversion command with the given audio file path, output path, and optional audio bitrate.
 // The audio is converted to a standard format with a sample rate of 44100 Hz,
-// 2 audio channels, and a bitrate of 192 Kbps.
-// 320 Kbps bitrate can be used for max audio quality.
-func ConvertAudio(audioPath, outputPath string) *exec.Cmd {
-	return exec.Command("ffmpeg",
+// and 2 audio channels. If bitrate is provided, it's included in the command.
+// Otherwise, no bitrate is specified, and ffmpeg uses its default bitrate.
+//
+// Common audio bitrates (optional):
+// - 128 Kbps: Low quality (suitable for spoken audio, podcasts)
+// - 192 Kbps: Standard quality (suitable for music and general audio files)
+// - 256 Kbps: High quality (better for music with more detail)
+// - 320 Kbps: Maximum quality (best for high-fidelity audio)
+func ConvertAudio(audioPath, outputPath string, bitrate ...string) *exec.Cmd {
+	// Prepare the base command
+	args := []string{
 		"-i", audioPath, // Input audio file
 		"-vn",          // Disable video recording
 		"-ar", "44100", // Set audio sample rate to 44100 Hz
 		"-ac", "2", // Set number of audio channels to 2 (stereo)
-		"-b:a", "192k", // Set audio bitrate to 192 Kbps
-		outputPath, // Output audio file
-	)
+	}
+
+	// Append the bitrate option if provided
+	if len(bitrate) > 0 {
+		args = append(args, "-b:a", bitrate[0]) // Set audio bitrate
+	}
+
+	// Append the output file path
+	args = append(args, outputPath)
+
+	// Return the ffmpeg command
+	return exec.Command("ffmpeg", args...)
 }

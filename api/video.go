@@ -44,7 +44,7 @@ func Video(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Initialize quality as nil for optional use
-	var quality *int
+	var quality int
 	// Convert quality string to an integer if provided
 	if req.Quality != "" {
 		q, err := strconv.Atoi(req.Quality) // Convert string to int
@@ -53,7 +53,7 @@ func Video(w http.ResponseWriter, r *http.Request) {
 			helper.Response(w, http.StatusBadRequest, "invalid quality value", err.Error())
 			return
 		}
-		quality = &q // Set quality as a pointer to the integer value
+		quality = q // Set quality as a pointer to the integer value
 	}
 
 	id := uuid.New().String()                                                    // Generate a new UUID for the video
@@ -63,7 +63,7 @@ func Video(w http.ResponseWriter, r *http.Request) {
 	message := VideoMessage{
 		FilePath: videoPath, // Set the file path
 		NewId:    id,        // Set the new ID
-		Quality:  quality,   // Set the optional quality (can be nil)
+		Quality:  &quality,  // Set the optional quality (can be nil)
 	}
 
 	// Create a channel of size 1 to store the Kafka response for this request
