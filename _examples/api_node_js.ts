@@ -118,8 +118,8 @@ class MediaDocker {
     return res.data.fileUrl;
   }
 
-  async uploadAudio(filePath: string): Promise<string> {
-    const res = await this.uploadFileToMediaDockerServer<{ fileUrl: string }>(filePath, "audio");
+  async uploadAudio(filePath: string, bitrate?: "128k" | "192k" | "256k" | "320k"): Promise<string> {
+    const res = await this.uploadFileToMediaDockerServer<{ fileUrl: string }>(filePath, "audio", { bitrate });
     return res.data.fileUrl;
   }
 
