@@ -144,6 +144,36 @@ process_topics() {
     esac
 }
 
+# Function to increase the number of partitions for a given topic
+# increase_partitions() {
+# 	local topic_name="$1"
+# 	local new_partitions="$2"
+
+# 	# Check if the topic exists
+# 	if ! docker exec "$KAFKA_CONTAINER" kafka-topics.sh --bootstrap-server "$BROKER" --list | grep -w "$topic_name"; then
+# 		echo "Error: Topic '$topic_name' does not exist. Exiting..."
+# 		exit 1  # Exit the script if the topic doesn't exist
+# 	fi
+
+# 	# Get the current number of partitions
+# 	local current_partitions
+# 	current_partitions=$(docker exec "$KAFKA_CONTAINER" kafka-topics.sh --bootstrap-server "$BROKER" --describe --topic "$topic_name" | grep "Partitions:" | awk '{print $2}')
+
+# 	if [ "$current_partitions" -lt "$new_partitions" ]; then
+# 		echo "Increasing partitions for topic '$topic_name' from $current_partitions to $new_partitions."
+# 		if docker exec "$KAFKA_CONTAINER" kafka-topics.sh --bootstrap-server "$BROKER" --alter \
+# 			--topic "$topic_name" --partitions "$new_partitions"; then
+# 			echo "Successfully increased partitions for topic '$topic_name'."
+# 		else
+# 			echo "Error: Failed to increase partitions for topic '$topic_name'. Exiting..."
+# 			exit 1  # Exit the script on failure
+# 		fi
+# 	else
+# 		echo "No need to increase partitions for topic '$topic_name'; current partitions: $current_partitions, requested: $new_partitions."
+# 		exit 1  # Exit if the current partitions are greater than or equal to the new value
+# 	fi
+# }
+
 # Main execution flow
 
 # Check if the Kafka container is running
