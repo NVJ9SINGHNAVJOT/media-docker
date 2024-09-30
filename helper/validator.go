@@ -39,18 +39,10 @@ func ValidateRequest(r *http.Request, target interface{}) error {
 		return err
 	}
 
-	if err := validate.Struct(target); err != nil {
-		return err
-	}
-
-	return nil
+	return validate.Struct(target)
 }
 
 // ValidateStruct validates any struct passed in
 func ValidateStruct(target interface{}) error {
-	if err := validate.Struct(target); err != nil {
-		return err
-	}
-
-	return nil
+	return validate.Struct(target)
 }

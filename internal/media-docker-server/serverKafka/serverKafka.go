@@ -26,7 +26,7 @@ var KafkaConsumer *ka.KafkaConsumerManager // Kafka consumer manager for receivi
 // KafkaResponseMessage defines the structure for the incoming Kafka messages
 type KafkaResponseMessage struct {
 	ID      string `json:"id" validate:"required,uuid4"` // Unique ID for identifying the request
-	Success bool   `json:"success" validate:"required"`  // Indicates whether the request was successful
+	Success bool   `json:"success"`                      // Indicates whether the request was successful
 	Message string `json:"message" validate:"required"`  // Additional message data
 }
 
