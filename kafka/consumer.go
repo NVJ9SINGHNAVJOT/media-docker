@@ -127,9 +127,9 @@ func (k *KafkaConsumerManager) KafkaConsumeSetup() {
 	// Log completion of all workers
 	log.Info().Msg("All workers have completed processing")
 
-	log.Info().Msg("Closing Worker error channel")
 	// Close the error channel after all workers are done
 	close(k.errChan)
+	log.Info().Msg("Worker error channel closed")
 }
 
 // consumeWithRetry attempts to consume messages and retries on failure.

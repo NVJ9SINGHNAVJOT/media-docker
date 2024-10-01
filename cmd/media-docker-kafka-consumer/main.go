@@ -83,8 +83,8 @@ func main() {
 			log.Info().Msgf("Received signal: %s. Shutting down...", sig)
 
 			// Wait for all Kafka workers to finish before shutting down the service
-			log.Info().Msg("Waiting for Kafka workers to complete...")
 			cancel() // Cancel context to signal Kafka workers to shut down
+			log.Info().Msg("Waiting for Kafka workers to complete...")
 
 			wg.Wait() // Wait for all worker goroutines to complete
 			log.Info().Msg("All Kafka workers stopped")
