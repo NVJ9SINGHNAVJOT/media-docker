@@ -1,14 +1,13 @@
 package serverKafka
 
 import (
-	"encoding/json" // Import for JSON encoding/decoding
-	"fmt"           // Import for formatting strings
-	"sync"          // Import for synchronization primitives
+	"fmt"
+	"sync"
 
-	"github.com/nvj9singhnavjot/media-docker/helper"   // Importing helper functions for validation
-	ka "github.com/nvj9singhnavjot/media-docker/kafka" // Importing Kafka related functionalities
-	"github.com/rs/zerolog/log"                        // Importing zerolog for structured logging
-	"github.com/segmentio/kafka-go"                    // Importing kafka-go for Kafka message handling
+	"github.com/nvj9singhnavjot/media-docker/helper"
+	ka "github.com/nvj9singhnavjot/media-docker/kafka"
+	"github.com/rs/zerolog/log"
+	"github.com/segmentio/kafka-go"
 )
 
 // Global Maps for Request to Kafka Consumer
@@ -31,45 +30,33 @@ type KafkaResponseMessage struct {
 }
 
 // ProcessMessage processes the Kafka messages based on the topic
-func ProcessMessage(msg kafka.Message, workerName string) {
+func ProcessMessage(kafkaMsg kafka.Message, workerName string) {
 	var response KafkaResponseMessage
 
 	// Unmarshal the incoming message into KafkaResponseMessage struct
-	err := json.Unmarshal(msg.Value, &response)
+	msg, err := helper.UnmarshalAndValidate(kafkaMsg.Value, &response)
 	if err != nil {
 		log.Error().
 			Err(err).
-			Str("topic", msg.Topic).
-			Int("partition", msg.Partition).
+			Str("topic", kafkaMsg.Topic).
 			Str("worker", workerName).
-			Str("kafka_message", string(msg.Value)).
-			Msg("Failed to unmarshal Kafka message") // Log the error if unmarshalling fails
-		return
-	}
-
-	// Validate the unmarshalled message data
-	if err = helper.ValidateStruct(response); err != nil {
-		log.Error().
-			Err(err).
-			Str("topic", msg.Topic).
-			Int("partition", msg.Partition).
-			Str("worker", workerName).
-			Str("kafka_message", string(msg.Value)).
-			Msg("Validation failed for KafkaResponseMessage") // Log validation failure
+			Int("partition", kafkaMsg.Partition).
+			Str("kafka_message", string(kafkaMsg.Value)).
+			Msg(msg + "Kafka message") // Log the error if unmarshalling fails
 		return
 	}
 
 	// Handle messages using the ID for channel lookup in the map
-	err = handleResponse(response, msg.Topic)
+	err = handleResponse(response, kafkaMsg.Topic)
 
 	// If an error occurred, log the error along with context details
 	if err != nil {
 		log.Error().
 			Err(err).
-			Str("topic", msg.Topic).
-			Int("partition", msg.Partition).
+			Str("topic", kafkaMsg.Topic).
 			Str("worker", workerName).
-			Str("kafka_message", string(msg.Value)) // Log error details if handling fails
+			Int("partition", kafkaMsg.Partition).
+			Str("kafka_message", string(kafkaMsg.Value)) // Log error details if handling fails
 	}
 }
 

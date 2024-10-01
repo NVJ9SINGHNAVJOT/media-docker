@@ -1,18 +1,17 @@
 package consumerKafka
 
 import (
-	"encoding/json" // For JSON marshaling and unmarshaling
-	"fmt"           // For formatted I/O operations
+	"fmt"
 	"os"
-	"os/exec" // For executing external commands
+	"os/exec"
 
 	"github.com/nvj9singhnavjot/media-docker/api"
 	"github.com/nvj9singhnavjot/media-docker/helper"
 	"github.com/nvj9singhnavjot/media-docker/internal/media-docker-server/serverKafka"
 	ka "github.com/nvj9singhnavjot/media-docker/kafka"
 	"github.com/nvj9singhnavjot/media-docker/pkg"
-	"github.com/rs/zerolog/log"     // For structured logging
-	"github.com/segmentio/kafka-go" // Kafka client library
+	"github.com/rs/zerolog/log"
+	"github.com/segmentio/kafka-go"
 )
 
 // Global KafkaProducer variable
@@ -31,16 +30,16 @@ func ProcessMessage(msg kafka.Message, workerName string) {
 	switch msg.Topic {
 	case "video":
 		topic = "videoResponse"
-		id, resMessage, err = processVideoMessage(msg)
+		id, resMessage, err = processVideoMessage(msg.Value)
 	case "videoResolutions":
 		topic = "videoResolutionsResponse"
-		id, resMessage, err = processVideoResolutionsMessage(msg)
+		id, resMessage, err = processVideoResolutionsMessage(msg.Value)
 	case "image":
 		topic = "imageResponse"
-		id, resMessage, err = processImageMessage(msg)
+		id, resMessage, err = processImageMessage(msg.Value)
 	case "audio":
 		topic = "audioResponse"
-		id, resMessage, err = processAudioMessage(msg)
+		id, resMessage, err = processAudioMessage(msg.Value)
 	case "deleteFile":
 		processDeleteFileMessage(msg, workerName) // Process file deletion request
 		return
@@ -48,8 +47,8 @@ func ProcessMessage(msg kafka.Message, workerName string) {
 		// Log unknown topic error
 		log.Error().
 			Str("topic", msg.Topic).
-			Int("partition", msg.Partition).
 			Str("worker", workerName).
+			Int("partition", msg.Partition).
 			Str("kafka_message", string(msg.Value)).
 			Msg("Unknown topic")
 		return
@@ -60,8 +59,8 @@ func ProcessMessage(msg kafka.Message, workerName string) {
 		log.Error().
 			Err(err).
 			Str("topic", msg.Topic).
-			Int("partition", msg.Partition).
 			Str("worker", workerName).
+			Int("partition", msg.Partition).
 			Str("kafka_message", string(msg.Value)).
 			Msg(resMessage)
 		if id == "" {
@@ -84,26 +83,22 @@ func ProcessMessage(msg kafka.Message, workerName string) {
 	if err != nil {
 		log.Error().
 			Err(err).
-			Str("topic", topic).
+			Str("topic", msg.Topic).
 			Str("worker", workerName).
-			Any("kafka_message", message).
-			Msg("Error while producing message for response")
+			Any("new_kafka_message", message).
+			Msg("Error while producing message for response, topic: " + topic)
 	}
 }
 
 // processVideoMessage processes video conversion and returns the new ID, message, or an error
-func processVideoMessage(kafkaMsg kafka.Message) (string, string, error) {
+func processVideoMessage(kafkaMsg []byte) (string, string, error) {
 	var videoMsg api.VideoMessage
 
-	// Unmarshal the Kafka message into VideoMessage struct
-	if err := json.Unmarshal(kafkaMsg.Value, &videoMsg); err != nil {
-		return "", "Failed to unmarshal VideoMessage", err
+	// Unmarshal and Validate the Kafka message into VideoMessage struct
+	if msg, err := helper.UnmarshalAndValidate(kafkaMsg, &videoMsg); err != nil {
+		return "", msg + " VideoMessage", err
 	}
 
-	// Validate the unmarshaled struct
-	if err := helper.ValidateStruct(videoMsg); err != nil {
-		return "", "Validation failed for VideoMessage", err
-	}
 	defer pkg.AddToFileDeleteChan(videoMsg.FilePath) // Ensure file is scheduled for deletion
 
 	outputPath := fmt.Sprintf("%s/videos/%s", helper.Constants.MediaStorage, videoMsg.NewId)
@@ -140,18 +135,14 @@ func cleanUpResolutions(outputPaths map[string]string) {
 }
 
 // processVideoResolutionsMessage processes video resolution conversion and returns the new ID, message, or an error
-func processVideoResolutionsMessage(kafkaMsg kafka.Message) (string, string, error) {
+func processVideoResolutionsMessage(kafkaMsg []byte) (string, string, error) {
 	var videoResolutionsMsg api.VideoResolutionsMessage
 
-	// Unmarshal the Kafka message into VideoResolutionsMessage struct
-	if err := json.Unmarshal(kafkaMsg.Value, &videoResolutionsMsg); err != nil {
-		return "", "Failed to unmarshal VideoResolutionsMessage", err
+	// Unmarshal and Validate the Kafka message into VideoResolutionsMessage struct
+	if msg, err := helper.UnmarshalAndValidate(kafkaMsg, &videoResolutionsMsg); err != nil {
+		return "", msg + " VideoResolutionsMessage", err
 	}
 
-	// Validate the unmarshaled struct
-	if err := helper.ValidateStruct(videoResolutionsMsg); err != nil {
-		return "", "Validation failed for VideoResolutionsMessage", err
-	}
 	defer pkg.AddToFileDeleteChan(videoResolutionsMsg.FilePath) // Ensure file is scheduled for deletion
 
 	// Prepare the output directories for each resolution
@@ -184,18 +175,14 @@ func processVideoResolutionsMessage(kafkaMsg kafka.Message) (string, string, err
 }
 
 // processImageMessage processes image conversion and returns the new ID, message, or an error
-func processImageMessage(kafkaMsg kafka.Message) (string, string, error) {
+func processImageMessage(kafkaMsg []byte) (string, string, error) {
 	var imageMsg api.ImageMessage
 
-	// Unmarshal the Kafka message into ImageMessage struct
-	if err := json.Unmarshal(kafkaMsg.Value, &imageMsg); err != nil {
-		return "", "Failed to unmarshal ImageMessage", err
+	// Unmarshal and Validate the Kafka message into ImageMessage struct
+	if msg, err := helper.UnmarshalAndValidate(kafkaMsg, &imageMsg); err != nil {
+		return "", msg + " ImageMessage", err
 	}
 
-	// Validate the unmarshaled struct
-	if err := helper.ValidateStruct(imageMsg); err != nil {
-		return "", "Validation failed for ImageMessage", err
-	}
 	defer pkg.AddToFileDeleteChan(imageMsg.FilePath) // Ensure file is scheduled for deletion
 
 	outputPath := fmt.Sprintf("%s/images/%s.jpeg", helper.Constants.MediaStorage, imageMsg.NewId)
@@ -213,18 +200,14 @@ func processImageMessage(kafkaMsg kafka.Message) (string, string, error) {
 }
 
 // processAudioMessage processes audio conversion and returns the new ID, message, or an error
-func processAudioMessage(kafkaMsg kafka.Message) (string, string, error) {
+func processAudioMessage(kafkaMsg []byte) (string, string, error) {
 	var audioMsg api.AudioMessage // Corrected type from ImageMessage to AudioMessage
 
 	// Unmarshal the Kafka message into AudioMessage struct
-	if err := json.Unmarshal(kafkaMsg.Value, &audioMsg); err != nil {
-		return "", "Failed to unmarshal AudioMessage", err
+	if msg, err := helper.UnmarshalAndValidate(kafkaMsg, &audioMsg); err != nil {
+		return "", msg + " AudioMessage", err
 	}
 
-	// Validate the unmarshaled struct
-	if err := helper.ValidateStruct(audioMsg); err != nil {
-		return "", "Validation failed for AudioMessage", err
-	}
 	defer pkg.AddToFileDeleteChan(audioMsg.FilePath) // Ensure file is scheduled for deletion
 
 	outputPath := fmt.Sprintf("%s/audios/%s.mp3", helper.Constants.MediaStorage, audioMsg.NewId)
@@ -249,8 +232,8 @@ func processAudioMessage(kafkaMsg kafka.Message) (string, string, error) {
 func processDeleteFileMessage(kafkaMsg kafka.Message, workerName string) {
 	var deleteFileMsg api.DeleteFileRequest
 
-	// Unmarshal the Kafka message into DeleteFileRequest struct to retrieve the delete request details
-	if err := json.Unmarshal(kafkaMsg.Value, &deleteFileMsg); err != nil {
+	// Unmarshal and Validate the Kafka message into DeleteFileRequest struct to retrieve the delete request details
+	if msg, err := helper.UnmarshalAndValidate(kafkaMsg.Value, &deleteFileMsg); err != nil {
 		// Log an error if unmarshalling fails, including message details for troubleshooting
 		log.Error().
 			Err(err).
@@ -258,20 +241,7 @@ func processDeleteFileMessage(kafkaMsg kafka.Message, workerName string) {
 			Int("partition", kafkaMsg.Partition).
 			Str("worker", workerName).
 			Str("kafka_message", string(kafkaMsg.Value)).
-			Msg("Failed to unmarshal DeleteFileMessage")
-		return
-	}
-
-	// Validate the unmarshaled struct to ensure it contains the necessary information
-	if err := helper.ValidateStruct(deleteFileMsg); err != nil {
-		// Log an error if validation fails, including message details for troubleshooting
-		log.Error().
-			Err(err).
-			Str("topic", kafkaMsg.Topic).
-			Int("partition", kafkaMsg.Partition).
-			Str("worker", workerName).
-			Str("kafka_message", string(kafkaMsg.Value)).
-			Msg("Validation failed for DeleteFileMessage")
+			Msg(msg + " DeleteFileMessage")
 		return
 	}
 
@@ -298,9 +268,9 @@ func processDeleteFileMessage(kafkaMsg kafka.Message, workerName string) {
 		log.Error().
 			Err(err).
 			Str("topic", kafkaMsg.Topic).
-			Int("partition", kafkaMsg.Partition).
 			Str("worker", workerName).
+			Int("partition", kafkaMsg.Partition).
 			Interface("kafka_message", deleteFileMsg).
-			Msgf("Error while deleting %s file, id: %s", deleteFileMsg.Type, deleteFileMsg.Id)
+			Msgf("Error while deleting %s file, id: %s, path: %s", deleteFileMsg.Type, deleteFileMsg.Id, path)
 	}
 }
