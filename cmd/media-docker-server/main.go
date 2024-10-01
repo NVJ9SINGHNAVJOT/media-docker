@@ -77,8 +77,9 @@ func main() {
 	// router intialized
 	router := chi.NewRouter()
 
+	// NOTE: Adjust throttle middleware value based on the required traffic control
 	// all default middlewares initialized
-	mw.DefaultMiddlewares(router, config.ServerEnv.ALLOWED_ORIGINS, []string{"POST", "DELETE"}, 1000)
+	mw.DefaultMiddlewares(router, config.ServerEnv.ALLOWED_ORIGINS, []string{"POST", "DELETE"}, 5000)
 
 	// server key for accessing server
 	router.Use(mw.ServerKey(config.ServerEnv.SERVER_KEY))
@@ -86,6 +87,8 @@ func main() {
 	// middlewares for this router
 	router.Use(middleware.AllowContentEncoding("deflate", "gzip"))
 	router.Use(middleware.AllowContentType("application/json", "multipart/form-data"))
+	// NOTE: Adjust LimitByIP middleware value based on the allowed requests per IP
+	// Apply rate limiting middleware to limit requests by IP (50 requests per minute)
 	router.Use(httprate.LimitByIP(50, 1*time.Minute))
 
 	// all routes for server

@@ -42,11 +42,13 @@ func main() {
 	// Initialize a new Chi router for handling HTTP requests
 	router := chi.NewRouter()
 
+	// NOTE: Adjust throttle middleware value based on the required traffic control
 	// Set up default middlewares such as CORS and logging for the router
-	mw.DefaultMiddlewares(router, config.ClientEnv.ALLOWED_ORIGINS, []string{"GET"}, 5000)
+	mw.DefaultMiddlewares(router, config.ClientEnv.ALLOWED_ORIGINS, []string{"GET"}, 10000)
 
-	// Apply rate limiting middleware to limit requests by IP (100 requests per minute)
-	router.Use(httprate.LimitByIP(100, 1*time.Minute))
+	// NOTE: Adjust LimitByIP middleware value based on the allowed requests per IP
+	// Apply rate limiting middleware to limit requests by IP (500 requests per minute)
+	router.Use(httprate.LimitByIP(500, 1*time.Minute))
 
 	/*
 		Create a route along "/media_docker_files" that serves files from the
