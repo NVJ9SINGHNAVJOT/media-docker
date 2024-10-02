@@ -114,6 +114,7 @@ process_topics() {
 
     case "$action" in
         # If the action is 'create', create the following topics if they don't exist
+        # NOTE: Kafka topic partitions can be scaled based on traffic and available system resources.
         "create")
             create_topic_if_not_exists "video" 10 1
             create_topic_if_not_exists "videoResponse" 10 1
