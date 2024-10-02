@@ -7,6 +7,7 @@ volumes:
   media-docker-upload-volume:
   media-docker-kafka_data:
   # NOTE: Uncomment the volumes below to enable the Kafka cluster.
+  # media-docker-kafka-0_data:
   # media-docker-kafka-1_data:
   # media-docker-kafka-2_data:
 
@@ -89,11 +90,11 @@ services:
       - ALLOW_PLAINTEXT_LISTENER=yes
     
   # NOTE: To enable a cluster of brokers, uncomment the Kafka broker configurations below.
-  # media-docker-kafka:
+  # media-docker-kafka-0:
   #   image: docker.io/bitnami/kafka:3.8.0
-  #   container_name: media-docker-kafka
+  #   container_name: media-docker-kafka-0
   #   volumes:
-  #     - media-docker-kafka_data:/bitnami/kafka
+  #     - media-docker-kafka-0_data:/bitnami/kafka
   #   networks:
   #     - media-docker-proxy
   #   restart: unless-stopped
@@ -103,10 +104,10 @@ services:
   #     - KAFKA_ENABLE_KRAFT=yes
   #     - KAFKA_CFG_PROCESS_ROLES=broker,controller
   #     - KAFKA_CFG_NODE_ID=0  # Unique Node ID
-  #     - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=0@media-docker-kafka:9093,1@media-docker-kafka-1:9093,2@media-docker-kafka-2:9093
+  #     - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=0@media-docker-kafka-0:9093,1@media-docker-kafka-1:9093,2@media-docker-kafka-2:9093
   #     # Listeners
   #     - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
-  #     - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://media-docker-kafka:9092
+  #     - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://media-docker-kafka-0:9092
   #     - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
   #     - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
   #     - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=PLAINTEXT
@@ -130,7 +131,7 @@ services:
   #     - KAFKA_ENABLE_KRAFT=yes
   #     - KAFKA_CFG_PROCESS_ROLES=broker,controller
   #     - KAFKA_CFG_NODE_ID=1  # Unique Node ID
-  #     - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=0@media-docker-kafka:9093,1@media-docker-kafka-1:9093,2@media-docker-kafka-2:9093
+  #     - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=0@media-docker-kafka-0:9093,1@media-docker-kafka-1:9093,2@media-docker-kafka-2:9093
   #     # Listeners
   #     - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
   #     - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://media-docker-kafka-1:9092
@@ -157,7 +158,7 @@ services:
   #     - KAFKA_ENABLE_KRAFT=yes
   #     - KAFKA_CFG_PROCESS_ROLES=broker,controller
   #     - KAFKA_CFG_NODE_ID=2  # Unique Node ID
-  #     - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=0@media-docker-kafka:9093,1@media-docker-kafka-1:9093,2@media-docker-kafka-2:9093
+  #     - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=0@media-docker-kafka-0:9093,1@media-docker-kafka-1:9093,2@media-docker-kafka-2:9093
   #     # Listeners
   #     - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
   #     - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://media-docker-kafka-2:9092
