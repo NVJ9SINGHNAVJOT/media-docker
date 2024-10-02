@@ -22,19 +22,23 @@ tasks:
       - cd cmd/media-docker-client && go build -o ../../dist/client-main main.go
       - cd cmd/media-docker-kafka-consumer && go build -o ../../dist/consumer-main main.go
 
-  create-topics-development:
-    desc: create topics for kafka from ./task_scripts/manage_kafka_topics_development.sh
-    vars:
-      KAFKA_CONTAINER: "media-docker-kafka-development" # Dynamically defined container name
+  create-dev-kafka-topics:
+    desc: create topics for kafka from ./task_scripts/this_create_kafka_topics.sh
     cmd:
       # Windows (Git Bash)
-      bash ./task_scripts/manage_kafka_topics.sh "{{.KAFKA_CONTAINER}}" "create"
+      bash ./task_scripts/this_create_kafka_topics.sh "media-docker-kafka-development" "1"
 
   dev-kafka:
     desc: start the Kafka container for development
     cmd:
       # Windows (Git Bash)
-      bash ./task_scripts/media_docker_kafka_development.sh
+      bash ./task_scripts/create_kafka_development_container.sh "media-docker-kafka-development" "proxy"
+
+  scripts:
+    desc: clone scripts from -> https://github.com/NVJ9SINGHNAVJOT/stacks
+    cmd:
+      # Windows (Git Bash)
+      bash ./clone_files.sh
 
   client:
     desc: run client main.go file
