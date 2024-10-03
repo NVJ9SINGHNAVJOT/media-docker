@@ -74,8 +74,6 @@ services:
       - media-docker-kafka-0_data:/bitnami/kafka
     networks:
       - media-docker-proxy
-    ports:
-      - "9092"
     restart: unless-stopped
     environment:
       # KRaft settings for node 0
@@ -105,8 +103,6 @@ services:
       - media-docker-kafka-1_data:/bitnami/kafka
     networks:
       - media-docker-proxy
-    ports:
-      - "9092"
     restart: unless-stopped
     environment:
       # KRaft settings for node 1
@@ -133,9 +129,7 @@ services:
     image: docker.io/bitnami/kafka:3.8.0
     container_name: media-docker-kafka-2
     volumes:
-      - media-docker-kafka-2_data:/bitnami/kafka
-    ports:
-      - "9092"    
+      - media-docker-kafka-2_data:/bitnami/kafka    
     networks:
       - media-docker-proxy
     restart: unless-stopped

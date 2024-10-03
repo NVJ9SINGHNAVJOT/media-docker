@@ -36,9 +36,10 @@ tasks:
 
   dev-kafka:
     desc: start the Kafka container for development
-    cmd:
+    cmds:
+      - task: proxy
       # Windows (Git Bash)
-      bash ./task_scripts/create_kafka_development_container.sh "media-docker-kafka-development" "proxy"
+      - bash ./task_scripts/create_kafka_development_container.sh "media-docker-kafka-development" "proxy"
 
   scripts:
     desc: clone scripts from -> https://github.com/NVJ9SINGHNAVJOT/stacks
