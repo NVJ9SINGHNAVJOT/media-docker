@@ -65,8 +65,8 @@ tasks:
   k-cluster:
     desc: check info for cluster of kafka brokers
     cmds:
-      - docker-compose exec media-docker-kafka-0 kafka-metadata-quorum.sh --bootstrap-server localhost:9092 describe --status
-      - docker-compose exec media-docker-kafka-0 kafka-metadata-quorum.sh --bootstrap-server localhost:9092 describe --replication
+      - docker-compose exec media-docker-kafka-0 kafka-metadata-quorum.sh --bootstrap-server media-docker-kafka-0:9092 describe --status
+      - docker-compose exec media-docker-kafka-0 kafka-metadata-quorum.sh --bootstrap-server media-docker-kafka-0:9092 describe --replication
 
   kafka-topics:
     desc: Create topics for Kafka Cluster (production) from ./task_scripts/this_create_kafka_topics.sh
