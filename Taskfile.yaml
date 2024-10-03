@@ -22,7 +22,13 @@ tasks:
       - cd cmd/media-docker-client && go build -o ../../dist/client-main main.go
       - cd cmd/media-docker-kafka-consumer && go build -o ../../dist/consumer-main main.go
 
-  create-dev-kafka-topics:
+  proxy:
+    desc: create proxy external network for docker
+    cmd:
+      # Windows (Git Bash)
+      bash ./task_scripts/docker_proxy_network.sh
+
+  dev-kafka-topics:
     desc: create topics for kafka from ./task_scripts/this_create_kafka_topics.sh
     cmd:
       # Windows (Git Bash)
@@ -55,10 +61,45 @@ tasks:
     cmds:
       - go run cmd/media-docker-kafka-consumer/main.go
 
-  compose-up:
-    desc: starts media-docker containers
+  k-cluster:
+    desc: check info for cluster of kafka brokers
     cmds:
-      - docker compose up -d
+      - docker-compose exec media-docker-kafka-0 kafka-metadata-quorum.sh --bootstrap-server localhost:9092 describe --status
+      - docker-compose exec media-docker-kafka-0 kafka-metadata-quorum.sh --bootstrap-server localhost:9092 describe --replication
+
+  kafka-topics:
+    desc: Create topics for Kafka Cluster (production) from ./task_scripts/this_create_kafka_topics.sh
+    # NOTE: Topic partitions can be changed as per requirement.
+    # Default settings for a Kafka cluster with 3 brokers and replication factor of 3.
+    env:
+      VIDEO_PARTITIONS: 100
+      VIDEORESPONSE_PARTITIONS: 50
+      VIDEORESOLUTIONS_PARTITIONS: 100
+      VIDEORESOLUTIONSRESPONSE_PARTITIONS: 50
+      IMAGE_PARTITIONS: 100
+      IMAGERESPONSE_PARTITIONS: 50
+      AUDIO_PARTITIONS: 50
+      AUDIORESPONSE_PARTITIONS: 25
+      DELETEFILE_PARTITIONS: 20
+    cmds:
+      # Windows (Git Bash)
+      - bash ./task_scripts/this_create_kafka_topics.sh "media-docker-kafka-0" "3"
+
+  kafka-brokers-cluster:
+    desc: Starts the Kafka broker services
+    # Start Kafka broker 0, which will start 1 and 2 automatically.
+    cmds:
+      - docker compose up -d media-docker-kafka-0
+
+  compose-up:
+    desc: Starts all media-docker containers after Kafka topics are created
+    cmds:
+      - task: proxy
+      - task: kafka-brokers-cluster # Starts Kafka brokers in order
+      - sleep 10 # Wait for 10 seconds after starting the brokers
+      - task: kafka-topics # Create the Kafka topics after the brokers are up
+      - docker compose up -d media-docker-server # This will automatically start consumer and Kafka due to the defined dependencies
+      - docker compose up -d media-docker-client # Start the client last
 
   compose-down:
     desc: stops media-docker containers

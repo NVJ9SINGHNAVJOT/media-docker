@@ -3,16 +3,25 @@ package pkg
 import (
 	"bufio"
 	"fmt"
-	"log"
 	"os"
 	"strings"
+
+	"github.com/rs/zerolog/log"
 )
 
 // LoadEnv loads environment variables from a given file, handling comments and preserving existing variables.
-// The function directly terminates the program if the file does not exist, using DirExist.
+// If the file does not exist, it logs a message and uses system environment variables instead.
+//
+// NOTE: filePath is used for development, for production with Docker it logs that the file is not found,
+// and environment variables from the Docker container will be used.
 func LoadEnv(filePath string) error {
-	// Use DirExist to check if the file exists, and terminate the program if it does not.
-	DirExist(filePath)
+	// Check if the file exists
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		// Log that the env file was not found, and environment variables will be loaded from the system.
+		// For Docker, the environment variables would come from the container configuration.
+		log.Warn().Msgf("Env file not found at %s. In production, environment variables from the Docker container will be used.", filePath)
+		return nil
+	}
 
 	// Open the specified environment variable file.
 	file, err := os.Open(filePath)
@@ -51,7 +60,7 @@ func LoadEnv(filePath string) error {
 		if _, exists := os.LookupEnv(key); !exists {
 			os.Setenv(key, value) // Set the environment variable.
 		} else {
-			log.Printf("Variable %s already exists, skipping...", key) // Log if the variable is already set.
+			log.Warn().Msgf("Variable %s already exists, skipping...", key) // Log if the variable is already set.
 		}
 	}
 

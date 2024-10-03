@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Source the file containing the container status and Kafka topic management functions
-source ./docker_container_status.sh
-source ./manage_kafka_topics.sh
+source ./task_scripts/docker_container_status.sh
+source ./task_scripts/manage_kafka_topics.sh
 
 # Check if the container name and replication factor are provided as arguments
 if [ -z "$1" ] || [ -z "$2" ]; then
@@ -41,6 +41,17 @@ declare -A topics_and_partitions=(
     ["audioResponse"]=4
     ["deleteFile"]=2
 )
+
+# Override defaults with environment variable values if they exist
+for topic in "${!topics_and_partitions[@]}"; do
+    env_var_name=$(echo "${topic^^}_PARTITIONS")  # Convert topic name to uppercase and append '_PARTITIONS'
+    if [[ ! -z "${!env_var_name}" ]]; then  # Check if the environment variable is set and not empty
+        topics_and_partitions[$topic]="${!env_var_name}"  # Use the value from the environment variable
+        echo "Using environment variable for topic '$topic': ${env_var_name}=${topics_and_partitions[$topic]}"  # Log the env var value
+    else
+        echo "Using default value for topic '$topic': ${topics_and_partitions[$topic]}"  # Log the default value
+    fi
+done
 
 # Loop through the topics and create them with the specified partitions and replication factor
 for topic in "${!topics_and_partitions[@]}"; do

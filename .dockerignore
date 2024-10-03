@@ -4,6 +4,9 @@
 .vscode
 README.md
 .env.example
+.env.client
+.env.server
+.env.consumer
 assets
 _examples
 build
@@ -14,6 +17,7 @@ logs
 uploadStorage
 media_docker_files
 Taskfile.yaml
+clone_files
 Media-Docker-System-Design.svg
 Media-Docker-System-Design.drawio
 .$Media-Docker-System-Design.drawio.bkp

@@ -17,17 +17,6 @@ COPY . .
 # Change directory to the location of the main.go file and build the binary
 RUN cd cmd/media-docker-kafka-consumer && go build -o ../../dist/main main.go
 
-# Ensure the Kafka topic creation script is executable
-# This step grants execute permissions to the script
-RUN chmod +x task_scripts/manage_kafka_topics.sh
-
-# NOTE: Replication factor is set to 1. 
-# If using a Kafka cluster with multiple brokers, set the replication factor to 3 for higher availability.
-# 
-# Create Kafka topics using the hardcoded Kafka container name
-# This step runs the script to create the necessary Kafka topics
-RUN ./task_scripts/this_create_kafka_topics.sh "media-docker-kafka" "1"
-
 # Runner Stage
 FROM alpine:latest AS runner
 

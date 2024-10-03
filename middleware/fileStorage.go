@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/nvj9singhnavjot/media-docker/helper"
+	"github.com/rs/zerolog/log"
 )
 
 // validFiles defines allowed MIME types for different file categories.
@@ -136,8 +137,12 @@ func FileStorage(fileName string, next http.HandlerFunc) http.HandlerFunc {
 		}
 
 		// Manually close the uploaded file and the output file after processing.
-		file.Close()
-		out.Close()
+		if err := file.Close(); err != nil {
+			log.Warn().Msgf("Warning: Could not close uploaded file: %s, error: %v", filePath, err)
+		}
+		if err := out.Close(); err != nil {
+			log.Warn().Msgf("Warning: Could not close output file: %s, error: %v", filePath, err)
+		}
 
 		// Add the path of the saved file to the response header, which can be used by the next handler.
 		header.Header.Add("path", filePath)
