@@ -26,20 +26,20 @@ tasks:
     desc: create proxy external network for docker
     cmd:
       # Windows (Git Bash)
-      bash ./task_scripts/docker_proxy_network.sh
+      cd task_scripts && bash docker_proxy_network.sh
 
   dev-kafka-topics:
     desc: create topics for kafka from ./task_scripts/this_create_kafka_topics.sh
     cmd:
       # Windows (Git Bash)
-      bash ./task_scripts/this_create_kafka_topics.sh "media-docker-kafka-development" "1"
+      cd task_scripts && bash this_create_kafka_topics.sh "media-docker-kafka-development" "1"
 
   dev-kafka:
     desc: start the Kafka container for development
     cmds:
       - task: proxy
       # Windows (Git Bash)
-      - bash ./task_scripts/create_kafka_development_container.sh "media-docker-kafka-development" "proxy"
+      - cd task_scripts && bash create_kafka_development_container.sh "media-docker-kafka-development" "proxy"
 
   scripts:
     desc: clone scripts from -> https://github.com/NVJ9SINGHNAVJOT/stacks
@@ -84,7 +84,7 @@ tasks:
       DELETEFILE_PARTITIONS: 20
     cmds:
       # Windows (Git Bash)
-      - bash ./task_scripts/this_create_kafka_topics.sh "media-docker-kafka-0" "3"
+      - cd task_scripts && bash this_create_kafka_topics.sh "media-docker-kafka-0" "3"
 
   kafka-brokers-cluster:
     desc: Starts the Kafka broker services
