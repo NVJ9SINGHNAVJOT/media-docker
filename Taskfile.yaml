@@ -1,77 +1,78 @@
----
 version: "3"
 
 interval: 500ms
 
 tasks:
+  default:
+    desc: Execute the task runner script.
+    cmd: task -l
+
   i:
-    desc: download dependencies and verify integrity
+    desc: Fetch dependencies and confirm they are valid.
     cmds:
       - go mod download
       - go mod verify
 
   tidy:
-    desc: runs go mod tidy
+    desc: Clean up `go.mod` and `go.sum` files using `go mod tidy`.
     cmds:
       - go mod tidy
 
   build:
-    desc: builds the project
+    desc: Compile the project into the "dist" directory.
     cmds:
       - cd cmd/media-docker-server && go build -o ../../dist/server-main main.go
       - cd cmd/media-docker-client && go build -o ../../dist/client-main main.go
       - cd cmd/media-docker-kafka-consumer && go build -o ../../dist/consumer-main main.go
 
   proxy:
-    desc: create proxy external network for docker
+    desc: Set up a proxy network for Docker.
     cmd:
       # Windows (Git Bash)
       cd task_scripts && bash docker_proxy_network.sh
 
   dev-kafka-topics:
-    desc: create topics for kafka from ./task_scripts/this_create_kafka_topics.sh
+    desc: Create Kafka topics for the development container using the `this_create_kafka_topics.sh` script.
     cmd:
       # Windows (Git Bash)
       cd task_scripts && bash this_create_kafka_topics.sh "media-docker-kafka-development" "1"
 
   dev-kafka:
-    desc: start the Kafka container for development
+    desc: Launch the development Kafka container with the proxy network.
     cmds:
       - task: proxy
       # Windows (Git Bash)
       - cd task_scripts && bash create_kafka_development_container.sh "media-docker-kafka-development" "proxy"
 
   scripts:
-    desc: clone scripts from -> https://github.com/NVJ9SINGHNAVJOT/stacks
+    desc: Download scripts from the GitHub repository at "https://github.com/NVJ9SINGHNAVJOT/stacks".
     cmd:
       # Windows (Git Bash)
       bash ./clone_files.sh
 
   client:
-    desc: run client main.go file
+    desc: Execute the `main.go` file for the client located in the `cmd` folder.
     cmds:
       - go run cmd/media-docker-client/main.go
 
   server:
-    desc: run server main.go file
+    desc: Execute the `main.go` file for the server located in the `cmd` folder.
     cmds:
       - go run cmd/media-docker-server/main.go
 
   consumer:
-    desc: run consumer main.go file
+    desc: Execute the `main.go` file for the Kafka consumer located in the `cmd` folder.
     cmds:
       - go run cmd/media-docker-kafka-consumer/main.go
 
   k-cluster:
-    desc: check info for cluster of kafka brokers
+    desc: Display information about the Kafka broker cluster.
     cmds:
       - docker-compose exec media-docker-kafka-0 kafka-metadata-quorum.sh --bootstrap-server media-docker-kafka-0:9092 describe --status
       - docker-compose exec media-docker-kafka-0 kafka-metadata-quorum.sh --bootstrap-server media-docker-kafka-0:9092 describe --replication
 
   kafka-topics:
-    desc: Create topics for Kafka Cluster (production) from ./task_scripts/this_create_kafka_topics.sh
-    # NOTE: Topic partitions can be changed as per requirement.
-    # Default settings for a Kafka cluster with 3 brokers and replication factor of 3.
+    desc: Create Kafka topics for the production cluster using default partition values (modifiable as needed before execution).
     env:
       VIDEO_PARTITIONS: 100
       VIDEORESPONSE_PARTITIONS: 50
@@ -86,23 +87,22 @@ tasks:
       # Windows (Git Bash)
       - cd task_scripts && bash this_create_kafka_topics.sh "media-docker-kafka-0" "3"
 
-  kafka-brokers-cluster:
-    desc: Starts the Kafka broker services
-    # Start Kafka broker 0, which will start 1 and 2 automatically.
+  kafka-cluster:
+    desc: Initialize the Kafka broker services cluster for production.
     cmds:
       - docker compose up -d media-docker-kafka-0
 
   compose-up:
-    desc: Starts all media-docker containers after Kafka topics are created
+    desc: Start all media-docker containers for production.
     cmds:
       - task: proxy
-      - task: kafka-brokers-cluster # Starts Kafka brokers in order
-      - sleep 10 # Wait for 10 seconds after starting the brokers
-      - task: kafka-topics # Create the Kafka topics after the brokers are up
-      - docker compose up -d media-docker-server # This will automatically start consumer and Kafka due to the defined dependencies
-      - docker compose up -d media-docker-client # Start the client last
+      - task: kafka-cluster # Launch Kafka brokers in order
+      - sleep 10 # Wait 10 seconds for brokers to fully initialize
+      - task: kafka-topics # Create Kafka topics once brokers are running
+      - docker compose up -d media-docker-server # Automatically starts the consumer and Kafka services as per dependencies
+      - docker compose up -d media-docker-client # Launch the client as the final step
 
   compose-down:
-    desc: stops media-docker containers
+    desc: Bring down all media-docker containers.
     cmds:
       - docker compose down
