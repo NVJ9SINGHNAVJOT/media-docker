@@ -5,8 +5,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-
-	"github.com/rs/zerolog/log"
 )
 
 // LoadEnv loads environment variables from a given file, handling comments and preserving existing variables.
@@ -19,7 +17,7 @@ func LoadEnv(filePath string) error {
 	if _, err := os.Stat(filePath); os.IsNotExist(err) {
 		// Log that the env file was not found, and environment variables will be loaded from the system.
 		// For Docker, the environment variables would come from the container configuration.
-		log.Warn().Msgf("Env file not found at %s. In production, environment variables from the Docker container will be used.", filePath)
+		fmt.Printf("Env file not found at %s. In production, environment variables from the Docker container will be used.", filePath)
 		return nil
 	}
 
@@ -60,7 +58,7 @@ func LoadEnv(filePath string) error {
 		if _, exists := os.LookupEnv(key); !exists {
 			os.Setenv(key, value) // Set the environment variable.
 		} else {
-			log.Warn().Msgf("Variable %s already exists, skipping...", key) // Log if the variable is already set.
+			fmt.Printf("Variable %s already exists, skipping...", key) // Log if the variable is already set.
 		}
 	}
 
