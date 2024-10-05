@@ -143,8 +143,8 @@ Node.js
 
 ## System Design
 
-- [`Open`](https://raw.githubusercontent.com/NVJ9SINGHNAVJOT/media-docker/ca19caaaf45abf93e12b987811aeb329b845964c/Media-Docker-System-Design.svg)
-![Media-Docker-System-Design](https://raw.githubusercontent.com/NVJ9SINGHNAVJOT/media-docker/ca19caaaf45abf93e12b987811aeb329b845964c/Media-Docker-System-Design.svg)
+- [`Open`](https://raw.githubusercontent.com/NVJ9SINGHNAVJOT/media-docker/721f6b5a8864e3a1251e8b4b91bf90fcc56d499b/Media-Docker-System-Design.svg)
+![Media-Docker-System-Design](https://raw.githubusercontent.com/NVJ9SINGHNAVJOT/media-docker/721f6b5a8864e3a1251e8b4b91bf90fcc56d499b/Media-Docker-System-Design.svg)
 
 ---
 
