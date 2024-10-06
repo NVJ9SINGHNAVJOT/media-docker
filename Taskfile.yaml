@@ -87,6 +87,11 @@ tasks:
       # Windows (Git Bash)
       - cd task_scripts && bash this_create_kafka_topics.sh "media-docker-kafka-0" "3"
 
+  delete-topics:
+    desc: Delete Kafka topics from brokers cluster.
+    cmds:
+      - cd task_scripts && bash this_delete_kafka_topics.sh "media-docker-kafka-0"
+
   kafka-cluster:
     desc: Initialize the Kafka broker services cluster for production.
     cmds:

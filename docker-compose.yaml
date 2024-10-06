@@ -62,6 +62,7 @@ services:
       - media-docker-files-volume:/app/media_docker_files:rw
     networks:
       - media-docker-proxy
+    restart: unless-stopped
     env_file: .env.consumer
     depends_on:
       - media-docker-kafka-0
