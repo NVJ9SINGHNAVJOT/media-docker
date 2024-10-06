@@ -97,6 +97,10 @@ tasks:
     cmds:
       - docker compose up -d media-docker-kafka-0
 
+  compose-build:
+    desc: Build the project using the Docker Compose file.
+    cmd: docker-compose build
+
   compose-up:
     desc: Start all media-docker containers for production.
     cmds:
