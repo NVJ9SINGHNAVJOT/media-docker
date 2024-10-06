@@ -90,14 +90,16 @@ func main() {
 
 		// Shutdown the server gracefully
 		if err := server.Shutdown(ctx); err != nil {
-			log.Error().Err(err).Msg("error while shutting down server") // Log error if the shutdown fails
+			log.Error().Err(err).Msg("Error while shutting down server") // Log error if the shutdown fails
 		}
 	}()
 
+	// Start the HTTP server
+	log.Info().Msg("media-docker-client is running...")
 	// Start the server
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		log.Fatal().Err(err).Str("error", err.Error()).Msg("error while running server") // Log fatal error if the server fails to start
+		log.Fatal().Err(err).Msg("Error while running server") // Log fatal error if the server fails to start
 	}
 
-	log.Info().Msg("server gracefully stopped") // Log that the server has stopped gracefully
+	log.Info().Msg("Server gracefully stopped") // Log that the server has stopped gracefully
 }

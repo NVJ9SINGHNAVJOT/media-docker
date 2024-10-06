@@ -48,21 +48,17 @@ func main() {
 
 	// Create a WaitGroup to track worker goroutines
 	var wg sync.WaitGroup
+	// workDone channel waits for all workers to complete.
+	workDone := make(chan int, 1)
 
 	// Context for managing shutdown
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel() // Ensure context is cancelled on shutdown
 
-	// Error channel to listen to Kafka worker errors
-	errChan := make(chan kafka.WorkerError)
-
-	// Initialize WorkerTracker to track remaining workers per topic
-	workerTracker := kafka.NewWorkerTracker(config.KafkaConsumeEnv.KAFKA_TOPIC_WORKERS)
-
 	// Set up Kafka producers and consumers
 	consumerKafka.KafkaProducer = kafka.NewKafkaProducerManager(config.KafkaConsumeEnv.KAFKA_BROKERS)
 	consumerKafka.KafkaConsumer = kafka.NewKafkaConsumerManager(
-		ctx, errChan, config.KafkaConsumeEnv.KAFKA_TOPIC_WORKERS,
+		ctx, workDone, config.KafkaConsumeEnv.KAFKA_TOPIC_WORKERS,
 		config.KafkaConsumeEnv.KAFKA_GROUP_PREFIX_ID, &wg,
 		config.KafkaConsumeEnv.KAFKA_BROKERS, consumerKafka.ProcessMessage)
 
@@ -88,54 +84,36 @@ func main() {
 
 			wg.Wait() // Wait for all worker goroutines to complete
 			log.Info().Msg("All Kafka workers stopped")
-			pkg.CloseDeleteChannels()
 
-			// Simulate a graceful shutdown delay, for deleting workers
-			time.Sleep(10 * time.Second)
-
-			// Consume all remaining error messages from errChan before shutting down
-		ConsumeErrors:
-			for {
-				select {
-				case workerErr, ok := <-errChan:
-					if ok {
-						log.Error().Err(workerErr.Err).Msgf("Kafka worker error for topic: %s, workerName: %s", workerErr.Topic, workerErr.WorkerName)
-					} else {
-						log.Info().Msg("All remaining Kafka worker errors consumed. Proceeding with shutdown.")
-						break ConsumeErrors // Break out of the labeled loop
-					}
-				default:
-					// No more error messages to consume
-					log.Info().Msg("No more worker errors to process.")
-					break ConsumeErrors // Break out of the labeled loop
-				}
-			}
-
-			log.Info().Msg("Kafka consumer service shutdown complete.")
+			// ensure cleanUp happens
+			cleanUpForConsumer()
 			return
 
-		case workerErr, ok := <-errChan:
+		case _, ok := <-workDone:
 			if !ok {
 				// If the channel is closed, all workers are done, so shut down
-				log.Info().Msg("Worker error channel closed, all Kafka workers finished. Initiating service shutdown...")
-				pkg.CloseDeleteChannels()
+				log.Info().Msg("workDone channel closed, all Kafka workers finished. Initiating service shutdown...")
 
-				// Simulate a graceful shutdown delay, for deleting workers
-				time.Sleep(10 * time.Second)
-				log.Info().Msg("Kafka consumer service shutdown complete.")
+				// ensure cleanUp happens
+				cleanUpForConsumer()
 				return
-			}
-
-			log.Error().Err(workerErr.Err).Msgf("Kafka worker error for topic: %s, workerName: %s", workerErr.Topic, workerErr.WorkerName)
-
-			// Reduce worker count for the topic
-			remainingWorkers := workerTracker.DecrementWorker(workerErr.Topic)
-
-			if remainingWorkers == 1 {
-				log.Warn().Msgf("Only one worker remaining for topic: %s", workerErr.Topic)
-			} else if remainingWorkers == 0 {
-				log.Error().Msgf("No workers remaining for topic: %s", workerErr.Topic)
 			}
 		}
 	}
+}
+
+// cleanUpForConsumer performs final cleanup actions before shutdown
+func cleanUpForConsumer() {
+	if err := consumerKafka.KafkaProducer.Close(); err != nil {
+		log.Error().Err(err).Msg("Error while closing producer for media-docker-consumer")
+	} else {
+		log.Info().Msg("Producer closed for media-docker-consumer.")
+	}
+
+	pkg.CloseDeleteChannels()
+	log.Info().Msg("Delete channels closed.")
+
+	// Simulate a graceful shutdown delay, for deleting workers
+	time.Sleep(5 * time.Second)
+	log.Info().Msg("Kafka consumer service shutdown complete.")
 }
