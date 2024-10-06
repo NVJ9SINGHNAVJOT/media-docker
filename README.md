@@ -86,19 +86,19 @@ The **Media-Docker** project, now in version 2, is a complete media processing s
 
   ```
   cd media-docker
-  docker compose up -d
+  task compose-up
   ```
 
 - **Using local machine dependencies**
 
 1. Install golang (if not already installed).
 2. Install the required modules and components.
-3. If you have Apache Kafka installed locally, skip *task dev-kafka* step. Otherwise, start Docker (Apache Kafka is used in this project with Docker)
+3. If you have Apache Kafka installed locally, skip the *task dev-kafka* and *task dev-kafka-topics* steps, and create the topics as described in the *this_create_kafka_topics.sh* file. Otherwise, start Docker (Apache Kafka is used in this project with Docker) and execute the following task commands:
    ```
    cd media-docker
    task i
    task dev-kafka
-   task create-topics-development
+   task dev-kafka-topics
    task consumer
    task server
    task client
@@ -106,7 +106,7 @@ The **Media-Docker** project, now in version 2, is a complete media processing s
 
 - Client will start running at (eg: 7000) 7000 port. [`http://localhost:7000`](http://localhost:7000).
 - Server will start running at (eg: 7007) 7007 port. [`http://localhost:7007`](http://localhost:7007).
-
+- You can execute the ***task*** command in the terminal to view all the available commands in the task file.
 ## Examples
 
 Node.js
