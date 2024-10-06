@@ -38,10 +38,15 @@ func ProcessMessage(kafkaMsg kafka.Message, workerName string) {
 	if err != nil {
 		log.Error().
 			Err(err).
-			Str("topic", kafkaMsg.Topic).
 			Str("worker", workerName).
-			Int("partition", kafkaMsg.Partition).
-			Str("kafka_message", string(kafkaMsg.Value)).
+			Interface("message_details", map[string]interface{}{
+				"topic":         kafkaMsg.Topic,
+				"partition":     kafkaMsg.Partition,
+				"offset":        kafkaMsg.Offset,
+				"highWaterMark": kafkaMsg.HighWaterMark,
+				"value":         string(kafkaMsg.Value),
+				"time":          kafkaMsg.Time,
+			}).
 			Msg(msg + "Kafka message") // Log the error if unmarshalling fails
 		return
 	}
@@ -53,10 +58,16 @@ func ProcessMessage(kafkaMsg kafka.Message, workerName string) {
 	if err != nil {
 		log.Error().
 			Err(err).
-			Str("topic", kafkaMsg.Topic).
 			Str("worker", workerName).
-			Int("partition", kafkaMsg.Partition).
-			Str("kafka_message", string(kafkaMsg.Value)) // Log error details if handling fails
+			Interface("message_details", map[string]interface{}{
+				"topic":         kafkaMsg.Topic,
+				"partition":     kafkaMsg.Partition,
+				"offset":        kafkaMsg.Offset,
+				"highWaterMark": kafkaMsg.HighWaterMark,
+				"value":         string(kafkaMsg.Value),
+				"time":          kafkaMsg.Time,
+			}).
+			Msg("Failed to notify API due to response message error")
 	}
 }
 
