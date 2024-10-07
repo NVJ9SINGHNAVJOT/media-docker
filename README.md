@@ -46,13 +46,9 @@
 The **media-docker-kafka** component receives messages for various topics, enabling scalable and asynchronous media processing. The **media-docker-kafka-consumer** executes the primary tasks associated with each topic. Key topics and their respective responsibilities include:
 
 - **video**: Manages video conversion and segmentation tasks.
-  
 - **videoResolutions**: Handles resolution conversion for videos.
-  
 - **audio**: Processes and stores audio files based on the specified bitrate.
-  
 - **image**: Manages image compression and storage.
-  
 - **deleteFile**: Oversees requests for media file deletion.
 
 By leveraging **Kafka** and **FFmpeg**, the project guarantees scalable, efficient media processing with dedicated workers for each topic.
@@ -76,29 +72,32 @@ The **Media-Docker** project, now in version 2, is a complete media processing s
 ## Installation
 
 - Clone the repository to your local machine.
-  ```
+  ```sh
   git clone https://github.com/NVJ9SINGHNAVJOT/media-docker.git
   ```
 - Set up environment variables.
   In the root directory **.env.example** file is present. Replace it with **.env.client**, **.env.server**, **.env.consumer** file and set the required variables running application _(.env.example contains all variables examples for all envs)_.
 - Project can be run on local machine by Docker or by installing dependencies locally.
-- **Using Docker**
+- **Using Docker:** **_Recommended for Production_**
 
-  ```
+  ```sh
   cd media-docker
   task compose-up
   ```
 
-- **Using local machine dependencies**
+- **Using local machine dependencies:** **_Recommended for Development_**
 
 1. Install golang (if not already installed).
 2. Install the required modules and components.
-3. If you have Apache Kafka installed locally, skip the *task dev-kafka* and *task dev-kafka-topics* steps, and create the topics as described in the *this_create_kafka_topics.sh* file. Otherwise, start Docker (Apache Kafka is used in this project with Docker) and execute the following task commands:
-   ```
+3. If you have Apache Kafka installed locally, skip the _task dev-kafka_ and _task dev-kafka-topics_ steps, and create the topics as described in the _this_create_kafka_topics.sh_ file. Otherwise, start Docker (Apache Kafka is used in this project with Docker) and execute the following task commands:
+
+   ```sh
    cd media-docker
    task i
    task dev-kafka
    task dev-kafka-topics
+   
+   # Below tasks need to run in different terminals:
    task consumer
    task server
    task client
@@ -106,53 +105,103 @@ The **Media-Docker** project, now in version 2, is a complete media processing s
 
 - Client will start running at (eg: 7000) 7000 port. [`http://localhost:7000`](http://localhost:7000).
 - Server will start running at (eg: 7007) 7007 port. [`http://localhost:7007`](http://localhost:7007).
-- You can execute the ***task*** command in the terminal to view all the available commands in the task file.
+
+- You can execute the **_task_** command in the terminal to view all the available commands in the task file.
+
+---
+
 ## Examples
 
-Node.js
-   - copy and paste api_node.js.ts file from examples folder to your project
-   - eg: api_node.js.ts file is in utils folder in your project
+### Node.js Integration
 
-   - video
-   ```
-   import mediaDocker from "@/utils/api_node_js";
+- Copy the mediaDocker.ts file from the examples folder into your project.
+- Example: Place the file in the utils folder of your project.
 
-   // upload video
-   const video_fileUrl = await mediaDocker.uploadVideo(
-      "your_server_key",
-      "http://localhost:7007",
-      req.file.path
-   );
-   console.log(video_fileUrl)
-   // "http://localhost:7000/media_docker_files/videos/ac9ec121-dad2-48ee-91a5-b9e0e8bcce27/index.m3u8"
-   ```
+- First connect to media-docker-server
 
-   - image
-   ```
-   import mediaDocker from "@/utils/api_node_js";
+```ts
+import mediaDocker from "@/utils/mediaDocker";
 
-   // upload image
-   const image_fileUrl = await mediaDocker.uploadImage(
-      "your_server_key",
-      "http://localhost:7007",
-      req.file.path
-   );
-   console.log(image_fileUrl)
-   // "http://localhost:7000/media_docker_files/images/5f157386-dbf2-46d1-a927-4d837aedbaeb.jpeg"
-   ```
+// First, connect to the media-docker-server
+async function connectToMediaDocker() {
+  try {
+    // The connect function takes two parameters:
+    // 1. server key (e.g., "your_server_key")
+    // 2. media-docker-server URL (e.g., "http://localhost:7007" or "https://your-media-docker-server.com")
+    await mediaDocker.connect("your_server_key", "http://localhost:7007");
+
+    console.log("Connected to Media-Docker successfully.");
+  } catch (error) {
+    console.error("Error connecting to Media-Docker:", error.message);
+  }
+}
+```
+
+- video
+
+```ts
+import mediaDocker from "@/utils/mediaDocker";
+
+// upload video
+const videoFileUrl = await mediaDocker.uploadVideo("/path/to/video.mp4", 80);
+
+console.log(videoFileUrl);
+// "http://localhost:7000/media_docker_files/videos/5f157386-dbf2-46d1-a927-4d837aedbaeb/index.m3u8"
+```
+
+- video resolutions
+
+```ts
+import mediaDocker from "@/utils/mediaDocker";
+
+// upload video resolutions
+const videoResolutions = await mediaDocker.uploadVideoResolutions(
+  "/path/to/video.mp4"
+);
+
+console.log(videoResolutions);
+// {
+//   "360": "http://localhost:7000/media_docker_files/videos/ac9ec121-dad2-48ee-91a5-b9e0e8bcce27/360/index.m3u8",
+//   "480": "http://localhost:7000/media_docker_files/videos/ac9ec121-dad2-48ee-91a5-b9e0e8bcce27/480/index.m3u8",
+//   "720": "http://localhost:7000/media_docker_files/videos/ac9ec121-dad2-48ee-91a5-b9e0e8bcce27/720/index.m3u8",
+//   "1080": "http://localhost:7000/media_docker_files/videos/ac9ec121-dad2-48ee-91a5-b9e0e8bcce27/1080/index.m3u8"
+// }
+```
+
+- audio
+
+```ts
+import mediaDocker from "@/utils/mediaDocker";
+
+// upload audio
+const audioFileUrl = await mediaDocker.uploadAudio(
+  "/path/to/audio.wav",
+  "192k"
+);
+
+console.log(audioFileUrl);
+// "http://localhost:7000/media_docker_files/audios/c2a9d148-2568-4f0d-b7b6-e5c4802e229e.mp3"
+```
+
+- image
+
+```ts
+import mediaDocker from "@/utils/mediaDocker";
+
+// upload image
+const imageFileUrl = await mediaDocker.uploadImage("/path/to/image.png");
+
+console.log(imageFileUrl);
+// "http://localhost:7000/media_docker_files/images/d5e9b916-3f55-4144-9338-7c8d1c67c7af.jpeg"
+```
 
 ## System Design
 
 - [`Open`](https://raw.githubusercontent.com/NVJ9SINGHNAVJOT/media-docker/721f6b5a8864e3a1251e8b4b91bf90fcc56d499b/Media-Docker-System-Design.svg)
-![Media-Docker-System-Design](https://raw.githubusercontent.com/NVJ9SINGHNAVJOT/media-docker/721f6b5a8864e3a1251e8b4b91bf90fcc56d499b/Media-Docker-System-Design.svg)
-
----
+  ![Media-Docker-System-Design](https://raw.githubusercontent.com/NVJ9SINGHNAVJOT/media-docker/721f6b5a8864e3a1251e8b4b91bf90fcc56d499b/Media-Docker-System-Design.svg)
 
 ## Important
 
 - Media-Docker utilizes FFmpeg for media file conversion. However, it’s important to note that FFmpeg can be resource-intensive. To optimize performance, consider adjusting your API rate limits and worker pool size based on your system’s available resources.
 
 ---
-
-
- 
