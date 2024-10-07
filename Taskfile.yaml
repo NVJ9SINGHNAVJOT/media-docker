@@ -68,8 +68,8 @@ tasks:
   k-cluster:
     desc: Display information about the Kafka broker cluster.
     cmds:
-      - docker-compose exec media-docker-kafka-0 kafka-metadata-quorum.sh --bootstrap-server media-docker-kafka-0:9092 describe --status
-      - docker-compose exec media-docker-kafka-0 kafka-metadata-quorum.sh --bootstrap-server media-docker-kafka-0:9092 describe --replication
+      - docker exec media-docker-kafka-0 kafka-metadata-quorum.sh --bootstrap-server media-docker-kafka-0:9092 describe --status
+      - docker exec media-docker-kafka-0 kafka-metadata-quorum.sh --bootstrap-server media-docker-kafka-0:9092 describe --replication
 
   kafka-topics:
     desc: Create Kafka topics for the production cluster using default partition values (modifiable as needed before execution).
