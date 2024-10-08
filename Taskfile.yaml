@@ -15,8 +15,7 @@ tasks:
 
   tidy:
     desc: Clean up `go.mod` and `go.sum` files using `go mod tidy`.
-    cmds:
-      - go mod tidy
+    cmd: go mod tidy
 
   build:
     desc: Compile the project into the "dist" directory.
@@ -32,10 +31,10 @@ tasks:
       cd task_scripts && bash docker_proxy_network.sh
 
   dev-kafka-topics:
-    desc: Create Kafka topics for the development container using the `this_create_kafka_topics.sh` script.
+    desc: Create Kafka topics for the development container using the `manage_kafka_config_file_topics.sh` script.
     cmd:
       # Windows (Git Bash)
-      cd task_scripts && bash this_create_kafka_topics.sh "media-docker-kafka-development" "1"
+      cd task_scripts && bash manage_kafka_config_file_topics.sh "media-docker-kafka-development" "../kafka_config.sh" "create" "1"
 
   dev-kafka:
     desc: Launch the development Kafka container with the proxy network.
@@ -52,18 +51,15 @@ tasks:
 
   client:
     desc: Execute the `main.go` file for the client located in the `cmd` folder.
-    cmds:
-      - go run cmd/media-docker-client/main.go
+    cmd: go run cmd/media-docker-client/main.go
 
   server:
     desc: Execute the `main.go` file for the server located in the `cmd` folder.
-    cmds:
-      - go run cmd/media-docker-server/main.go
+    cmd: go run cmd/media-docker-server/main.go
 
   consumer:
     desc: Execute the `main.go` file for the Kafka consumer located in the `cmd` folder.
-    cmds:
-      - go run cmd/media-docker-kafka-consumer/main.go
+    cmd: go run cmd/media-docker-kafka-consumer/main.go
 
   k-cluster:
     desc: Display information about the Kafka broker cluster.
@@ -72,30 +68,18 @@ tasks:
       - docker exec media-docker-kafka-0 kafka-metadata-quorum.sh --bootstrap-server media-docker-kafka-0:9092 describe --replication
 
   kafka-topics:
-    desc: Create Kafka topics for the production cluster using default partition values (modifiable as needed before execution).
-    env:
-      VIDEO_PARTITIONS: 100
-      VIDEORESPONSE_PARTITIONS: 50
-      VIDEORESOLUTIONS_PARTITIONS: 100
-      VIDEORESOLUTIONSRESPONSE_PARTITIONS: 50
-      IMAGE_PARTITIONS: 100
-      IMAGERESPONSE_PARTITIONS: 50
-      AUDIO_PARTITIONS: 50
-      AUDIORESPONSE_PARTITIONS: 25
-      DELETEFILE_PARTITIONS: 20
-    cmds:
+    desc: Create Kafka topics for the production cluster (you can modify partition settings in the kafka_config.sh file).
+    cmd:
       # Windows (Git Bash)
-      - cd task_scripts && bash this_create_kafka_topics.sh "media-docker-kafka-0" "3"
+      cd task_scripts && bash manage_kafka_config_file_topics.sh "media-docker-kafka-development" "../kafka_config.sh" "create" "3"
 
   delete-topics:
-    desc: Delete Kafka topics from brokers cluster.
-    cmds:
-      - cd task_scripts && bash this_delete_kafka_topics.sh "media-docker-kafka-0"
+    desc: Delete Kafka topics from brokers cluster using the `manage_kafka_config_file_topics.sh`.
+    cmd: cd task_scripts && bash manage_kafka_config_file_topics.sh "media-docker-kafka-0" "../kafka_config.sh" "delete"
 
   kafka-cluster:
     desc: Initialize the Kafka broker services cluster for production.
-    cmds:
-      - docker compose up -d media-docker-kafka-0
+    cmd: docker compose up -d media-docker-kafka-0
 
   compose-build:
     desc: Build the project using the Docker Compose file.
@@ -113,5 +97,4 @@ tasks:
 
   compose-down:
     desc: Bring down all media-docker containers.
-    cmds:
-      - docker compose down
+    cmd: docker compose down
