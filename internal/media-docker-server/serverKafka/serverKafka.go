@@ -76,13 +76,13 @@ func handleResponse(response KafkaResponseMessage, topic string) error {
 	// Select the correct map based on the topic
 	var requestMap *sync.Map
 	switch topic {
-	case "videoResponse":
+	case "video-response":
 		requestMap = &VideoRequestMap // Use the video request map
-	case "videoResolutionsResponse":
+	case "video-resolutions-response":
 		requestMap = &VideoResolutionsRequestMap // Use the video resolution request map
-	case "imageResponse":
+	case "image-response":
 		requestMap = &ImageRequestMap // Use the image request map
-	case "audioResponse":
+	case "audio-response":
 		requestMap = &AudioRequestMap // Use the audio request map
 	default:
 		return fmt.Errorf("unknown topic") // Return error if topic is not recognized

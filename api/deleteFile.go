@@ -31,7 +31,7 @@ func DeleteFile(w http.ResponseWriter, r *http.Request) {
 
 	// Parse the JSON request and populate the DeleteFileRequest struct.
 	if err := helper.ValidateRequest(r, &req); err != nil {
-		helper.Response(w, http.StatusBadRequest, "invalid data", err.Error())
+		helper.Response(w, http.StatusBadRequest, "invalid data", err)
 		return
 	}
 
@@ -39,7 +39,7 @@ func DeleteFile(w http.ResponseWriter, r *http.Request) {
 
 	exist, err := dirExist(path)
 	if err != nil {
-		helper.Response(w, http.StatusBadRequest, "invalid file for deleting", err.Error())
+		helper.Response(w, http.StatusBadRequest, "invalid file for deleting", err)
 		return
 	}
 
@@ -48,8 +48,8 @@ func DeleteFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := serverKafka.KafkaProducer.Produce("deleteFile", req); err != nil {
-		helper.Response(w, http.StatusInternalServerError, "error deleting file", err.Error())
+	if err := serverKafka.KafkaProducer.Produce("delete-file", req); err != nil {
+		helper.Response(w, http.StatusInternalServerError, "error deleting file", err)
 		return
 	}
 

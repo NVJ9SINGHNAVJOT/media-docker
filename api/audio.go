@@ -28,7 +28,7 @@ func Audio(w http.ResponseWriter, r *http.Request) {
 	_, header, err := r.FormFile("audioFile")
 	if err != nil {
 		// Respond with an error if the file cannot be read
-		helper.Response(w, http.StatusBadRequest, "error reading file", err.Error())
+		helper.Response(w, http.StatusBadRequest, "error reading file", err)
 		return
 	}
 	audioPath := header.Header.Get("path") // Get the file path from the header
@@ -37,7 +37,7 @@ func Audio(w http.ResponseWriter, r *http.Request) {
 	// Parse the JSON request and populate the AudioRequest struct
 	if err := helper.ValidateRequest(r, &req); err != nil {
 		pkg.AddToFileDeleteChan(audioPath) // Add to deletion channel on error
-		helper.Response(w, http.StatusBadRequest, "invalid data", err.Error())
+		helper.Response(w, http.StatusBadRequest, "invalid data", err)
 		return
 	}
 
@@ -61,11 +61,11 @@ func Audio(w http.ResponseWriter, r *http.Request) {
 	// Store the channel in the request map with the id as the key
 	serverKafka.AudioRequestMap.Store(id, responseChannel)
 
-	// Pass the struct to the Kafka producer (or processing worker)
+	// Pass the struct to the Kafka producer
 	if err := serverKafka.KafkaProducer.Produce("audio", message); err != nil {
 		pkg.AddToFileDeleteChan(audioPath)     // Add to deletion channel on error
 		serverKafka.AudioRequestMap.Delete(id) // Remove the channel from the map on error
-		helper.Response(w, http.StatusInternalServerError, "error sending Kafka message", err.Error())
+		helper.Response(w, http.StatusInternalServerError, "error sending Kafka message", err)
 		return
 	}
 

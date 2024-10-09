@@ -125,10 +125,10 @@ func ValidateServerEnv() error {
 
 	// Validate worker counts for each Kafka topic
 	topicWorkers := map[string]string{
-		"videoResponse":            "KAFKA_VIDEORESPONSE_WORKERS",
-		"videoResolutionsResponse": "KAFKA_VIDEORESOLUTIONSRESPONSE_WORKERS",
-		"imageResponse":            "KAFKA_IMAGERESPONSE_WORKERS",
-		"audioResponse":            "KAFKA_AUDIORESPONSE_WORKERS",
+		"video-response":            "KAFKA_VIDEO_RESPONSE_WORKERS",
+		"video-resolutions-response": "KAFKA_VIDEO_RESOLUTIONS_RESPONSE_WORKERS",
+		"image-response":            "KAFKA_IMAGE_RESPONSE_WORKERS",
+		"audio-response":            "KAFKA_AUDIO_RESPONSE_WORKERS",
 	}
 
 	workerCounts := make(map[string]int)
@@ -177,10 +177,10 @@ func ValidateKafkaConsumeEnv() error {
 	// Validate worker counts for each Kafka topic
 	topicWorkers := map[string]string{
 		"video":            "KAFKA_VIDEO_WORKERS",
-		"videoResolutions": "KAFKA_VIDEORESOLUTIONS_WORKERS",
+		"video-resolutions": "KAFKA_VIDEO_RESOLUTIONS_WORKERS",
 		"image":            "KAFKA_IMAGE_WORKERS",
 		"audio":            "KAFKA_AUDIO_WORKERS",
-		"deleteFile":       "KAFKA_DELETEFILE_WORKERS",
+		"delete-file":       "KAFKA_DELETE_FILE_WORKERS",
 	}
 
 	workerCounts := make(map[string]int)

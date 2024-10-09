@@ -53,7 +53,7 @@ func FileStorage(fileName string, next http.HandlerFunc) http.HandlerFunc {
 		// Parse the form data from the request with a file size limit for the file field.
 		// The maximum file size is defined in helper.Constants.MaxFileSize for the given fileName.
 		if err := r.ParseMultipartForm(helper.Constants.MaxFileSize[fileName]); err != nil {
-			helper.Response(w, http.StatusBadRequest, "error parsing form data", err.Error())
+			helper.Response(w, http.StatusBadRequest, "error parsing form data", err)
 			return
 		}
 
@@ -61,7 +61,7 @@ func FileStorage(fileName string, next http.HandlerFunc) http.HandlerFunc {
 		// This reads the uploaded file from the request.
 		file, header, err := r.FormFile(fileName)
 		if err != nil {
-			helper.Response(w, http.StatusBadRequest, "error reading file - no file present", err.Error())
+			helper.Response(w, http.StatusBadRequest, "error reading file - no file present", err)
 			return
 		}
 		// We will manually close the file later after processing.
@@ -121,7 +121,7 @@ func FileStorage(fileName string, next http.HandlerFunc) http.HandlerFunc {
 		// This file will store the content of the uploaded file.
 		out, err := os.Create(filePath)
 		if err != nil {
-			helper.Response(w, http.StatusInternalServerError, "error creating file", err.Error())
+			helper.Response(w, http.StatusInternalServerError, "error creating file", err)
 			file.Close() // Close the uploaded file before returning.
 			return
 		}
@@ -130,7 +130,7 @@ func FileStorage(fileName string, next http.HandlerFunc) http.HandlerFunc {
 		// Copy the content of the uploaded file into the newly created file on disk.
 		_, err = io.Copy(out, file)
 		if err != nil {
-			helper.Response(w, http.StatusInternalServerError, "error saving file", err.Error())
+			helper.Response(w, http.StatusInternalServerError, "error saving file", err)
 			file.Close() // Close the uploaded file.
 			out.Close()  // Close the output file before returning.
 			return
@@ -138,10 +138,10 @@ func FileStorage(fileName string, next http.HandlerFunc) http.HandlerFunc {
 
 		// Manually close the uploaded file and the output file after processing.
 		if err := file.Close(); err != nil {
-			log.Warn().Msgf("Warning: Could not close uploaded file: %s, error: %v", filePath, err)
+			log.Warn().Err(err).Msgf("Warning: Could not close uploaded file: %s", filePath)
 		}
 		if err := out.Close(); err != nil {
-			log.Warn().Msgf("Warning: Could not close output file: %s, error: %v", filePath, err)
+			log.Warn().Err(err).Msgf("Warning: Could not close output file: %s", filePath)
 		}
 
 		// Add the path of the saved file to the response header, which can be used by the next handler.

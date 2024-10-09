@@ -29,18 +29,18 @@ func ProcessMessage(msg kafka.Message, workerName string) {
 	// Process messages by topic
 	switch msg.Topic {
 	case "video":
-		topic = "videoResponse"
+		topic = "video-response"
 		id, resMessage, err = processVideoMessage(msg.Value)
-	case "videoResolutions":
-		topic = "videoResolutionsResponse"
+	case "video-resolutions":
+		topic = "video-resolutions-response"
 		id, resMessage, err = processVideoResolutionsMessage(msg.Value)
 	case "image":
-		topic = "imageResponse"
+		topic = "image-response"
 		id, resMessage, err = processImageMessage(msg.Value)
 	case "audio":
-		topic = "audioResponse"
+		topic = "audio-response"
 		id, resMessage, err = processAudioMessage(msg.Value)
-	case "deleteFile":
+	case "delete-file":
 		processDeleteFileMessage(msg, workerName) // Process file deletion request
 		return
 	default:

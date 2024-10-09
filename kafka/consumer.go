@@ -125,28 +125,32 @@ func (k *KafkaConsumerManager) KafkaConsumeSetup() {
 
 	// Iterate over each topic to create a consumer group and spawn the corresponding workers.
 	for topic, workersCount := range k.workersPerTopic {
-		// Create a Kafka consumer group name using the specified topic.
-		// The group name is derived from a predefined prefix in the configuration,
-		// followed by the topic name and a suffix indicating that it represents a group.
+		// Create a unique Kafka consumer group name by combining the group ID (from configuration),
+		// the topic name, and a suffix to indicate it is a consumer group.
+		// For example, if the group ID is "md_consumer" and the topic is "video",
+		// the resulting groupName will be: "md_consumer-video-group".
+		// This "md_consumer-video-group" is the group name used for all workers under this topic.
 		groupName := fmt.Sprintf("%s-%s-group", k.groupID, topic)
 
-		// Log the initiation of the consumer group, providing key details such as
-		// the topic name, the generated group name, and the number of workers assigned to that topic.
+		// Log the creation of the consumer group, showing details such as the topic name,
+		// the generated group name, and the number of workers assigned to handle this topic's messages.
 		log.Info().
 			Str("topic", topic).
 			Str("group", groupName).
 			Int("workersCount", workersCount).
 			Msg("Starting consumer group")
 
-		// Launch the specified number of workers to handle message consumption
-		// for the current topic. Each worker will operate concurrently, allowing for parallel processing.
+		// Launch the specified number of workers to handle message consumption for the current topic.
+		// Each worker will operate concurrently, allowing for parallel processing of messages.
 		for workerID := 1; workerID <= workersCount; workerID++ {
 			k.wg.Add(1) // Increment the WaitGroup counter to track the completion of each worker.
 
-			// Create a unique worker name that incorporates the topic name, group name, and worker ID.
-			// For example, if the KAFKA_GROUP_PREFIX_ID is "md_consumer", the topic is "video",
-			// and the worker ID is 1, the resulting workerName will be:
-			// "md_consumer-video-group-worker-1", ensuring that each worker has a distinct identifier.
+			// Create a unique worker name by appending a worker-specific ID to the group name.
+			// This ensures that each worker within the group has a unique identity, which includes the topic name,
+			// the group name, and its own ID. For example:
+			// If the groupName is "md_consumer-video-group" and the workerID is 1,
+			// the resulting workerName will be: "md_consumer-video-group-worker-1".
+			// Here, "md_consumer-video-group" is the group name for this worker, and "worker-1" is the worker's unique ID within this group.
 			workerName := fmt.Sprintf("%s-worker-%d", groupName, workerID)
 
 			// Start a goroutine for each worker, which will handle message consumption with retry logic.

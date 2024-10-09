@@ -30,7 +30,7 @@ func Video(w http.ResponseWriter, r *http.Request) {
 	_, header, err := r.FormFile("videoFile")
 	if err != nil {
 		// Respond with an error if the file cannot be read
-		helper.Response(w, http.StatusBadRequest, "error reading file", err.Error())
+		helper.Response(w, http.StatusBadRequest, "error reading file", err)
 		return
 	}
 	videoPath := header.Header.Get("path") // Get the file path from the header
@@ -39,7 +39,7 @@ func Video(w http.ResponseWriter, r *http.Request) {
 	// Parse the JSON request and populate the VideoRequest struct
 	if err := helper.ValidateRequest(r, &req); err != nil {
 		pkg.AddToFileDeleteChan(videoPath) // Add to deletion channel on error
-		helper.Response(w, http.StatusBadRequest, "invalid data", err.Error())
+		helper.Response(w, http.StatusBadRequest, "invalid data", err)
 		return
 	}
 
@@ -50,7 +50,7 @@ func Video(w http.ResponseWriter, r *http.Request) {
 		q, err := strconv.Atoi(req.Quality) // Convert string to int
 		if err != nil {
 			pkg.AddToFileDeleteChan(videoPath) // Add to deletion channel on error
-			helper.Response(w, http.StatusBadRequest, "invalid quality value", err.Error())
+			helper.Response(w, http.StatusBadRequest, "invalid quality value", err)
 			return
 		}
 		quality = &q // Set quality as a pointer to the integer value
@@ -76,7 +76,7 @@ func Video(w http.ResponseWriter, r *http.Request) {
 	if err := serverKafka.KafkaProducer.Produce("video", message); err != nil {
 		pkg.AddToFileDeleteChan(videoPath)     // Add to deletion channel on error
 		serverKafka.VideoRequestMap.Delete(id) // Remove the channel from the map on error
-		helper.Response(w, http.StatusInternalServerError, "error sending Kafka message", err.Error())
+		helper.Response(w, http.StatusInternalServerError, "error sending Kafka message", err)
 		return
 	}
 

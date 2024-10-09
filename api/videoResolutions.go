@@ -23,7 +23,7 @@ func VideoResolutions(w http.ResponseWriter, r *http.Request) {
 	_, header, err := r.FormFile("videoFile")
 	if err != nil {
 		// Respond with an error if the file cannot be read
-		helper.Response(w, http.StatusBadRequest, "error reading file", err.Error())
+		helper.Response(w, http.StatusBadRequest, "error reading file", err)
 		return
 	}
 
@@ -43,10 +43,10 @@ func VideoResolutions(w http.ResponseWriter, r *http.Request) {
 	serverKafka.VideoResolutionsRequestMap.Store(id, responseChannel)
 
 	// Pass the struct to the Kafka producer
-	if err := serverKafka.KafkaProducer.Produce("videoResolutions", message); err != nil {
+	if err := serverKafka.KafkaProducer.Produce("video-resolutions", message); err != nil {
 		pkg.AddToFileDeleteChan(videoPath)                // Add to deletion channel on error
 		serverKafka.VideoResolutionsRequestMap.Delete(id) // Remove the channel from the map on error
-		helper.Response(w, http.StatusInternalServerError, "error sending Kafka message", err.Error())
+		helper.Response(w, http.StatusInternalServerError, "error sending Kafka message", err)
 		return
 	}
 
