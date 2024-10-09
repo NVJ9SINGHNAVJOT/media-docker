@@ -3,7 +3,7 @@
    <p align="center">Streamline Your Media Management: On-Demand Streaming and Scalable Storage with Media-Docker</p>
 </p>
 
-# Media-Docker Project - Version 2
+# Media-Docker - Version 2
 
 **Media-Docker** is a media management service designed to handle video, audio, and image processing with the power of **FFmpeg** for conversion, storage, and on-demand streaming. This version introduces several new components, including a client, server, Kafka-based message queuing, and worker-based message consumption for media processing tasks.
 
@@ -46,10 +46,10 @@
 The **media-docker-kafka** component receives messages for various topics, enabling scalable and asynchronous media processing. The **media-docker-kafka-consumer** executes the primary tasks associated with each topic. Key topics and their respective responsibilities include:
 
 - **video**: Manages video conversion and segmentation tasks.
-- **videoResolutions**: Handles resolution conversion for videos.
+- **video-resolutions**: Handles resolution conversion for videos.
 - **audio**: Processes and stores audio files based on the specified bitrate.
 - **image**: Manages image compression and storage.
-- **deleteFile**: Oversees requests for media file deletion.
+- **delete-file**: Oversees requests for media file deletion.
 
 By leveraging **Kafka** and **FFmpeg**, the project guarantees scalable, efficient media processing with dedicated workers for each topic.
 
@@ -197,8 +197,9 @@ console.log(imageFileUrl);
 
 ## System Design
 
-- [`Open`](https://raw.githubusercontent.com/NVJ9SINGHNAVJOT/media-docker/721f6b5a8864e3a1251e8b4b91bf90fcc56d499b/Media-Docker-System-Design.svg)
-  ![Media-Docker-System-Design](https://raw.githubusercontent.com/NVJ9SINGHNAVJOT/media-docker/721f6b5a8864e3a1251e8b4b91bf90fcc56d499b/Media-Docker-System-Design.svg)
+- [`Open`](https://raw.githubusercontent.com/NVJ9SINGHNAVJOT/media-docker/758f2b7a4d7504cfcf99aa263a9386c7c8557241/Media-Docker-System-Design.svg)
+
+  ![Media-Docker-System-Design](https://raw.githubusercontent.com/NVJ9SINGHNAVJOT/media-docker/758f2b7a4d7504cfcf99aa263a9386c7c8557241/Media-Docker-System-Design.svg)
 
 ## Important
 
