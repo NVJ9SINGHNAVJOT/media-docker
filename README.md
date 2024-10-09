@@ -197,9 +197,9 @@ console.log(imageFileUrl);
 
 ## System Design
 
-- [`Open`](https://raw.githubusercontent.com/NVJ9SINGHNAVJOT/media-docker/758f2b7a4d7504cfcf99aa263a9386c7c8557241/Media-Docker-System-Design.svg)
+- [`Open`](https://raw.githubusercontent.com/NVJ9SINGHNAVJOT/media-docker/81a16fa9fe2e4b1cd2feb850ace0c95c1c9b1bcd/Media-Docker-System-Design.svg)
 
-  ![Media-Docker-System-Design](https://raw.githubusercontent.com/NVJ9SINGHNAVJOT/media-docker/758f2b7a4d7504cfcf99aa263a9386c7c8557241/Media-Docker-System-Design.svg)
+  ![Media-Docker-System-Design](https://raw.githubusercontent.com/NVJ9SINGHNAVJOT/media-docker/81a16fa9fe2e4b1cd2feb850ace0c95c1c9b1bcd/Media-Docker-System-Design.svg)
 
 ## Important
 
