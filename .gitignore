@@ -1,20 +1,19 @@
+# production
+# Ignore all build and dist folders across the project
+**/build
+**/dist
 
 # environment
 *.env
 .env*
-!.env.exapmle
-
-# build
-/dist
-/build
-*.exe
+!.env.example
 
 # development
-/temp
-/tmp
+**/tmp
+**/temp
 
 # logs
-/logs
+**/logs
 
 # storage
 /uploadStorage
