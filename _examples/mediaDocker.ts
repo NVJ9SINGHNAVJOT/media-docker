@@ -1,4 +1,8 @@
 /* eslint-disable no-unused-vars */
+/*
+  IMPORTANT: Please do not modify this file; simply copy and paste it into your project.
+  This file contains the logic for uploading files to Media-Docker.
+*/
 
 // Importing file system promises for handling file operations
 import * as fs from "fs/promises";
@@ -149,7 +153,10 @@ class MediaDocker {
     // Add optional formValues to formData
     if (formValues) {
       Object.keys(formValues).forEach((key) => {
-        formData.append(key, `${formValues[key]}`);
+        const value = formValues[key];
+        if (value !== null && value !== undefined) {
+          formData.append(key, `${value}`);
+        }
       });
     }
 
@@ -272,7 +279,7 @@ class MediaDocker {
         }
 
         // Subscribe to the specified topic
-        await this.consumer.subscribe({ topics: ["media-docker-flies-response"], fromBeginning: true });
+        await this.consumer.subscribe({ topics: ["media-docker-files-response"], fromBeginning: true });
 
         // Run the consumer to process incoming messages
         await this.consumer.run({

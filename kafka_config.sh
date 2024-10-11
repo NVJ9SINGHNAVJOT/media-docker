@@ -7,7 +7,7 @@ declare -A topics_and_partitions=(
     ["image"]=100
     ["audio"]=50
     ["delete-file"]=20
-    ["media-docker-response"]=100
+    ["media-docker-files-response"]=100
 )
 
 # Export the topics_and_partitions array for use in other scripts

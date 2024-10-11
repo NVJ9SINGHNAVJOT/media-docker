@@ -108,15 +108,15 @@ func ProcessMessage(msg kafka.Message, workerName string) {
 		message.Status = "completed"
 	}
 
-	// Produce the response message to the "media-docker-response" topic
-	err = KafkaProducer.Produce("media-docker-response", message)
+	// Produce the response message to the "media-docker-files-response" topic
+	err = KafkaProducer.Produce("media-docker-files-response", message)
 	if err != nil {
 		// Log error if producing the response message fails
 		log.Error().
 			Err(err).
 			Str("worker", workerName).
 			Any("new_kafka_message", message). // Log the new Kafka message content
-			Str("response topic", "media-docker-response").
+			Str("response topic", "media-docker-files-response").
 			Msg("Error while producing message for response")
 	}
 }

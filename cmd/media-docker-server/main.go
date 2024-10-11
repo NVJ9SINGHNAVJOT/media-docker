@@ -103,7 +103,7 @@ func main() {
 		log.Info().Msgf("Received signal: %s. Shutting down...", sig)
 
 		// Gracefully shut down the server
-		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 1*time.Minute)
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer shutdownCancel()
 
 		if err := srv.Shutdown(shutdownCtx); err != nil {
