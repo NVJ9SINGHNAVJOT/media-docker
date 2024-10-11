@@ -2,10 +2,10 @@ version: '3.8'
 
 volumes:
   # NOTE: Do not rename or change the volume names, this will cause breaking changes.
-  media-docker-files-volume:
-    name: media-docker-files-volume
-  media-docker-upload-volume:
-    name: media-docker-upload-volume
+  media-docker-files-data:
+    name: media-docker-files-data
+  media-docker-upload-data:
+    name: media-docker-upload-data
   media-docker-kafka-0_data:
     name: media-docker-kafka-0_data
   media-docker-kafka-1_data:
