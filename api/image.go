@@ -37,33 +37,14 @@ func Image(w http.ResponseWriter, r *http.Request) {
 		NewId:    id,        // Set the new ID for the file URL
 	}
 
-	// Create a channel of size 1 to store the Kafka response for this request
-	responseChannel := make(chan bool, 1)
-
-	// Store the channel in the request map with the id as the key
-	serverKafka.ImageRequestMap.Store(id, responseChannel)
-
 	// Pass the struct to the Kafka producer
 	if err := serverKafka.KafkaProducer.Produce("image", message); err != nil {
-		pkg.AddToFileDeleteChan(imagePath)     // Add to deletion channel on error
-		serverKafka.ImageRequestMap.Delete(id) // Remove the channel from the map on error
+		pkg.AddToFileDeleteChan(imagePath) // Add to deletion channel on error
 		helper.Response(w, http.StatusInternalServerError, "error sending Kafka message", err)
-		return
-	}
-
-	// Wait for the response from the Kafka processor
-	responseSuccess := <-responseChannel
-
-	// Delete the channel from the map once processing is complete
-	serverKafka.ImageRequestMap.Delete(id)
-
-	// Check if the processing was successful or failed
-	if !responseSuccess {
-		helper.Response(w, http.StatusInternalServerError, "image conversion failed", nil)
 		return
 	}
 
 	// Respond with success, providing the image URL
 	imageUrl := fmt.Sprintf("%s/%s", config.ServerEnv.BASE_URL, outputPath) // Construct the image file URL
-	helper.Response(w, http.StatusCreated, "image uploaded successfully", map[string]any{"fileUrl": imageUrl})
+	helper.Response(w, http.StatusCreated, "image uploaded successfully", map[string]any{"id": id, "fileUrl": imageUrl})
 }

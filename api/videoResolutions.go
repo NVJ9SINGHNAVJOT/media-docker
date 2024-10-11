@@ -36,36 +36,22 @@ func VideoResolutions(w http.ResponseWriter, r *http.Request) {
 		NewId:    id,        // Set the new ID for the file URL
 	}
 
-	// Create a channel of size 1 to store the Kafka response for this request
-	responseChannel := make(chan bool, 1)
-
-	// Store the channel in the request map with the id as the key
-	serverKafka.VideoResolutionsRequestMap.Store(id, responseChannel)
-
 	// Pass the struct to the Kafka producer
 	if err := serverKafka.KafkaProducer.Produce("video-resolutions", message); err != nil {
-		pkg.AddToFileDeleteChan(videoPath)                // Add to deletion channel on error
-		serverKafka.VideoResolutionsRequestMap.Delete(id) // Remove the channel from the map on error
+		pkg.AddToFileDeleteChan(videoPath) // Add to deletion channel on error
 		helper.Response(w, http.StatusInternalServerError, "error sending Kafka message", err)
-		return
-	}
-
-	// Wait for the response from the Kafka processor
-	responseSuccess := <-responseChannel
-	serverKafka.VideoResolutionsRequestMap.Delete(id) // Delete the channel from the map after processing
-
-	// Check if the processing was successful or failed
-	if !responseSuccess {
-		helper.Response(w, http.StatusInternalServerError, "video resolution conversion failed", nil)
 		return
 	}
 
 	// Respond with success, providing URLs for different video resolutions
 	helper.Response(w, http.StatusCreated, "video uploaded successfully",
 		map[string]any{
-			"360":  fmt.Sprintf("%s/%s/videos/%s/360", config.ServerEnv.BASE_URL, helper.Constants.MediaStorage, id),
-			"480":  fmt.Sprintf("%s/%s/videos/%s/480", config.ServerEnv.BASE_URL, helper.Constants.MediaStorage, id),
-			"720":  fmt.Sprintf("%s/%s/videos/%s/720", config.ServerEnv.BASE_URL, helper.Constants.MediaStorage, id),
-			"1080": fmt.Sprintf("%s/%s/videos/%s/1080", config.ServerEnv.BASE_URL, helper.Constants.MediaStorage, id),
+			"id": id,
+			"fileUrls": map[string]string{
+				"360":  fmt.Sprintf("%s/%s/videos/%s/360", config.ServerEnv.BASE_URL, helper.Constants.MediaStorage, id),
+				"480":  fmt.Sprintf("%s/%s/videos/%s/480", config.ServerEnv.BASE_URL, helper.Constants.MediaStorage, id),
+				"720":  fmt.Sprintf("%s/%s/videos/%s/720", config.ServerEnv.BASE_URL, helper.Constants.MediaStorage, id),
+				"1080": fmt.Sprintf("%s/%s/videos/%s/1080", config.ServerEnv.BASE_URL, helper.Constants.MediaStorage, id),
+			},
 		})
 }

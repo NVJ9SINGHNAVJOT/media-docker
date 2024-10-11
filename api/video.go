@@ -66,33 +66,14 @@ func Video(w http.ResponseWriter, r *http.Request) {
 		Quality:  quality,   // Set the optional quality (can be nil)
 	}
 
-	// Create a channel of size 1 to store the Kafka response for this request
-	responseChannel := make(chan bool, 1)
-
-	// Store the channel in the request map with the id as the key
-	serverKafka.VideoRequestMap.Store(id, responseChannel)
-
 	// Pass the struct to the Kafka producer
 	if err := serverKafka.KafkaProducer.Produce("video", message); err != nil {
-		pkg.AddToFileDeleteChan(videoPath)     // Add to deletion channel on error
-		serverKafka.VideoRequestMap.Delete(id) // Remove the channel from the map on error
+		pkg.AddToFileDeleteChan(videoPath) // Add to deletion channel on error
 		helper.Response(w, http.StatusInternalServerError, "error sending Kafka message", err)
-		return
-	}
-
-	// Wait for the response from the Kafka processor
-	responseSuccess := <-responseChannel
-
-	// Delete the channel from the map once processing is complete
-	serverKafka.VideoRequestMap.Delete(id)
-
-	// Check if the processing was successful or failed
-	if !responseSuccess {
-		helper.Response(w, http.StatusInternalServerError, "video conversion failed", nil)
 		return
 	}
 
 	// Respond with success, providing the video URL
 	videoUrl := fmt.Sprintf("%s/%s/index.m3u8", config.ServerEnv.BASE_URL, outputPath)
-	helper.Response(w, http.StatusCreated, "video uploaded successfully", map[string]any{"fileUrl": videoUrl})
+	helper.Response(w, http.StatusCreated, "video uploaded successfully", map[string]any{"id": id, "fileUrl": videoUrl})
 }

@@ -17,6 +17,7 @@ type audioRequest struct {
 
 // AudioMessage represents the structure of the message sent to Kafka for audio processing.
 type AudioMessage struct {
+	PubId    string  `json:"pubId" validate:"required"`
 	FilePath string  `json:"filePath" validate:"required"` // Mandatory field for the file path
 	NewId    string  `json:"newId" validate:"required"`    // New unique identifier for the audio file URL
 	Bitrate  *string `json:"bitrate" validate:"omitempty"` // Optional quality parameter
@@ -55,33 +56,14 @@ func Audio(w http.ResponseWriter, r *http.Request) {
 		message.Bitrate = &req.Bitrate
 	}
 
-	// Create a channel of size 1 to store the Kafka-like processing response for this request
-	responseChannel := make(chan bool, 1)
-
-	// Store the channel in the request map with the id as the key
-	serverKafka.AudioRequestMap.Store(id, responseChannel)
-
 	// Pass the struct to the Kafka producer
 	if err := serverKafka.KafkaProducer.Produce("audio", message); err != nil {
-		pkg.AddToFileDeleteChan(audioPath)     // Add to deletion channel on error
-		serverKafka.AudioRequestMap.Delete(id) // Remove the channel from the map on error
+		pkg.AddToFileDeleteChan(audioPath) // Add to deletion channel on error
 		helper.Response(w, http.StatusInternalServerError, "error sending Kafka message", err)
-		return
-	}
-
-	// Wait for the response from the Kafka processor or worker
-	responseSuccess := <-responseChannel
-
-	// Delete the channel from the map once processing is complete
-	serverKafka.AudioRequestMap.Delete(id)
-
-	// Check if the processing was successful or failed
-	if !responseSuccess {
-		helper.Response(w, http.StatusInternalServerError, "audio conversion failed", nil)
 		return
 	}
 
 	// Respond with success, providing the audio URL
 	audioUrl := fmt.Sprintf("%s/%s", config.ServerEnv.BASE_URL, outputPath) // Construct the audio file URL
-	helper.Response(w, http.StatusCreated, "audio uploaded and processed successfully", map[string]any{"fileUrl": audioUrl})
+	helper.Response(w, http.StatusCreated, "audio uploaded and processed successfully", map[string]any{"id": id, "fileUrl": audioUrl})
 }
