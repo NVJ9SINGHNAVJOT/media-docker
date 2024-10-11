@@ -49,23 +49,12 @@ func main() {
 		log.Fatal().Err(err).Msg("Kafka connection failed for media-docker-server")
 	}
 
-	// Context for managing shutdown
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel() // Ensure context is cancelled on shutdown
-
-	// Create a WaitGroup to track worker goroutines
-	var wg sync.WaitGroup
-	// workDone channel waits for all workers to complete.
-	workDone := make(chan int, 1)
-
 	serverKafka.KafkaProducer = kafka.NewKafkaProducerManager(config.ServerEnv.KAFKA_BROKERS)
-	serverKafka.KafkaConsumer = kafka.NewKafkaConsumerManager(
-		ctx, workDone, config.ServerEnv.KAFKA_TOPIC_WORKERS,
-		config.ServerEnv.KAFKA_GROUP_PREFIX_ID, &wg,
-		config.ServerEnv.KAFKA_BROKERS, serverKafka.ProcessMessage)
+
+	// sync.Once to ensure cleanUp happens only once
+	var cleanUpOnce sync.Once
 
 	go pkg.DeleteFileWorker()
-	go serverKafka.KafkaConsumer.KafkaConsumeSetup()
 
 	// initialize validator
 	helper.InitializeValidator()
@@ -91,6 +80,8 @@ func main() {
 	router.Route("/api/v1/uploads", routes.UploadRoutes())
 	router.Route("/api/v1/destroys", routes.DestroyRoutes())
 	router.Route("/api/v1/connections", routes.ConnectionRoutes())
+	// TODO: In progress
+	// router.Route("/api/v1/checks", routes.StatusRoutes())
 
 	// index handler
 	router.Get("/", func(w http.ResponseWriter, r *http.Request) {
@@ -103,65 +94,31 @@ func main() {
 		Handler: router,
 	}
 
-	// sync.Once to ensure cleanUp happens only once
-	var cleanUpOnce sync.Once
-
 	// Handle shutdown signals and worker tracking
 	go func() {
 		sigChan := make(chan os.Signal, 1)
 		signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
-		for {
-			select {
-			case sig := <-sigChan:
-				log.Info().Msgf("Received signal: %s. Shutting down...", sig)
+		sig := <-sigChan
+		log.Info().Msgf("Received signal: %s. Shutting down...", sig)
 
-				// Gracefully shut down the server
-				shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 1*time.Minute)
-				defer shutdownCancel()
+		// Gracefully shut down the server
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 1*time.Minute)
+		defer shutdownCancel()
 
-				if err := srv.Shutdown(shutdownCtx); err != nil {
-					log.Error().Err(err).Msg("HTTP server shutdown error")
-				} else {
-					log.Info().Msg("Server shut down complete.")
-				}
-
-				cancel() // Cancel context to stop Kafka workers
-				log.Info().Msg("Waiting for Kafka workers to finish...")
-
-				wg.Wait() // Wait for worker goroutines to complete
-				log.Info().Msg("All Kafka workers stopped.")
-
-				// Perform final cleanup
-				cleanUpOnce.Do(cleanUpForServer)
-				return
-
-			case _, ok := <-workDone:
-				if !ok {
-					// If the channel is closed, all workers are done, so shut down
-					log.Info().Msg("workDone channel closed, all Kafka workers finished. Initiating server shutdown...")
-
-					// Gracefully shut down the server
-					shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
-					defer shutdownCancel()
-					if err := srv.Shutdown(shutdownCtx); err != nil {
-						log.Error().Err(err).Msg("HTTP server shutdown error")
-					} else {
-						log.Info().Msg("Server shut down complete.")
-					}
-					cleanUpOnce.Do(cleanUpForServer)
-					return
-				}
-
-			}
+		if err := srv.Shutdown(shutdownCtx); err != nil {
+			log.Error().Err(err).Msg("HTTP server shutdown error")
+		} else {
+			log.Info().Msg("Server shut down complete.")
 		}
+		cleanUpOnce.Do(cleanUpForServer)
 	}()
 
 	// Start the HTTP server
 	log.Info().Msg("media-docker-server is running...")
 	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Error().Err(err).Msg("HTTP server crashed.")
-		cancel()
+		cleanUpOnce.Do(cleanUpForServer)
 	}
 
 	log.Info().Msg("Server stopped.")
@@ -169,7 +126,6 @@ func main() {
 
 // cleanUpForServer performs any final cleanup actions before shutdown
 func cleanUpForServer() {
-	// TODO: Notify Kafka consumers to stop
 	if err := serverKafka.KafkaProducer.Close(); err != nil {
 		log.Error().Err(err).Msg("Error while closing producer for media-docker-server")
 	} else {

@@ -34,14 +34,12 @@ type clientConfig struct {
 }
 
 type serverConfig struct {
-	ENVIRONMENT           string
-	ALLOWED_ORIGINS       []string
-	SERVER_KEY            string
-	KAFKA_GROUP_PREFIX_ID string
-	KAFKA_BROKERS         []string
-	BASE_URL              string
-	SERVER_PORT           string
-	KAFKA_TOPIC_WORKERS   map[string]int
+	ENVIRONMENT     string
+	ALLOWED_ORIGINS []string
+	SERVER_KEY      string
+	KAFKA_BROKERS   []string
+	BASE_URL        string
+	SERVER_PORT     string
 }
 
 type kafkaConsumeConfig struct {
@@ -99,12 +97,6 @@ func ValidateServerEnv() error {
 		return fmt.Errorf("server key is not provided")
 	}
 
-	// KAFKA_GROUP_PREFIX_ID validation
-	groupID, exists := os.LookupEnv("KAFKA_GROUP_PREFIX_ID")
-	if !exists {
-		return fmt.Errorf("kafka consume group ID is not provided")
-	}
-
 	// KAFKA_BROKERS validation
 	brokers, exists := os.LookupEnv("KAFKA_BROKERS")
 	if !exists {
@@ -123,33 +115,13 @@ func ValidateServerEnv() error {
 		return fmt.Errorf("base URL is not provided")
 	}
 
-	// Validate worker counts for each Kafka topic
-	topicWorkers := map[string]string{
-		"video-response":            "KAFKA_VIDEO_RESPONSE_WORKERS",
-		"video-resolutions-response": "KAFKA_VIDEO_RESOLUTIONS_RESPONSE_WORKERS",
-		"image-response":            "KAFKA_IMAGE_RESPONSE_WORKERS",
-		"audio-response":            "KAFKA_AUDIO_RESPONSE_WORKERS",
-	}
-
-	workerCounts := make(map[string]int)
-
-	for topic, envVar := range topicWorkers {
-		workerCount, err := getAndValidateWorkerCount(envVar)
-		if err != nil {
-			return err
-		}
-		workerCounts[topic] = workerCount
-	}
-
 	// Populate the ServerEnv struct
 	ServerEnv.ENVIRONMENT = environment
 	ServerEnv.ALLOWED_ORIGINS = strings.Split(allowedOrigins, ",")
 	ServerEnv.SERVER_KEY = serverKey
 	ServerEnv.SERVER_PORT = serverPort
 	ServerEnv.BASE_URL = baseURL
-	ServerEnv.KAFKA_GROUP_PREFIX_ID = groupID
 	ServerEnv.KAFKA_BROKERS = strings.Split(brokers, ",")
-	ServerEnv.KAFKA_TOPIC_WORKERS = workerCounts
 
 	return nil
 }
@@ -176,10 +148,10 @@ func ValidateKafkaConsumeEnv() error {
 
 	// Validate worker counts for each Kafka topic
 	topicWorkers := map[string]string{
-		"video":            "KAFKA_VIDEO_WORKERS",
+		"video":             "KAFKA_VIDEO_WORKERS",
 		"video-resolutions": "KAFKA_VIDEO_RESOLUTIONS_WORKERS",
-		"image":            "KAFKA_IMAGE_WORKERS",
-		"audio":            "KAFKA_AUDIO_WORKERS",
+		"image":             "KAFKA_IMAGE_WORKERS",
+		"audio":             "KAFKA_AUDIO_WORKERS",
 		"delete-file":       "KAFKA_DELETE_FILE_WORKERS",
 	}
 

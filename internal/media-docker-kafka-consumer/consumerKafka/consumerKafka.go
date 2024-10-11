@@ -7,12 +7,18 @@ import (
 
 	"github.com/nvj9singhnavjot/media-docker/api"
 	"github.com/nvj9singhnavjot/media-docker/helper"
-	"github.com/nvj9singhnavjot/media-docker/internal/media-docker-server/serverKafka"
 	ka "github.com/nvj9singhnavjot/media-docker/kafka"
 	"github.com/nvj9singhnavjot/media-docker/pkg"
 	"github.com/rs/zerolog/log"
 	"github.com/segmentio/kafka-go"
 )
+
+// KafkaResponseMessage represents a message from the Media Docker system.
+type KafkaResponseMessage struct {
+	ID       string `json:"id" validate:"required,uuid4"`                                          // Unique identifier (UUIDv4) for the media file, required field
+	FileType string `json:"fileType" validate:"required,oneof=image video videoResolutions audio"` // Media file type, required and must be one of "image", "video", "videoResolutions", or "audio"
+	Status   string `json:"status" validate:"required,oneof=completed failed"`                     // Status of the media processing, required and must be either "completed" or "failed"
+}
 
 // Global KafkaProducer variable
 var KafkaProducer *ka.KafkaProducerManager
@@ -21,46 +27,70 @@ var KafkaConsumer *ka.KafkaConsumerManager
 // ProcessMessage processes the Kafka messages based on the topic
 func ProcessMessage(msg kafka.Message, workerName string) {
 	var err error
-	var topic string
+	var fileType string
 	var id string
 	var resMessage string
-	var success bool
 
-	// Process messages by topic
+	// Process messages based on their topic
 	switch msg.Topic {
 	case "video":
-		topic = "video-response"
-		id, resMessage, err = processVideoMessage(msg.Value)
+		fileType = "video"                                   // Assign file type for video messages
+		id, resMessage, err = processVideoMessage(msg.Value) // Process the video message
 	case "video-resolutions":
-		topic = "video-resolutions-response"
-		id, resMessage, err = processVideoResolutionsMessage(msg.Value)
+		fileType = "videoResolutions"                                   // Assign file type for video resolution messages
+		id, resMessage, err = processVideoResolutionsMessage(msg.Value) // Process the video resolution message
 	case "image":
-		topic = "image-response"
-		id, resMessage, err = processImageMessage(msg.Value)
+		fileType = "image"                                   // Assign file type for image messages
+		id, resMessage, err = processImageMessage(msg.Value) // Process the image message
 	case "audio":
-		topic = "audio-response"
-		id, resMessage, err = processAudioMessage(msg.Value)
+		fileType = "audio"                                   // Assign file type for audio messages
+		id, resMessage, err = processAudioMessage(msg.Value) // Process the audio message
 	case "delete-file":
-		processDeleteFileMessage(msg, workerName) // Process file deletion request
+		processDeleteFileMessage(msg, workerName) // Handle file deletion request
 		return
 	default:
-		// Log unknown topic error
+		// Log an error for unknown topics
 		log.Error().
 			Str("worker", workerName).
 			Interface("message_details", map[string]interface{}{
-				"topic":         msg.Topic,
-				"partition":     msg.Partition,
-				"offset":        msg.Offset,
-				"highWaterMark": msg.HighWaterMark,
-				"value":         string(msg.Value),
-				"time":          msg.Time,
+				"topic":         msg.Topic,         // Topic of the message
+				"partition":     msg.Partition,     // Partition info
+				"offset":        msg.Offset,        // Offset of the message
+				"highWaterMark": msg.HighWaterMark, // High water mark
+				"value":         string(msg.Value), // Message content
+				"time":          msg.Time,          // Time when the message was received
 			}).
-			Msg("Unknown topic")
+			Msg("Unknown topic") // Log message for unknown topic
 		return
 	}
 
-	// Handle errors and prepare response message
+	// Create a response message object with ID and FileType
+	message := KafkaResponseMessage{
+		ID:       id,
+		FileType: fileType,
+	}
+
+	// Handle errors that may have occurred during message processing
 	if err != nil {
+		// If ID is empty, log an error and return without processing further
+		if id == "" {
+			log.Error().
+				Err(err).
+				Str("worker", workerName).
+				Interface("message_details", map[string]interface{}{
+					"topic":         msg.Topic,
+					"partition":     msg.Partition,
+					"offset":        msg.Offset,
+					"highWaterMark": msg.HighWaterMark,
+					"value":         string(msg.Value),
+					"time":          msg.Time,
+				}).
+				Str("id", "ID not returned from message processing"). // Log missing ID error
+				Msg(resMessage)
+			return
+		}
+		// If an error occurred but ID exists, mark the status as "failed"
+		message.Status = "failed"
 		log.Error().
 			Err(err).
 			Str("worker", workerName).
@@ -72,30 +102,21 @@ func ProcessMessage(msg kafka.Message, workerName string) {
 				"value":         string(msg.Value),
 				"time":          msg.Time,
 			}).
-			Msg(resMessage)
-		if id == "" {
-			return // Exit if no ID is available
-		}
-		success = false
+			Msg(resMessage) // Log error and response message
 	} else {
-		success = true
-		resMessage = fmt.Sprintf("Successfully processed message for topic: %s", msg.Topic)
+		// If no error, mark the status as "completed"
+		message.Status = "completed"
 	}
 
-	// Create response message
-	message := serverKafka.KafkaResponseMessage{
-		ID:      id,
-		Success: success,
-		Message: resMessage,
-	}
-	// Produce the response message
-	err = KafkaProducer.Produce(topic, message)
+	// Produce the response message to the "media-docker-response" topic
+	err = KafkaProducer.Produce("media-docker-response", message)
 	if err != nil {
+		// Log error if producing the response message fails
 		log.Error().
 			Err(err).
 			Str("worker", workerName).
-			Any("new_kafka_message", message).
-			Str("response topic", topic).
+			Any("new_kafka_message", message). // Log the new Kafka message content
+			Str("response topic", "media-docker-response").
 			Msg("Error while producing message for response")
 	}
 }
