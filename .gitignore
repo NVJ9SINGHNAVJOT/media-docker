@@ -19,6 +19,9 @@
 /uploadStorage
 /media_docker_files
 
+# Testing backends
+/test-backend-servers
+
 # design backup
 .$Media-Docker-System-Design.drawio.bkp
 .$Media-Docker-System-Design.drawio.dtmp
