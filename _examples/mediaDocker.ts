@@ -98,7 +98,7 @@ class MediaDocker {
     // Initialize Kafka instance with client ID and broker addresses
     this.kafka = new Kafka({
       clientId: "media-docker-response-client", // Unique identifier for this Kafka client
-      brokers: ["media-docker-kafka-0:9092", "media-docker-kafka-1:9092", "media-docker-kafka-129092"], // Kafka brokers to connect to
+      brokers: ["media-docker-kafka-0:9092", "media-docker-kafka-1:9092", "media-docker-kafka-129092"], // Kafka brokers to connect
       retry: {
         retries: 5, // Number of retries for connection failure
       },
@@ -130,19 +130,38 @@ class MediaDocker {
       throw new Error("mediaDocker is not connected"); // Ensure the server key is set
     }
 
-    // Determine file extension and type
+    // Determine file extension from file path
     let fileType = filePath.split(".").pop();
     const ext = fileType; // Store file extension for MIME type
+
     if (!fileType) {
-      throw new Error("invalid file type"); // Throw error if file type is invalid
-    } else if (this._validFiles.audio.includes(fileType)) {
+      throw new Error("Invalid file type: File extension is missing");
+    }
+
+    // Check based on apiEndPoint and ensure fileType matches for each case
+    if (apiEndPoint === "audio") {
+      if (!this._validFiles.audio.includes(fileType)) {
+        throw new Error(`Invalid file type: ${fileType} is not allowed for audio endpoint`);
+      }
       fileType = "audio"; // Set file type as audio
-    } else if (this._validFiles.image.includes(fileType)) {
+    } else if (apiEndPoint === "image") {
+      if (!this._validFiles.image.includes(fileType)) {
+        throw new Error(`Invalid file type: ${fileType} is not allowed for image endpoint`);
+      }
       fileType = "image"; // Set file type as image
-    } else if (this._validFiles.video.includes(fileType)) {
+    } else if (apiEndPoint === "video") {
+      if (!this._validFiles.video.includes(fileType)) {
+        throw new Error(`Invalid file type: ${fileType} is not allowed for video endpoint`);
+      }
+      fileType = "video"; // Set file type as video
+    } else if (apiEndPoint === "videoResolutions") {
+      if (!this._validFiles.video.includes(fileType)) {
+        throw new Error(`Invalid file type: ${fileType} is not allowed for videoResolutions endpoint`);
+      }
       fileType = "video"; // Set file type as video
     } else {
-      throw new Error("invalid file type"); // Throw error if file type is unsupported
+      // If the apiEndPoint is not one of the above, throw an error
+      throw new Error(`Invalid API endpoint: ${apiEndPoint}`);
     }
 
     // Read the file content
@@ -178,57 +197,63 @@ class MediaDocker {
   }
 
   /**
-   * Connect to the media server with provided credentials
-   * @param {string} serverKey - API key for the media server
-   * @param {string} serverBaseURL - Base URL for the media server API
-   * @returns {Promise<void>} - Resolves when connected
-   */
-  async connect(serverKey: string, serverBaseURL: string): Promise<void> {
-    const response = await fetch(serverBaseURL + "/api/v1/connections/connect", {
-      method: "GET",
-      headers: {
-        Authorization: serverKey, // Authorization header for connection
-      },
-    });
-
-    const resData = await response.json();
-
-    if (response.status !== 200) {
-      this.log("error", resData.message || "unknown"); // Log error if connection fails
-      throw new Error("message" in resData ? resData.message : "unknown");
-    }
-
-    // Store connection details
-    this._config.serverKey = serverKey;
-    this._config.serverBaseUrl = serverBaseURL;
-    this.log("info", "Connected to server successfully"); // Log success message
-  }
-
-  /**
-   * Connect to Kafka and set up message handling for incoming messages.
-   * This method initializes a Kafka consumer and attempts to connect to the
-   * Kafka broker. It runs in the background and subscribes to the specified
-   * topic, continuously listening for incoming messages. If the connection
-   * fails, it will retry up to 10 times, logging the status of each attempt.
+   * Connect to both the media server and Kafka broker with provided credentials.
+   * This function handles the connections to both services, ensuring that the
+   * media server is authenticated and the Kafka consumer is ready to receive messages.
+   * If either connection fails, an error is thrown.
+   *
+   * Once Kafka is connected, the consumer will run in the background, continuously
+   * listening for incoming messages. If the connection to Kafka fails, it will retry
+   * up to 10 times before giving up.
    *
    * The provided message handler function will be called for each
-   * incoming message, allowing for custom processing logic to be applied.
+   * incoming Kafka message, allowing for custom processing logic to be applied.
    * This ensures that the application can react to messages as they arrive
    * in real-time.
    *
+   * @param {string} serverKey - API key for the media server.
+   * @param {string} serverBaseURL - Base URL for the media server API.
    * @param {(message: MediaDockerMessage) => Promise<void>} messageHandler -
-   * Function to handle incoming messages. This function is called for each
+   * Function to handle incoming Kafka messages. This function is called for each
    * message received from the Kafka topic.
    *
-   * @returns {Promise<void>} - Resolves when connected to Kafka and the
-   * consumer is successfully running, or rejects if the maximum connection
-   * attempts are reached without success.
+   * @returns {Promise<void>} - Resolves when both the media server and Kafka are
+   * successfully connected, or rejects if any connection fails.
    */
-  async connectToKafka(messageHandler: (message: MediaDockerMessage) => Promise<void>): Promise<void> {
-    await this.consumer.connect(); // Connect to the Kafka broker
-    this.log("info", "Connected to Kafka successfully."); // Log successful connection
-    this.handleConsumer(messageHandler); // Start handling messages with the provided handler
-    this.log("info", "Starting Kafka message consumption now."); // Log successful connection
+  async connectMediaDockerAndKafka(
+    serverKey: string,
+    serverBaseURL: string,
+    messageHandler: (message: MediaDockerMessage) => Promise<void>
+  ): Promise<void> {
+    // Connect to the media server using the provided API key and base URL
+    const response = await fetch(serverBaseURL + "/api/v1/connections/connect", {
+      method: "GET",
+      headers: {
+        Authorization: serverKey, // Set the Authorization header with the serverKey
+      },
+    });
+
+    // Parse the response JSON from the media server
+    const resData = await response.json();
+
+    // Check if the response status is not 200 (success). If it fails, log and throw an error.
+    if (response.status !== 200) {
+      this.log("error", resData.message || "unknown"); // Log the error message (if any) from the server response
+      throw new Error("message" in resData ? resData.message : "unknown"); // Throw the error for further handling
+    }
+
+    // If successful, store the connection details (serverKey and serverBaseURL)
+    this._config.serverKey = serverKey;
+    this._config.serverBaseUrl = serverBaseURL;
+    this.log("info", "Connected to media server successfully."); // Log successful connection to the media server
+
+    // Connect to Kafka and set up message handling for incoming messages
+    await this.consumer.connect(); // Attempt to connect to the Kafka broker
+    this.log("info", "Connected to Kafka successfully."); // Log successful connection to Kafka
+
+    // Start handling messages from Kafka with the provided messageHandler function
+    this.handleConsumer(messageHandler);
+    this.log("info", "Starting Kafka message consumption now."); // Log that message consumption has begun
   }
 
   /**
