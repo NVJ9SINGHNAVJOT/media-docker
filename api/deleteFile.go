@@ -53,5 +53,5 @@ func DeleteFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	helper.Response(w, http.StatusOK, req.Id+" file deleted", nil)
+	helper.Response(w, http.StatusOK, req.Id+" "+req.Type+" file deleted", nil)
 }

@@ -17,7 +17,6 @@ type audioRequest struct {
 
 // AudioMessage represents the structure of the message sent to Kafka for audio processing.
 type AudioMessage struct {
-	PubId    string  `json:"pubId" validate:"required"`
 	FilePath string  `json:"filePath" validate:"required"` // Mandatory field for the file path
 	NewId    string  `json:"newId" validate:"required"`    // New unique identifier for the audio file URL
 	Bitrate  *string `json:"bitrate" validate:"omitempty"` // Optional quality parameter
