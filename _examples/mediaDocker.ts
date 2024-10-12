@@ -9,7 +9,7 @@ import * as fs from "fs/promises";
 // Importing Kafka and Consumer classes from kafkajs library for handling Kafka messaging
 // Note: Ensure that the kafkajs library is installed in your project by running:
 // npm install kafkajs or yarn add kafkajs
-import { Kafka, Consumer } from "kafkajs";
+import { Kafka, Consumer, logLevel } from "kafkajs";
 
 /**
  * Standardized response format
@@ -102,13 +102,14 @@ class MediaDocker {
       retry: {
         retries: 5, // Number of retries for connection failure
       },
+      logLevel: logLevel.INFO, // Logging Kafka events
     });
 
     // Initialize Kafka consumer with specified group ID and heartbeat settings
     this.consumer = this.kafka.consumer({
       groupId: "media-docker-response-group", // Consumer group for coordinated consumption
       heartbeatInterval: 3000, // Send heartbeats every 3 seconds to indicate alive status
-      sessionTimeout: 60000, // Session timeout of 1 minute to handle long message processing
+      sessionTimeout: 60000, // Session timeout of 60 seconds
     });
   }
 
@@ -305,6 +306,7 @@ class MediaDocker {
                 "error",
                 `Error processing message from topic "${topic}", partition "${partition}": ${error}. Parsed message value: ${value ? JSON.stringify(value) : "Not available"}`
               );
+              this.delay(1000); // Delay for 1 second
             }
           },
         });

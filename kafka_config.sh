@@ -8,6 +8,7 @@ declare -A topics_and_partitions=(
     ["audio"]=50
     ["delete-file"]=20
     ["media-docker-files-response"]=100
+    ["failed-letter-queue"]=10
 )
 
 # Export the topics_and_partitions array for use in other scripts

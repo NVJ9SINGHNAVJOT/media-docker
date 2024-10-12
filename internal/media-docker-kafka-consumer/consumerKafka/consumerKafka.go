@@ -5,6 +5,8 @@ import (
 	"os"
 	"os/exec"
 
+	// "time"
+
 	"github.com/nvj9singhnavjot/media-docker/api"
 	"github.com/nvj9singhnavjot/media-docker/helper"
 	ka "github.com/nvj9singhnavjot/media-docker/kafka"
@@ -23,6 +25,148 @@ type KafkaResponseMessage struct {
 // Global KafkaProducer variable
 var KafkaProducer *ka.KafkaProducerManager
 var KafkaConsumer *ka.KafkaConsumerManager
+
+// sendConsumerResponse produces a Kafka message to the "media-docker-files-response" topic.
+//
+// Parameters:
+// - workerName: The name of the worker processing the message.
+// - id: The unique identifier for the message being processed.
+// - fileType: The type of the file being processed, which can be one of the following:
+//   - "video"
+//   - "videoResolutions"
+//   - "image"
+//   - "audio"
+//
+// - status: The processing status of the file, which can be either:
+//   - "completed"
+//   - "failed"
+//
+// NOTE: If fileType and status are provided with values other than the above,
+// it may result in errors during further processing by client backend servers.
+func sendConsumerResponse(workerName, id, fileType, status string) {
+	// Create a response message object with the provided ID, FileType, and Status
+	message := KafkaResponseMessage{
+		ID:       id,
+		FileType: fileType,
+		Status:   status,
+	}
+
+	// Produce the response message to the "media-docker-files-response" topic
+	err := KafkaProducer.Produce("media-docker-files-response", message)
+	if err != nil {
+		// Log an error if producing the response message fails
+		log.Error().
+			Err(err).
+			Str("worker", workerName).
+			Any("new_kafka_message", message). // Log the new Kafka message content
+			Str("response topic", "media-docker-files-response").
+			Msg("Error while producing message for response")
+	}
+}
+
+// handleErrorResponse processes errors from designated topic processing functions.
+// If an error occurs, it sends a DLQMessage to the "failed-letter-queue" topic,
+// allowing further processing by consumer workers in another service.
+// If producing the DLQ message fails, the error is logged.
+// If an ID is provided, the function calls sendConsumerResponse with the status "failed",
+// sending a message to the "media-docker-files-response" topic.
+// If the ID is not provided, an error is logged indicating the missing ID.
+//
+// NOTE: If there is an error while producing the message to "failed-letter-queue"
+// and the ID is also not provided, it results in no response being sent
+// to "media-docker-files-response" leading to the user backend services
+// (as clients) being unnotified.
+func handleErrorResponse(msg kafka.Message, workerName, fileType, id, resMessage string, err error) {
+	// TODO: The service responsible for handling messages in the "failed-letter-queue"
+	// is currently under development. Until it is implemented, any processing that fails
+	// will simply send a status of "failed".
+	//
+	// If the ID is empty, log an error indicating the missing ID and terminate further processing.
+	if id == "" {
+		log.Error().
+			Err(err).
+			Str("worker", workerName).
+			Interface("message_details", map[string]interface{}{
+				"topic":         msg.Topic,
+				"partition":     msg.Partition,
+				"offset":        msg.Offset,
+				"highWaterMark": msg.HighWaterMark,
+				"value":         string(msg.Value),
+				"time":          msg.Time,
+			}).
+			Str("id", "ID not returned from message processing"). // Log missing ID error
+			Msg(resMessage)
+	} else {
+		log.Error().
+			Err(err).
+			Str("worker", workerName).
+			Interface("message_details", map[string]interface{}{
+				"topic":         msg.Topic,
+				"partition":     msg.Partition,
+				"offset":        msg.Offset,
+				"highWaterMark": msg.HighWaterMark,
+				"value":         string(msg.Value),
+				"time":          msg.Time,
+			}).
+			Msg(resMessage)
+		sendConsumerResponse(workerName, id, fileType, "failed")
+	}
+
+	// log.Error().
+	// 	Err(err).
+	// 	Str("worker", workerName).
+	// 	Interface("message_details", map[string]interface{}{
+	// 		"topic":         msg.Topic,
+	// 		"partition":     msg.Partition,
+	// 		"offset":        msg.Offset,
+	// 		"highWaterMark": msg.HighWaterMark,
+	// 		"value":         string(msg.Value),
+	// 		"time":          msg.Time,
+	// 	}).
+	// 	Msg(resMessage) // Log error and response message
+
+	// // NOTE: Failed messages are sent to the topic: "failed-letter-queue".
+	// // This helps in further processing of failed messages and reduces retry load
+	// // in the main consumption service.
+	// //
+	// // Create a new DLQMessage struct with the error details and original message information.
+	// dlqMessage := ka.DLQMessage{
+	// 	OriginalTopic:  msg.Topic,         // The original topic where the message came from
+	// 	Partition:      msg.Partition,     // The partition number of the original message
+	// 	Offset:         msg.Offset,        // The offset of the original message
+	// 	HighWaterMark:  msg.HighWaterMark, // The high watermark of the Kafka partition
+	// 	Value:          string(msg.Value), // The original message value in string format
+	// 	ErrorDetails:   err.Error(),       // Error details encountered during processing
+	// 	ProcessingTime: msg.Time,          // The original timestamp when the message was processed
+	// 	ErrorTime:      time.Now(),        // The current timestamp when the error occurred
+	// 	Worker:         workerName,        // The worker responsible for processing the message
+	// 	CustomMessage:  resMessage,        // Any additional custom error message
+	// }
+
+	// // TODO: Implement specific processing for failed messages in this project.
+	// //
+	// // Attempt to produce the DLQ message to the "failed-letter-queue" topic.
+	// err = KafkaProducer.Produce("failed-letter-queue", dlqMessage)
+	// if err != nil {
+	// 	log.Error().
+	// 		Err(err).
+	// 		Str("worker", workerName).
+	// 		Interface("dlqMessage", dlqMessage).
+	// 		Msg("Error producing message to failed-letter-queue")
+
+	// 	// If ID is empty, log an error and return without processing further
+	// 	if id == "" {
+	// 		log.Error().
+	// 			Err(err).
+	// 			Str("worker", workerName).
+	// 			Interface("dlqMessage", dlqMessage).
+	// 			Str("id", "ID not returned from message processing"). // Log missing ID error
+	// 			Msg("Error producing message to failed-letter-queue")
+	// 		return
+	// 	}
+	// 	sendConsumerResponse(workerName, id, fileType, "failed")
+	// }
+}
 
 // ProcessMessage processes the Kafka messages based on the topic
 func ProcessMessage(msg kafka.Message, workerName string) {
@@ -64,61 +208,14 @@ func ProcessMessage(msg kafka.Message, workerName string) {
 		return
 	}
 
-	// Create a response message object with ID and FileType
-	message := KafkaResponseMessage{
-		ID:       id,
-		FileType: fileType,
+	// If no errors occurred during processing, send a success response
+	if err == nil {
+		sendConsumerResponse(workerName, id, fileType, "completed")
+		return
 	}
 
 	// Handle errors that may have occurred during message processing
-	if err != nil {
-		// If ID is empty, log an error and return without processing further
-		if id == "" {
-			log.Error().
-				Err(err).
-				Str("worker", workerName).
-				Interface("message_details", map[string]interface{}{
-					"topic":         msg.Topic,
-					"partition":     msg.Partition,
-					"offset":        msg.Offset,
-					"highWaterMark": msg.HighWaterMark,
-					"value":         string(msg.Value),
-					"time":          msg.Time,
-				}).
-				Str("id", "ID not returned from message processing"). // Log missing ID error
-				Msg(resMessage)
-			return
-		}
-		// If an error occurred but ID exists, mark the status as "failed"
-		message.Status = "failed"
-		log.Error().
-			Err(err).
-			Str("worker", workerName).
-			Interface("message_details", map[string]interface{}{
-				"topic":         msg.Topic,
-				"partition":     msg.Partition,
-				"offset":        msg.Offset,
-				"highWaterMark": msg.HighWaterMark,
-				"value":         string(msg.Value),
-				"time":          msg.Time,
-			}).
-			Msg(resMessage) // Log error and response message
-	} else {
-		// If no error, mark the status as "completed"
-		message.Status = "completed"
-	}
-
-	// Produce the response message to the "media-docker-files-response" topic
-	err = KafkaProducer.Produce("media-docker-files-response", message)
-	if err != nil {
-		// Log error if producing the response message fails
-		log.Error().
-			Err(err).
-			Str("worker", workerName).
-			Any("new_kafka_message", message). // Log the new Kafka message content
-			Str("response topic", "media-docker-files-response").
-			Msg("Error while producing message for response")
-	}
+	handleErrorResponse(msg, workerName, fileType, id, resMessage, err)
 }
 
 // processVideoMessage processes video conversion and returns the new ID, message, or an error
