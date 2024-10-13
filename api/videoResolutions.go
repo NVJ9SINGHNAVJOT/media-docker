@@ -48,10 +48,10 @@ func VideoResolutions(w http.ResponseWriter, r *http.Request) {
 		map[string]any{
 			"id": id,
 			"fileUrls": map[string]string{
-				"360":  fmt.Sprintf("%s/%s/videos/%s/360", config.ServerEnv.BASE_URL, helper.Constants.MediaStorage, id),
-				"480":  fmt.Sprintf("%s/%s/videos/%s/480", config.ServerEnv.BASE_URL, helper.Constants.MediaStorage, id),
-				"720":  fmt.Sprintf("%s/%s/videos/%s/720", config.ServerEnv.BASE_URL, helper.Constants.MediaStorage, id),
-				"1080": fmt.Sprintf("%s/%s/videos/%s/1080", config.ServerEnv.BASE_URL, helper.Constants.MediaStorage, id),
+				"360":  fmt.Sprintf("%s/%s/videos/%s/360/index.m3u8", config.ServerEnv.BASE_URL, helper.Constants.MediaStorage, id),
+				"480":  fmt.Sprintf("%s/%s/videos/%s/480/index.m3u8", config.ServerEnv.BASE_URL, helper.Constants.MediaStorage, id),
+				"720":  fmt.Sprintf("%s/%s/videos/%s/720/index.m3u8", config.ServerEnv.BASE_URL, helper.Constants.MediaStorage, id),
+				"1080": fmt.Sprintf("%s/%s/videos/%s/1080/index.m3u8", config.ServerEnv.BASE_URL, helper.Constants.MediaStorage, id),
 			},
 		})
 }
