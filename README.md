@@ -12,6 +12,12 @@
 - This project is created for developers, eliminating the hassle of using third-party services to store critical media files.
 - It **_can be deployed on a live server_** as **_all features_** all fully **_operational_**.
 
+## Acknowledgements
+
+This project uses several open-source libraries, each of which is credited to its respective authors and owners. We would like to extend a big thank you to all the contributors and maintainers of these libraries for their hard work and dedication.
+
+A complete list of the libraries used can be found in the go.mod and go.sum files.
+
 ---
 
 ## Project Structure
