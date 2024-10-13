@@ -1,7 +1,39 @@
 /* eslint-disable no-unused-vars */
 /*
-  IMPORTANT: Please do not modify this file; simply copy and paste it into your project.
-  This file contains the logic for uploading files to Media-Docker.
+  IMPORTANT: Please do not modify this file; copy and paste it as-is into your project.
+
+  This file contains the core logic for uploading files to the Media-Docker service.
+  It handles the file upload process and manages the interaction with the Media-Docker API.
+
+  Upload Process:
+  - If the file upload is successful, the response will include a unique file ID (UUID v4 format)
+    along with a file URL or multiple URLs (in case the media generates multiple output formats).
+  - Once the file is uploaded, Media-Docker will process it according to the file type
+    (e.g., image conversion, video transcoding, etc.).
+  
+  Post-Upload Response:
+  - After processing, your server will receive a message from Media-Docker via Kafka.
+  - This message will include the following fields:
+  
+    ```typescript
+    type MediaDockerMessage = {
+      id: string; // Unique file identifier (UUID v4 format)
+      fileType: "image" | "video" | "videoResolutions" | "audio"; // Type of the uploaded file
+      status: "completed" | "failed"; // Status of the file processing
+    };
+    ```
+
+  - The `id` will match the UUID v4 of the uploaded file.
+  - The `fileType` will specify the media type, such as "image", "video", "videoResolutions", or "audio".
+  - The `status` field will indicate whether the processing was successful ("completed") or failed ("failed").
+
+  Handling the Response:
+  - Based on the `status` ("completed" or "failed"), you can implement further logic in your system:
+    - For "completed", you may update your database, notify users, or proceed with further actions.
+    - For "failed", you can handle retries or report errors in your application.
+  
+  Note: This file is designed to ensure smooth integration with Media-Docker. If modifications are 
+  necessary, please review them carefully to avoid breaking the upload and response processing functionality.
 */
 
 // Importing file system promises for handling file operations
@@ -93,6 +125,7 @@ class MediaDocker {
    * Initializes a Kafka instance with client ID, brokers, and retry settings,
    * and creates a consumer with the specified group ID and session configurations.
    * This ensures that the consumer can handle message processing within a 1-minute window.
+   * The default log level is set to WARN.
    */
   constructor() {
     // Initialize Kafka instance with client ID and broker addresses
@@ -102,7 +135,7 @@ class MediaDocker {
       retry: {
         retries: 5, // Number of retries for connection failure
       },
-      logLevel: logLevel.INFO, // Logging Kafka events
+      logLevel: logLevel.WARN, // Logging Kafka events
     });
 
     // Initialize Kafka consumer with specified group ID and heartbeat settings
