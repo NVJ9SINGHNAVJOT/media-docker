@@ -7,7 +7,7 @@ declare -A topics_and_partitions=(
     ["image"]=100
     ["audio"]=50
     ["delete-file"]=20
-    ["media-docker-files-response"]=100
+    ["media-docker-files-response"]=50
     ["failed-letter-queue"]=10
 )
 
