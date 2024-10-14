@@ -207,14 +207,14 @@ func ProcessMessage(msg kafka.Message, workerName string) {
 		return
 	}
 
-	// If no errors occurred during processing, send a success response
-	if err == nil {
-		sendConsumerResponse(workerName, id, fileType, "completed")
+	// Handle errors that may have occurred during message processing
+	if err != nil {
+		handleErrorResponse(msg, workerName, fileType, id, resMessage, err)
 		return
 	}
 
-	// Handle errors that may have occurred during message processing
-	handleErrorResponse(msg, workerName, fileType, id, resMessage, err)
+	// If no errors occurred during processing, send a success response
+	sendConsumerResponse(workerName, id, fileType, "completed")
 }
 
 // processVideoMessage processes video conversion and returns the new ID, message, or an error
