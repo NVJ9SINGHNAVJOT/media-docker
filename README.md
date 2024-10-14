@@ -73,7 +73,7 @@ After setting up all components, upload media files through the server, which pr
 
 ## Contributing
 
-Contributions to Media-Docker are welcome! Please submit a pull request or open an issue for any feature requests or bug reports.
+Contributions to Media-Docker are always welcome! To submit feature requests, report bugs, or contribute to the project, please open an issue or submit a pull request. For guidelines on contributing and maintaining the project, refer to the [CODE_OF_CONDUCT.md](https://github.com/NVJ9SINGHNAVJOT/media-docker/blob/main/CODE_OF_CONDUCT.md) and [CONTRIBUTING.md](https://github.com/NVJ9SINGHNAVJOT/media-docker/blob/main/CONTRIBUTING.md) files.
 
 ## Conclusion
 
