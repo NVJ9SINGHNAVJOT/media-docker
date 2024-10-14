@@ -10,8 +10,8 @@ import (
 
 // Channels for file and directory deletion with a buffer size of 1000
 var (
-	fileDeleteChan = make(chan string, 1000) // Buffered channel with size 1000
-	dirDeleteChan  = make(chan string, 1000) // Buffered channel for directories
+	fileDeleteChan = make(chan string, 1000) // Buffered channel for file paths
+	dirDeleteChan  = make(chan string, 1000) // Buffered channel for directory paths
 )
 
 const (

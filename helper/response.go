@@ -14,8 +14,8 @@ type apiResponse struct {
 }
 
 // Response sends a JSON response to the client with the specified status code and message.
-// It handles error logging for various scenarios, ensuring proper feedback is given to the client
-// and that internal errors are logged for debugging.
+// It handles error logging for various scenarios, ensuring proper feedback is given to the client.
+// Status codes above 299 are logged as errors for debugging purposes.
 func Response(w http.ResponseWriter, status int, message string, data any) {
 	// Prepare the response structure with the provided message.
 	response := apiResponse{

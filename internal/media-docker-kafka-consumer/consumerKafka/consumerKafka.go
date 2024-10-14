@@ -112,6 +112,7 @@ func handleErrorResponse(msg kafka.Message, workerName, fileType, id, resMessage
 		sendConsumerResponse(workerName, id, fileType, "failed")
 	}
 
+	// // TODO: Implement specific processing for failed messages in this project.
 	// log.Error().
 	// 	Err(err).
 	// 	Str("worker", workerName).
@@ -143,8 +144,6 @@ func handleErrorResponse(msg kafka.Message, workerName, fileType, id, resMessage
 	// 	CustomMessage:  resMessage,        // Any additional custom error message
 	// }
 
-	// // TODO: Implement specific processing for failed messages in this project.
-	// //
 	// // Attempt to produce the DLQ message to the "failed-letter-queue" topic.
 	// err = KafkaProducer.Produce("failed-letter-queue", dlqMessage)
 	// if err != nil {
