@@ -159,6 +159,10 @@ func (k *KafkaConsumerManager) KafkaConsumeSetup() {
 		}
 	}
 
+	log.Info().
+		Any("workers", k.workersPerTopic).
+		Msg("All workers have started sucessfully")
+
 	// Wait for all workers to finish processing before proceeding.
 	k.wg.Wait()
 	log.Info().Msg("All workers have completed processing") // Log the completion of all workers.

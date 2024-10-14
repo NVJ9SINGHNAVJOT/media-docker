@@ -49,9 +49,16 @@ type kafkaConsumeConfig struct {
 	KAFKA_TOPIC_WORKERS   map[string]int
 }
 
+type failedConsumeConfig struct {
+	ENVIRONMENT   string
+	KAFKA_BROKERS []string
+	WORKERS       int
+}
+
 var ClientEnv = clientConfig{}
 var ServerEnv = serverConfig{}
 var KafkaConsumeEnv = kafkaConsumeConfig{}
+var FailedConsumeEnv = failedConsumeConfig{}
 
 // ValidateClientEnv validates the environment variables for the client configuration.
 func ValidateClientEnv() error {
@@ -170,6 +177,39 @@ func ValidateKafkaConsumeEnv() error {
 	KafkaConsumeEnv.KAFKA_GROUP_PREFIX_ID = groupID
 	KafkaConsumeEnv.KAFKA_BROKERS = strings.Split(brokers, ",")
 	KafkaConsumeEnv.KAFKA_TOPIC_WORKERS = workerCounts
+
+	return nil
+}
+
+// ValidateFailedConsumeEnv validates the environment variables for Failed consume configuration.
+//
+// NOTE: By default, 2 workers are set. This can be increased by providing a workers count as a parameter.
+func ValidateFailedConsumeEnv(workers ...int) error {
+	// Validate ENVIRONMENT
+	environment, exists := os.LookupEnv("ENVIRONMENT")
+	if !exists {
+		return fmt.Errorf("environment is not provided")
+	}
+
+	// Validate KAFKA_BROKERS
+	brokers, exists := os.LookupEnv("KAFKA_BROKERS")
+	if !exists {
+		return fmt.Errorf("kafka brokers are not provided")
+	}
+
+	// Set the workers count, use default of 2 if not provided
+	workerCount := 2
+	if len(workers) > 0 {
+		if workers[0] < 1 {
+			return fmt.Errorf("workers count must be at least 1")
+		}
+		workerCount = workers[0]
+	}
+
+	// Set the validated environment variables in FailedConsumeEnv
+	FailedConsumeEnv.ENVIRONMENT = environment
+	FailedConsumeEnv.KAFKA_BROKERS = strings.Split(brokers, ",")
+	FailedConsumeEnv.WORKERS = workerCount
 
 	return nil
 }
