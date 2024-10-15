@@ -18,12 +18,8 @@ import (
 )
 
 func main() {
-	// NOTE: For media-docker-failed-consumer service, the .env.consumer file is loaded,
-	// which is provided for the media-docker-kafka-consumer service.
-	// The .env.consumer file is used only for ENVIRONMENT and KAFKA_BROKERS.
-	//
 	// Load env file
-	err := pkg.LoadEnv(".env.consumer")
+	err := pkg.LoadEnv(".env.failed")
 	if err != nil {
 		fmt.Println("Error loading env file", err)
 		panic(err)
@@ -37,10 +33,10 @@ func main() {
 	}
 
 	// Setup logger
-	config.SetUpLogger(config.KafkaConsumeEnv.ENVIRONMENT)
+	config.SetUpLogger(config.FailedConsumeEnv.ENVIRONMENT)
 
 	// Check Kafka connection
-	err = mediadockerkafka.CheckAllKafkaConnections(config.KafkaConsumeEnv.KAFKA_BROKERS)
+	err = mediadockerkafka.CheckAllKafkaConnections(config.FailedConsumeEnv.KAFKA_BROKERS)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Error checking connection with Kafka")
 	}
@@ -58,15 +54,15 @@ func main() {
 	defer cancel() // Ensure context is cancelled on shutdown
 
 	// Set up Kafka producers and consumers
-	mediadockerkafka.InitializeKafkaProducerManager(config.KafkaConsumeEnv.KAFKA_BROKERS)
+	mediadockerkafka.InitializeKafkaProducerManager(config.FailedConsumeEnv.KAFKA_BROKERS)
 	mediadockerkafka.InitializeKafkaConsumerManager(
-		ctx, workDone, config.KafkaConsumeEnv.KAFKA_TOPIC_WORKERS,
-		config.KafkaConsumeEnv.KAFKA_GROUP_PREFIX_ID, &wg,
-		config.KafkaConsumeEnv.KAFKA_BROKERS, process.ProcessMessage)
-
-	// Start additional worker routines for deleting files and directories
-	go pkg.DeleteFileWorker()
-	go pkg.DeleteDirWorker()
+		ctx,
+		workDone,
+		map[string]int{"failed-letter-queue": config.FailedConsumeEnv.KAFKA_FAILED_WORKERS},
+		"consumer",
+		&wg,
+		config.FailedConsumeEnv.KAFKA_BROKERS,
+		process.ProcessMessage)
 
 	// Kafka consumers setup
 	go mediadockerkafka.KafkaConsumer.KafkaConsumeSetup()
@@ -115,10 +111,5 @@ func cleanUpForConsumer() {
 		log.Info().Msg("Producer closed for media-docker-failed-consumer.")
 	}
 
-	pkg.CloseDeleteChannels()
-	log.Info().Msg("Delete channels closed.")
-
-	// Simulate a graceful shutdown delay, for deleting workers
-	time.Sleep(5 * time.Second)
 	log.Info().Msg("media-docker-failed-consumer service shutdown complete.")
 }

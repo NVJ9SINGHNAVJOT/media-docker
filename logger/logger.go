@@ -1,6 +1,6 @@
 // Package logger provides functions for custom logging used in the Media Docker project.
 // This package is used to log structured error messages, specifically for Kafka message processing,
-// with detailed metadata and optional error details such as missing ID information.
+// with detailed metadata.
 package logger
 
 import (

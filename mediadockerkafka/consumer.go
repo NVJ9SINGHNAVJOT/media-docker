@@ -127,6 +127,8 @@ func (k *KafkaConsumerManager) decrementWorker(group, topic, workerName string) 
 }
 
 // KafkaConsumeSetup creates a consumer group for each topic and spawns workers within that group.
+//
+// NOTE: It is important to call this function within a goroutine, as it waits for all workers to complete.
 func (k *KafkaConsumerManager) KafkaConsumeSetup() {
 
 	// Iterate over each topic to create a consumer group and spawn the corresponding workers.
