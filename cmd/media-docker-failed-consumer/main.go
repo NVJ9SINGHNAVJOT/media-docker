@@ -7,7 +7,6 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
-	"time"
 
 	"github.com/nvj9singhnavjot/media-docker/config"
 	"github.com/nvj9singhnavjot/media-docker/helper"
@@ -34,6 +33,9 @@ func main() {
 
 	// Setup logger
 	config.SetUpLogger(config.FailedConsumeEnv.ENVIRONMENT)
+
+	pkg.DirExist(helper.Constants.UploadStorage)
+	pkg.DirExist(helper.Constants.MediaStorage)
 
 	// Check Kafka connection
 	err = mediadockerkafka.CheckAllKafkaConnections(config.FailedConsumeEnv.KAFKA_BROKERS)
@@ -64,16 +66,14 @@ func main() {
 		config.FailedConsumeEnv.KAFKA_BROKERS,
 		process.ProcessMessage)
 
+	log.Info().Msg("media-docker-failed-consumer service started.")
 	// Kafka consumers setup
 	go mediadockerkafka.KafkaConsumer.KafkaConsumeSetup()
-
-	time.Sleep(time.Second * 5)
 
 	// Shutdown handling using signal and worker tracking
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
-	log.Info().Msg("media-docker-failed-consumer service started.")
 	for {
 		select {
 		case sig := <-sigChan:

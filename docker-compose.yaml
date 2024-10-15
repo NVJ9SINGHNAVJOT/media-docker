@@ -49,6 +49,7 @@ services:
     env_file: .env.server
     depends_on:
       - media-docker-kafka-consumer
+      - media-docker-failed-consumer
     stop_grace_period: 90s
   
   media-docker-kafka-consumer:

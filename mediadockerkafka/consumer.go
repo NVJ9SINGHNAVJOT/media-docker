@@ -266,7 +266,7 @@ func (k *KafkaConsumerManager) consumeKafkaTopic(group, topic, workerName string
 			k.ProcessMessage(msg, workerName)
 
 			// Commit the message offset to Kafka to mark the message as successfully processed.
-			if err := r.CommitMessages(k.ctx, msg); err != nil {
+			if err = r.CommitMessages(context.Background(), msg); err != nil {
 				// Log an error if committing the message offset fails.
 				logger.LogErrorWithKafkaMessage(err, workerName, msg, "Commit failed for message offset")
 			}

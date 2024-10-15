@@ -70,16 +70,14 @@ func main() {
 	go pkg.DeleteFileWorker()
 	go pkg.DeleteDirWorker()
 
+	log.Info().Msg("media-docker-kafka-consumer service started.")
 	// Kafka consumers setup
 	go mediadockerkafka.KafkaConsumer.KafkaConsumeSetup()
-
-	time.Sleep(time.Second * 5)
 
 	// Shutdown handling using signal and worker tracking
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
-	log.Info().Msg("media-docker-kafka-consumer service started.")
 	for {
 		select {
 		case sig := <-sigChan:

@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"sync"
 	"syscall"
 	"time"
 
@@ -49,9 +48,6 @@ func main() {
 	}
 
 	mediadockerkafka.InitializeKafkaProducerManager(config.ServerEnv.KAFKA_BROKERS)
-
-	// sync.Once to ensure cleanUp happens only once
-	var cleanUpOnce sync.Once
 
 	go pkg.DeleteFileWorker()
 
@@ -110,16 +106,15 @@ func main() {
 		} else {
 			log.Info().Msg("Server shut down complete.")
 		}
-		cleanUpOnce.Do(cleanUpForServer)
 	}()
 
 	// Start the HTTP server
 	log.Info().Msg("media-docker-server is running...")
 	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Error().Err(err).Msg("HTTP server crashed.")
-		cleanUpOnce.Do(cleanUpForServer)
 	}
 
+	cleanUpForServer()
 	log.Info().Msg("Server stopped.")
 }
 

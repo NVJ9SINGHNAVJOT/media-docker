@@ -61,6 +61,10 @@ tasks:
     desc: Execute the `main.go` file for the Kafka consumer located in the `cmd` folder.
     cmd: go run cmd/media-docker-kafka-consumer/main.go
 
+  failed:
+    desc: Execute the `main.go` file for the Failed consumer located in the `cmd` folder.
+    cmd: go run cmd/media-docker-failed-consumer/main.go
+
   k-cluster:
     desc: Display information about the Kafka broker cluster.
     cmds:
