@@ -1,3 +1,4 @@
+// process package contains Kafka message processing functions for media-docker-kafka-consumer.
 package process
 
 import (
