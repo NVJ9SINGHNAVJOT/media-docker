@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-
-	// "time"
+	"time"
 
 	"github.com/nvj9singhnavjot/media-docker/api"
 	"github.com/nvj9singhnavjot/media-docker/helper"
 	ka "github.com/nvj9singhnavjot/media-docker/kafka"
+	"github.com/nvj9singhnavjot/media-docker/logger"
 	"github.com/nvj9singhnavjot/media-docker/pkg"
 	"github.com/rs/zerolog/log"
 	"github.com/segmentio/kafka-go"
@@ -26,195 +26,152 @@ type KafkaResponseMessage struct {
 var KafkaProducer *ka.KafkaProducerManager
 var KafkaConsumer *ka.KafkaConsumerManager
 
-// sendConsumerResponse produces a Kafka message to the "media-docker-files-response" topic.
+// SendConsumerResponse produces a Kafka message to the "media-docker-files-response" topic.
 //
 // Parameters:
-// - workerName: The name of the worker processing the message.
-// - id: The unique identifier for the message being processed.
-// - fileType: The type of the file being processed, which can be one of the following:
+// - workerName: Name of the worker processing the message.
+// - newId: Unique identifier for the message being processed.
+// - fileType: Type of the file being processed. Allowed values:
 //   - "video"
 //   - "videoResolutions"
 //   - "image"
 //   - "audio"
 //
-// - status: The processing status of the file, which can be either:
+// - status: Status of the file processing. Allowed values:
 //   - "completed"
 //   - "failed"
 //
-// NOTE: If fileType and status are provided with values other than the above,
-// it may result in errors during further processing by client backend servers.
-func sendConsumerResponse(workerName, id, fileType, status string) {
-	// Create a response message object with the provided ID, FileType, and Status
+// NOTE: Providing values outside the allowed range for fileType or status may cause
+// errors during further processing by client backend services.
+func SendConsumerResponse(workerName, newId, fileType, status string) {
+	// Create a response message object with the provided ID, FileType, and Status.
 	message := KafkaResponseMessage{
-		ID:       id,
+		ID:       newId,
 		FileType: fileType,
 		Status:   status,
 	}
 
-	// Produce the response message to the "media-docker-files-response" topic
+	// Produce the response message to the "media-docker-files-response" topic.
 	err := KafkaProducer.Produce("media-docker-files-response", message)
 	if err != nil {
-		// Log an error if producing the response message fails
+		// Log an error if producing the response message fails.
 		log.Error().
 			Err(err).
 			Str("worker", workerName).
-			Any("new_kafka_message", message). // Log the new Kafka message content
-			Str("response topic", "media-docker-files-response").
-			Msg("Error while producing message for response")
+			Interface("new_kafka_message", message). // Log the new Kafka message content.
+			Str("response_topic", "media-docker-files-response").
+			Msg("Error while producing message for response.")
 	}
 }
 
-// handleErrorResponse processes errors from designated topic processing functions.
-// If an error occurs, it sends a DLQMessage to the "failed-letter-queue" topic,
-// allowing further processing by consumer workers in another service.
-// If producing the DLQ message fails, the error is logged.
-// If an ID is provided, the function calls sendConsumerResponse with the status "failed",
-// sending a message to the "media-docker-files-response" topic.
-// If the ID is not provided, an error is logged indicating the missing ID.
+// handleErrorResponse processes errors from message consumption functions.
+// If an error occurs, a DLQMessage is sent to the "failed-letter-queue" topic
+// for further processing by consumer workers in a different service.
+// If sending the DLQ message fails, the error is logged.
+// If a newId is provided, the function calls SendConsumerResponse with a "failed" status,
+// sending a response message to the "media-docker-files-response" topic.
+// If newId is not provided, an error is logged indicating the missing newId.
 //
-// NOTE: If there is an error while producing the message to "failed-letter-queue"
-// and the ID is also not provided, it results in no response being sent
-// to "media-docker-files-response" leading to the user backend services
-// (as clients) being unnotified.
-func handleErrorResponse(msg kafka.Message, workerName, fileType, id, resMessage string, err error) {
-	// TODO: The service responsible for handling messages in the "failed-letter-queue"
-	// is currently under development. Until it is implemented, any processing that fails
-	// will simply send a status of "failed".
+// NOTE: If producing the DLQ message and retrieving the ID both fail,
+// no response will be sent to the "media-docker-files-response" topic,
+// leaving client backend services unnotified.
+func handleErrorResponse(msg kafka.Message, workerName, fileType, newId, resMessage string, err error) {
+	logger.LogErrorWithKafkaMessage(err, workerName, msg, resMessage)
+
+	// NOTE: Failed messages are sent to the "failed-letter-queue" topic,
+	// enabling further processing and reducing retry load on the main consumption service.
 	//
-	// If the ID is empty, log an error indicating the missing ID and terminate further processing.
-	if id == "" {
+	// Create a DLQMessage struct with error details and original message information.
+	dlqMessage := ka.DLQMessage{
+		OriginalTopic:  msg.Topic,
+		Partition:      msg.Partition,
+		Offset:         msg.Offset,
+		HighWaterMark:  msg.HighWaterMark,
+		Value:          string(msg.Value),
+		ErrorDetails:   err.Error(),
+		ProcessingTime: msg.Time,
+		ErrorTime:      time.Now(),
+		Worker:         workerName,
+		CustomMessage:  resMessage,
+	}
+
+	// Attempt to produce the DLQ message to the "failed-letter-queue" topic.
+	err = KafkaProducer.Produce("failed-letter-queue", dlqMessage)
+
+	if err == nil {
+		return
+	}
+
+	if newId != "" {
 		log.Error().
 			Err(err).
 			Str("worker", workerName).
-			Interface("message_details", map[string]interface{}{
-				"topic":         msg.Topic,
-				"partition":     msg.Partition,
-				"offset":        msg.Offset,
-				"highWaterMark": msg.HighWaterMark,
-				"value":         string(msg.Value),
-				"time":          msg.Time,
-			}).
-			Str("id", "ID not returned from message processing"). // Log missing ID error
-			Msg(resMessage)
+			Interface("dlq_message", dlqMessage).
+			Msg("Error producing message to failed-letter-queue.")
+		SendConsumerResponse(workerName, newId, fileType, "failed")
+		return
+	}
+
+	// If newId is empty, attempt to extract it from the message value.
+	// If still unable to retrieve the ID, log the error.
+	newId, iderr := helper.ExtractNewId(msg.Value)
+	if iderr != nil {
+		// NOTE: No response will be sent to "media-docker-files-response",
+		// leaving client backend services unnotified.
+		log.Error().
+			Err(err).
+			Str("worker", workerName).
+			Interface("dlq_message", dlqMessage).
+			Str("id", "ID not returned from message processing"). // Log missing ID error.
+			Msg("Error producing message to failed-letter-queue.")
 	} else {
 		log.Error().
 			Err(err).
 			Str("worker", workerName).
-			Interface("message_details", map[string]interface{}{
-				"topic":         msg.Topic,
-				"partition":     msg.Partition,
-				"offset":        msg.Offset,
-				"highWaterMark": msg.HighWaterMark,
-				"value":         string(msg.Value),
-				"time":          msg.Time,
-			}).
-			Msg(resMessage)
-		sendConsumerResponse(workerName, id, fileType, "failed")
+			Interface("dlq_message", dlqMessage).
+			Msg("Error producing message to failed-letter-queue.")
+		SendConsumerResponse(workerName, newId, fileType, "failed")
 	}
-
-	// // TODO: Implement specific processing for failed messages in this project.
-	// log.Error().
-	// 	Err(err).
-	// 	Str("worker", workerName).
-	// 	Interface("message_details", map[string]interface{}{
-	// 		"topic":         msg.Topic,
-	// 		"partition":     msg.Partition,
-	// 		"offset":        msg.Offset,
-	// 		"highWaterMark": msg.HighWaterMark,
-	// 		"value":         string(msg.Value),
-	// 		"time":          msg.Time,
-	// 	}).
-	// 	Msg(resMessage) // Log error and response message
-
-	// // NOTE: Failed messages are sent to the topic: "failed-letter-queue".
-	// // This helps in further processing of failed messages and reduces retry load
-	// // in the main consumption service.
-	// //
-	// // Create a new DLQMessage struct with the error details and original message information.
-	// dlqMessage := ka.DLQMessage{
-	// 	OriginalTopic:  msg.Topic,         // The original topic where the message came from
-	// 	Partition:      msg.Partition,     // The partition number of the original message
-	// 	Offset:         msg.Offset,        // The offset of the original message
-	// 	HighWaterMark:  msg.HighWaterMark, // The high watermark of the Kafka partition
-	// 	Value:          string(msg.Value), // The original message value in string format
-	// 	ErrorDetails:   err.Error(),       // Error details encountered during processing
-	// 	ProcessingTime: msg.Time,          // The original timestamp when the message was processed
-	// 	ErrorTime:      time.Now(),        // The current timestamp when the error occurred
-	// 	Worker:         workerName,        // The worker responsible for processing the message
-	// 	CustomMessage:  resMessage,        // Any additional custom error message
-	// }
-
-	// // Attempt to produce the DLQ message to the "failed-letter-queue" topic.
-	// err = KafkaProducer.Produce("failed-letter-queue", dlqMessage)
-	// if err != nil {
-	// 	log.Error().
-	// 		Err(err).
-	// 		Str("worker", workerName).
-	// 		Interface("dlqMessage", dlqMessage).
-	// 		Msg("Error producing message to failed-letter-queue")
-
-	// 	// If ID is empty, log an error and return without processing further
-	// 	if id == "" {
-	// 		log.Error().
-	// 			Err(err).
-	// 			Str("worker", workerName).
-	// 			Interface("dlqMessage", dlqMessage).
-	// 			Str("id", "ID not returned from message processing"). // Log missing ID error
-	// 			Msg("Error producing message to failed-letter-queue")
-	// 		return
-	// 	}
-	// 	sendConsumerResponse(workerName, id, fileType, "failed")
-	// }
 }
 
 // ProcessMessage processes the Kafka messages based on the topic
 func ProcessMessage(msg kafka.Message, workerName string) {
 	var err error
 	var fileType string
-	var id string
+	var newId string
 	var resMessage string
 
 	// Process messages based on their topic
 	switch msg.Topic {
 	case "video":
-		fileType = "video"                                   // Assign file type for video messages
-		id, resMessage, err = processVideoMessage(msg.Value) // Process the video message
+		fileType = "video"                                      // Assign file type for video messages
+		newId, resMessage, err = processVideoMessage(msg.Value) // Process the video message
 	case "video-resolutions":
-		fileType = "videoResolutions"                                   // Assign file type for video resolution messages
-		id, resMessage, err = processVideoResolutionsMessage(msg.Value) // Process the video resolution message
+		fileType = "videoResolutions"                                      // Assign file type for video resolution messages
+		newId, resMessage, err = processVideoResolutionsMessage(msg.Value) // Process the video resolution message
 	case "image":
-		fileType = "image"                                   // Assign file type for image messages
-		id, resMessage, err = processImageMessage(msg.Value) // Process the image message
+		fileType = "image"                                      // Assign file type for image messages
+		newId, resMessage, err = processImageMessage(msg.Value) // Process the image message
 	case "audio":
-		fileType = "audio"                                   // Assign file type for audio messages
-		id, resMessage, err = processAudioMessage(msg.Value) // Process the audio message
+		fileType = "audio"                                      // Assign file type for audio messages
+		newId, resMessage, err = processAudioMessage(msg.Value) // Process the audio message
 	case "delete-file":
 		processDeleteFileMessage(msg, workerName) // Handle file deletion request
 		return
 	default:
 		// Log an error for unknown topics
-		log.Error().
-			Str("worker", workerName).
-			Interface("message_details", map[string]interface{}{
-				"topic":         msg.Topic,         // Topic of the message
-				"partition":     msg.Partition,     // Partition info
-				"offset":        msg.Offset,        // Offset of the message
-				"highWaterMark": msg.HighWaterMark, // High water mark
-				"value":         string(msg.Value), // Message content
-				"time":          msg.Time,          // Time when the message was received
-			}).
-			Msg("Unknown topic") // Log message for unknown topic
+		logger.LogUnknownTopic(workerName, msg)
 		return
 	}
 
 	// Handle errors that may have occurred during message processing
 	if err != nil {
-		handleErrorResponse(msg, workerName, fileType, id, resMessage, err)
+		handleErrorResponse(msg, workerName, fileType, newId, resMessage, err)
 		return
 	}
 
 	// If no errors occurred during processing, send a success response
-	sendConsumerResponse(workerName, id, fileType, "completed")
+	SendConsumerResponse(workerName, newId, fileType, "completed")
 }
 
 // processVideoMessage processes video conversion and returns the new ID, message, or an error
@@ -225,8 +182,6 @@ func processVideoMessage(kafkaMsg []byte) (string, string, error) {
 	if errMsg, err := helper.UnmarshalAndValidate(kafkaMsg, &videoMsg); err != nil {
 		return "", errMsg + " VideoMessage", err
 	}
-
-	defer pkg.AddToFileDeleteChan(videoMsg.FilePath) // Ensure file is scheduled for deletion
 
 	outputPath := fmt.Sprintf("%s/videos/%s", helper.Constants.MediaStorage, videoMsg.NewId)
 
@@ -251,6 +206,8 @@ func processVideoMessage(kafkaMsg []byte) (string, string, error) {
 		return videoMsg.NewId, "Video conversion failed", fmt.Errorf("command: %s, %s", cmd.String(), err)
 	}
 
+	pkg.AddToFileDeleteChan(videoMsg.FilePath) // Ensure file is scheduled for deletion
+
 	// Return success: new ID and a success message
 	return videoMsg.NewId, "Video conversion completed successfully", nil
 }
@@ -269,8 +226,6 @@ func processVideoResolutionsMessage(kafkaMsg []byte) (string, string, error) {
 	if errMsg, err := helper.UnmarshalAndValidate(kafkaMsg, &videoResolutionsMsg); err != nil {
 		return "", errMsg + " VideoResolutionsMessage", err
 	}
-
-	defer pkg.AddToFileDeleteChan(videoResolutionsMsg.FilePath) // Ensure file is scheduled for deletion
 
 	// Prepare the output directories for each resolution
 	outputPaths := map[string]string{
@@ -297,6 +252,8 @@ func processVideoResolutionsMessage(kafkaMsg []byte) (string, string, error) {
 
 	}
 
+	pkg.AddToFileDeleteChan(videoResolutionsMsg.FilePath) // Ensure file is scheduled for deletion
+
 	// Return success: new ID and success message
 	return videoResolutionsMsg.NewId, "Video resolution conversion completed successfully", nil
 }
@@ -310,8 +267,6 @@ func processImageMessage(kafkaMsg []byte) (string, string, error) {
 		return "", errMsg + " ImageMessage", err
 	}
 
-	defer pkg.AddToFileDeleteChan(imageMsg.FilePath) // Ensure file is scheduled for deletion
-
 	outputPath := fmt.Sprintf("%s/images/%s.jpeg", helper.Constants.MediaStorage, imageMsg.NewId)
 
 	// Prepare the command for image conversion based on the quality
@@ -321,6 +276,8 @@ func processImageMessage(kafkaMsg []byte) (string, string, error) {
 	if err := cmd.Run(); err != nil {
 		return imageMsg.NewId, "Image conversion failed", fmt.Errorf("command: %s, %s", cmd.String(), err)
 	}
+
+	pkg.AddToFileDeleteChan(imageMsg.FilePath) // Ensure file is scheduled for deletion
 
 	// Return success: new ID and a success message
 	return imageMsg.NewId, "Image conversion completed successfully", nil
@@ -334,8 +291,6 @@ func processAudioMessage(kafkaMsg []byte) (string, string, error) {
 	if errMsg, err := helper.UnmarshalAndValidate(kafkaMsg, &audioMsg); err != nil {
 		return "", errMsg + " AudioMessage", err
 	}
-
-	defer pkg.AddToFileDeleteChan(audioMsg.FilePath) // Ensure file is scheduled for deletion
 
 	outputPath := fmt.Sprintf("%s/audios/%s.mp3", helper.Constants.MediaStorage, audioMsg.NewId)
 
@@ -351,6 +306,8 @@ func processAudioMessage(kafkaMsg []byte) (string, string, error) {
 	if err := cmd.Run(); err != nil {
 		return audioMsg.NewId, "Audio conversion failed", fmt.Errorf("command: %s, %s", cmd.String(), err)
 	}
+
+	pkg.AddToFileDeleteChan(audioMsg.FilePath) // Ensure file is scheduled for deletion
 
 	// Return success: new ID and a success message
 	return audioMsg.NewId, "Audio conversion completed successfully", nil

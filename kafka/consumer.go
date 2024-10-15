@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/nvj9singhnavjot/media-docker/logger"
 	"github.com/rs/zerolog/log"
 	"github.com/segmentio/kafka-go"
 )
@@ -160,7 +161,7 @@ func (k *KafkaConsumerManager) KafkaConsumeSetup() {
 	}
 
 	log.Info().
-		Any("workers", k.workersPerTopic).
+		Interface("workers", k.workersPerTopic).
 		Msg("All workers have started sucessfully")
 
 	// Wait for all workers to finish processing before proceeding.
@@ -260,18 +261,7 @@ func (k *KafkaConsumerManager) consumeKafkaTopic(group, topic, workerName string
 			// Commit the message offset to Kafka to mark the message as successfully processed.
 			if err := r.CommitMessages(k.ctx, msg); err != nil {
 				// Log an error if committing the message offset fails.
-				log.Error().
-					Err(err).
-					Str("worker", workerName).
-					Interface("message_details", map[string]interface{}{
-						"topic":         msg.Topic,
-						"partition":     msg.Partition,
-						"offset":        msg.Offset,
-						"highWaterMark": msg.HighWaterMark,
-						"value":         string(msg.Value),
-						"time":          msg.Time,
-					}).
-					Msg("Commit failed for message offset") // Provide details of the message that failed to commit.
+				logger.LogErrorWithKafkaMessage(err, workerName, msg, "Commit failed for message offset")
 			}
 		}
 	}

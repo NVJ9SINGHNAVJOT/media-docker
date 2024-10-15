@@ -46,11 +46,6 @@ func NewKafkaProducerManager(brokers []string) *KafkaProducerManager {
 // Produce sends a message to the specified Kafka topic.
 // It accepts the topic name and the message value to be sent.
 func (kp *KafkaProducerManager) Produce(topic string, value interface{}) error {
-	if kp.writer == nil {
-		// Return an error if the Kafka producer has not been initialized
-		return fmt.Errorf("kafka producer is not initialized")
-	}
-
 	// Marshal the value (interface) to JSON format for sending to Kafka
 	jsonValue, err := json.Marshal(value)
 	if err != nil {
@@ -65,13 +60,7 @@ func (kp *KafkaProducerManager) Produce(topic string, value interface{}) error {
 	}
 
 	// Send the message to the Kafka topic
-	err = kp.writer.WriteMessages(context.Background(), message)
-	if err != nil {
-		// Return an error if sending the message fails
-		return err
-	}
-
-	return nil // Return nil if the message is successfully sent
+	return kp.writer.WriteMessages(context.Background(), message)
 }
 
 // Close gracefully closes the Kafka producer.
