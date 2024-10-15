@@ -7,7 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/nvj9singhnavjot/media-docker/config"
 	"github.com/nvj9singhnavjot/media-docker/helper"
-	serverKafka "github.com/nvj9singhnavjot/media-docker/internal/media-docker-server/serverKafka"
+	"github.com/nvj9singhnavjot/media-docker/mediadockerkafka"
 	"github.com/nvj9singhnavjot/media-docker/pkg"
 )
 
@@ -37,7 +37,7 @@ func VideoResolutions(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Pass the struct to the Kafka producer
-	if err := serverKafka.KafkaProducer.Produce("video-resolutions", message); err != nil {
+	if err := mediadockerkafka.KafkaProducer.Produce("video-resolutions", message); err != nil {
 		pkg.AddToFileDeleteChan(videoPath) // Add to deletion channel on error
 		helper.Response(w, http.StatusInternalServerError, "error sending Kafka message", err)
 		return

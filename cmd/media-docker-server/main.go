@@ -16,8 +16,7 @@ import (
 	"github.com/nvj9singhnavjot/media-docker/config"
 	"github.com/nvj9singhnavjot/media-docker/helper"
 	"github.com/nvj9singhnavjot/media-docker/internal/media-docker-server/routes"
-	"github.com/nvj9singhnavjot/media-docker/internal/media-docker-server/serverKafka"
-	"github.com/nvj9singhnavjot/media-docker/kafka"
+	"github.com/nvj9singhnavjot/media-docker/mediadockerkafka"
 	mw "github.com/nvj9singhnavjot/media-docker/middleware"
 	"github.com/nvj9singhnavjot/media-docker/pkg"
 	"github.com/rs/zerolog/log"
@@ -44,12 +43,12 @@ func main() {
 	pkg.DirExist(helper.Constants.UploadStorage)
 	pkg.DirExist(helper.Constants.MediaStorage)
 
-	err = kafka.CheckAllKafkaConnections(config.ServerEnv.KAFKA_BROKERS)
+	err = mediadockerkafka.CheckAllKafkaConnections(config.ServerEnv.KAFKA_BROKERS)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Kafka connection failed for media-docker-server")
 	}
 
-	serverKafka.KafkaProducer = kafka.NewKafkaProducerManager(config.ServerEnv.KAFKA_BROKERS)
+	mediadockerkafka.InitializeKafkaProducerManager(config.ServerEnv.KAFKA_BROKERS)
 
 	// sync.Once to ensure cleanUp happens only once
 	var cleanUpOnce sync.Once
@@ -126,7 +125,7 @@ func main() {
 
 // cleanUpForServer performs any final cleanup actions before shutdown
 func cleanUpForServer() {
-	if err := serverKafka.KafkaProducer.Close(); err != nil {
+	if err := mediadockerkafka.KafkaProducer.Close(); err != nil {
 		log.Error().Err(err).Msg("Error while closing producer for media-docker-server")
 	} else {
 		log.Info().Msg("Producer closed for media-docker-server.")

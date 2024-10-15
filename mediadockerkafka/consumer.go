@@ -1,4 +1,4 @@
-package kafka
+package mediadockerkafka
 
 import (
 	"context"
@@ -12,12 +12,18 @@ import (
 	"github.com/segmentio/kafka-go"
 )
 
+// Global KafkaConsumer variable represents the Kafka consumer manager instance.
+//
+// Note: Before using KafkaConsumer, the InitializeKafkaConsumerManager function
+// should be called to properly set up KafkaConsumer with the KafkaConsumerManager.
+var KafkaConsumer = KafkaConsumerManager{}
+
 // Retry settings for Kafka message consumption.
 const retryAttempts = 5         // Number of retry attempts for consuming messages
 const backoff = 4 * time.Second // Duration to wait before retrying after a failure
 
 // topicTracker tracks the number of active workers for a specific topic.
-// It uses a mutex to ensure that modifications to the worker count are thread-safe.
+// It ensures thread-safe access to the worker count using a mutex.
 type topicTracker struct {
 	count int        // Number of active workers for the topic
 	lock  sync.Mutex // Mutex to synchronize access to the worker count
@@ -27,6 +33,61 @@ type topicTracker struct {
 // Each topic has its own tracker to maintain and control worker concurrency.
 type workerTracker struct {
 	topics map[string]*topicTracker // A map of topics with their respective worker trackers
+}
+
+// KafkaConsumerManager oversees the configuration and management of Kafka consumers,
+// including context handling, signaling channels, and worker settings.
+type KafkaConsumerManager struct {
+	ctx                context.Context                            // Context for managing cancellation and timeouts.
+	workDone           chan int                                   // Channel for signaling when all workers have finished processing messages.
+	workersPerTopic    map[string]int                             // Mapping of topics to their corresponding worker counts.
+	groupID            string                                     // Unique identifier for the consumer group, used for coordinating worker instances.
+	wg                 *sync.WaitGroup                            // WaitGroup to synchronize the completion of goroutines.
+	brokers            []string                                   // Slice of Kafka broker addresses to connect to.
+	ProcessMessage     func(msg kafka.Message, workerName string) // Function to handle incoming Kafka messages.
+	workerErrorManager workerTracker                              // Instance of workerTracker for monitoring and managing worker statuses.
+}
+
+// InitializeKafkaConsumerManager sets up the KafkaConsumerManager instance.
+// It configures the necessary parameters for managing Kafka consumers based on the provided input.
+//
+// Parameters:
+//   - ctx: The context.Context used for managing cancellation and timeouts for the consumer manager.
+//   - workDone: A channel of type int that signals when all worker goroutines have completed their tasks.
+//   - workersPerTopic: A map where keys are topic names (strings) and values are the number of workers (ints)
+//     assigned to each topic, dictating how many consumer instances will process messages from each topic.
+//   - groupID: A string that identifies the consumer group, used for coordinating the workers and ensuring
+//     balanced message consumption across multiple instances.
+//   - wg: A pointer to a sync.WaitGroup that helps synchronize the completion of goroutines, allowing
+//     the main program to wait for all worker goroutines to finish before proceeding or exiting.
+//   - brokers: A slice of strings representing the addresses of the Kafka brokers to which the consumer manager will connect.
+//   - processMsg: A function that takes a kafka.Message and a workerName (string) as parameters. This function is
+//     called to process each message that the consumer receives.
+func InitializeKafkaConsumerManager(ctx context.Context, workDone chan int, workersPerTopic map[string]int,
+	groupID string, wg *sync.WaitGroup, brokers []string,
+	processMsg func(msg kafka.Message, workerName string)) {
+
+	// Initialize the workerErrorManager with a map to track the state of each topic.
+	workerErrorManager := workerTracker{
+		topics: make(map[string]*topicTracker), // Create a map for tracking workers per topic.
+	}
+
+	// Set up a topic tracker for each topic and initialize its worker count.
+	for topic, workersCount := range workersPerTopic {
+		workerErrorManager.topics[topic] = &topicTracker{count: workersCount} // Assign the worker count to the topic tracker.
+	}
+
+	// Configure the KafkaConsumerManager instance with the provided parameters.
+	KafkaConsumer = KafkaConsumerManager{
+		ctx:                ctx,                // Context for managing cancellation and timeouts.
+		workDone:           workDone,           // Channel to signal when all workers have completed their tasks.
+		workersPerTopic:    workersPerTopic,    // Mapping of topics to the number of workers assigned to each.
+		groupID:            groupID,            // Consumer group identifier for coordinating worker instances.
+		wg:                 wg,                 // WaitGroup for synchronizing goroutines.
+		brokers:            brokers,            // List of Kafka broker addresses to connect to.
+		ProcessMessage:     processMsg,         // Function to process consumed Kafka messages.
+		workerErrorManager: workerErrorManager, // Instance to track worker statuses for error management.
+	}
 }
 
 // decrementWorker safely decreases the worker count for a given topic in the workerTracker.
@@ -62,62 +123,6 @@ func (k *KafkaConsumerManager) decrementWorker(group, topic, workerName string) 
 			Str("topic", topic).
 			Str("group", group).
 			Msg("No workers remaining")
-	}
-}
-
-// KafkaConsumerManager oversees the configuration and management of Kafka consumers,
-// including context handling, error channels, and worker settings.
-type KafkaConsumerManager struct {
-	ctx                context.Context                            // Context for managing cancellation and timeouts.
-	workDone           chan int                                   // Channel for signaling when all workers have finished.
-	workersPerTopic    map[string]int                             // Mapping of topics to their corresponding worker counts.
-	groupID            string                                     // Unique identifier for the consumer group, used for coordinating workers.
-	wg                 *sync.WaitGroup                            // WaitGroup to synchronize the completion of goroutines.
-	brokers            []string                                   // Slice of Kafka broker addresses to connect to.
-	ProcessMessage     func(msg kafka.Message, workerName string) // Function for handling incoming Kafka messages.
-	workerErrorManager workerTracker                              // Instance of workerTracker for monitoring and managing worker statuses.
-}
-
-// NewKafkaConsumerManager creates and initializes a new instance of KafkaConsumerManager.
-// It sets up the necessary configurations for managing Kafka consumers based on the provided parameters.
-//
-// Parameters:
-//   - ctx: The context.Context used for managing cancellation and timeouts for the consumer manager.
-//   - workDone: A channel of type int that signals when all worker goroutines have completed their tasks.
-//   - workersPerTopic: A map where the keys are topic names (strings) and the values are the number of workers (ints)
-//     assigned to each topic. This dictates how many consumer instances will process messages from each topic.
-//   - groupID: A string that identifies the consumer group. This is used for coordinating the workers and ensuring
-//     that they properly balance the message consumption across multiple instances.
-//   - wg: A pointer to a sync.WaitGroup that helps synchronize the completion of goroutines, ensuring that the
-//     main program can wait for all worker goroutines to finish before proceeding or exiting.
-//   - brokers: A slice of strings representing the addresses of the Kafka brokers to which the consumer manager will connect.
-//   - processMsg: A function that takes a kafka.Message and a workerName (string) as parameters. This function is
-//     called to process each message that the consumer receives.
-//
-// Returns:
-//   - A pointer to an instance of KafkaConsumerManager, fully initialized and ready for use.
-func NewKafkaConsumerManager(ctx context.Context, workDone chan int, workersPerTopic map[string]int,
-	groupID string, wg *sync.WaitGroup, brokers []string,
-	processMsg func(msg kafka.Message, workerName string)) *KafkaConsumerManager {
-
-	workerErrorManager := workerTracker{
-		topics: make(map[string]*topicTracker), // Create a map to track the state of each topic.
-	}
-
-	// Set up a topic tracker for each topic and initialize its worker count.
-	for topic, workersCount := range workersPerTopic {
-		workerErrorManager.topics[topic] = &topicTracker{count: workersCount} // Assign the worker count to the topic tracker.
-	}
-
-	return &KafkaConsumerManager{
-		ctx:                ctx,                // Context for managing cancellation and timeouts.
-		workDone:           workDone,           // Channel to signal when all workers have completed their tasks.
-		workersPerTopic:    workersPerTopic,    // Mapping of topics to the number of workers assigned to each.
-		groupID:            groupID,            // Consumer group identifier for coordinating worker groups.
-		wg:                 wg,                 // WaitGroup for synchronizing goroutines.
-		brokers:            brokers,            // List of Kafka broker addresses.
-		ProcessMessage:     processMsg,         // Function to process consumed Kafka messages.
-		workerErrorManager: workerErrorManager, // Instance to track worker statuses for error management.
 	}
 }
 

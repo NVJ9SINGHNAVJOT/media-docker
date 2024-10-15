@@ -1,4 +1,4 @@
-package consumerKafka
+package process
 
 import (
 	"fmt"
@@ -7,61 +7,12 @@ import (
 
 	"github.com/nvj9singhnavjot/media-docker/api"
 	"github.com/nvj9singhnavjot/media-docker/helper"
-	ka "github.com/nvj9singhnavjot/media-docker/kafka"
 	"github.com/nvj9singhnavjot/media-docker/logger"
+	"github.com/nvj9singhnavjot/media-docker/mediadockerkafka"
 	"github.com/nvj9singhnavjot/media-docker/pkg"
 	"github.com/rs/zerolog/log"
 	"github.com/segmentio/kafka-go"
 )
-
-// KafkaResponseMessage represents a message from the Media Docker system.
-type KafkaResponseMessage struct {
-	ID       string `json:"id" validate:"required,uuid4"`                                          // Unique identifier (UUIDv4) for the media file, required field
-	FileType string `json:"fileType" validate:"required,oneof=image video videoResolutions audio"` // Media file type, required and must be one of "image", "video", "videoResolutions", or "audio"
-	Status   string `json:"status" validate:"required,oneof=completed failed"`                     // Status of the media processing, required and must be either "completed" or "failed"
-}
-
-// Global KafkaProducer variable
-var KafkaProducer *ka.KafkaProducerManager
-var KafkaConsumer *ka.KafkaConsumerManager
-
-// SendConsumerResponse produces a Kafka message to the "media-docker-files-response" topic.
-//
-// Parameters:
-// - workerName: Name of the worker processing the message.
-// - newId: Unique identifier for the message being processed.
-// - fileType: Type of the file being processed. Allowed values:
-//   - "video"
-//   - "videoResolutions"
-//   - "image"
-//   - "audio"
-//
-// - status: Status of the file processing. Allowed values:
-//   - "completed"
-//   - "failed"
-//
-// NOTE: Providing values outside the allowed range for fileType or status may cause
-// errors during further processing by client backend services.
-func SendConsumerResponse(workerName, newId, fileType, status string) {
-	// Create a response message object with the provided ID, FileType, and Status.
-	message := KafkaResponseMessage{
-		ID:       newId,
-		FileType: fileType,
-		Status:   status,
-	}
-
-	// Produce the response message to the "media-docker-files-response" topic.
-	err := KafkaProducer.Produce("media-docker-files-response", message)
-	if err != nil {
-		// Log an error if producing the response message fails.
-		log.Error().
-			Err(err).
-			Str("worker", workerName).
-			Interface("new_kafka_message", message). // Log the new Kafka message content.
-			Str("response_topic", "media-docker-files-response").
-			Msg("Error while producing message for response.")
-	}
-}
 
 // handleErrorResponse processes errors from message consumption functions.
 // If an error occurs, a DLQMessage is sent to the "failed-letter-queue" topic
@@ -81,7 +32,7 @@ func handleErrorResponse(msg kafka.Message, workerName, fileType, newId, resMess
 	// enabling further processing and reducing retry load on the main consumption service.
 	//
 	// Create a DLQMessage struct with error details and original message information.
-	dlqMessage := ka.DLQMessage{
+	dlqMessage := mediadockerkafka.DLQMessage{
 		OriginalTopic:  msg.Topic,
 		Partition:      msg.Partition,
 		Offset:         msg.Offset,
@@ -95,7 +46,7 @@ func handleErrorResponse(msg kafka.Message, workerName, fileType, newId, resMess
 	}
 
 	// Attempt to produce the DLQ message to the "failed-letter-queue" topic.
-	err = KafkaProducer.Produce("failed-letter-queue", dlqMessage)
+	err = mediadockerkafka.KafkaProducer.Produce("failed-letter-queue", dlqMessage)
 
 	if err == nil {
 		return
@@ -107,7 +58,7 @@ func handleErrorResponse(msg kafka.Message, workerName, fileType, newId, resMess
 			Str("worker", workerName).
 			Interface("dlq_message", dlqMessage).
 			Msg("Error producing message to failed-letter-queue.")
-		SendConsumerResponse(workerName, newId, fileType, "failed")
+		mediadockerkafka.SendConsumerResponse(workerName, newId, fileType, "failed")
 		return
 	}
 
@@ -129,7 +80,7 @@ func handleErrorResponse(msg kafka.Message, workerName, fileType, newId, resMess
 			Str("worker", workerName).
 			Interface("dlq_message", dlqMessage).
 			Msg("Error producing message to failed-letter-queue.")
-		SendConsumerResponse(workerName, newId, fileType, "failed")
+		mediadockerkafka.SendConsumerResponse(workerName, newId, fileType, "failed")
 	}
 }
 
@@ -170,7 +121,7 @@ func ProcessMessage(msg kafka.Message, workerName string) {
 	}
 
 	// If no errors occurred during processing, send a success response
-	SendConsumerResponse(workerName, newId, fileType, "completed")
+	mediadockerkafka.SendConsumerResponse(workerName, newId, fileType, "completed")
 }
 
 // processVideoMessage processes video conversion and returns the new ID, message, or an error

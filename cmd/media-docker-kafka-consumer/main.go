@@ -11,8 +11,8 @@ import (
 
 	"github.com/nvj9singhnavjot/media-docker/config"
 	"github.com/nvj9singhnavjot/media-docker/helper"
-	consumerKafka "github.com/nvj9singhnavjot/media-docker/internal/media-docker-kafka-consumer/consumerKafka"
-	"github.com/nvj9singhnavjot/media-docker/kafka"
+	"github.com/nvj9singhnavjot/media-docker/internal/media-docker-kafka-consumer/process"
+	"github.com/nvj9singhnavjot/media-docker/mediadockerkafka"
 	"github.com/nvj9singhnavjot/media-docker/pkg"
 	"github.com/rs/zerolog/log"
 )
@@ -38,7 +38,7 @@ func main() {
 	config.CreateDirSetup()
 
 	// Check Kafka connection
-	err = kafka.CheckAllKafkaConnections(config.KafkaConsumeEnv.KAFKA_BROKERS)
+	err = mediadockerkafka.CheckAllKafkaConnections(config.KafkaConsumeEnv.KAFKA_BROKERS)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Error checking connection with Kafka")
 	}
@@ -56,23 +56,30 @@ func main() {
 	defer cancel() // Ensure context is cancelled on shutdown
 
 	// Set up Kafka producers and consumers
-	consumerKafka.KafkaProducer = kafka.NewKafkaProducerManager(config.KafkaConsumeEnv.KAFKA_BROKERS)
-	consumerKafka.KafkaConsumer = kafka.NewKafkaConsumerManager(
-		ctx, workDone, config.KafkaConsumeEnv.KAFKA_TOPIC_WORKERS,
-		config.KafkaConsumeEnv.KAFKA_GROUP_PREFIX_ID, &wg,
-		config.KafkaConsumeEnv.KAFKA_BROKERS, consumerKafka.ProcessMessage)
+	mediadockerkafka.InitializeKafkaProducerManager(config.KafkaConsumeEnv.KAFKA_BROKERS)
+	mediadockerkafka.InitializeKafkaConsumerManager(
+		ctx,
+		workDone,
+		config.KafkaConsumeEnv.KAFKA_TOPIC_WORKERS,
+		config.KafkaConsumeEnv.KAFKA_GROUP_PREFIX_ID,
+		&wg,
+		config.KafkaConsumeEnv.KAFKA_BROKERS,
+		process.ProcessMessage)
 
 	// Start additional worker routines for deleting files and directories
 	go pkg.DeleteFileWorker()
 	go pkg.DeleteDirWorker()
 
 	// Kafka consumers setup
-	go consumerKafka.KafkaConsumer.KafkaConsumeSetup()
+	go mediadockerkafka.KafkaConsumer.KafkaConsumeSetup()
+
+	time.Sleep(time.Second * 5)
 
 	// Shutdown handling using signal and worker tracking
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
+	log.Info().Msg("media-docker-kafka-consumer service started")
 	for {
 		select {
 		case sig := <-sigChan:
@@ -104,7 +111,7 @@ func main() {
 
 // cleanUpForConsumer performs final cleanup actions before shutdown
 func cleanUpForConsumer() {
-	if err := consumerKafka.KafkaProducer.Close(); err != nil {
+	if err := mediadockerkafka.KafkaProducer.Close(); err != nil {
 		log.Error().Err(err).Msg("Error while closing producer for media-docker-consumer")
 	} else {
 		log.Info().Msg("Producer closed for media-docker-consumer.")
