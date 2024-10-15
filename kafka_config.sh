@@ -1,6 +1,7 @@
 #!/bin/bash
 
 # Define topics and their default partition values
+# INFO: All struct types are defined in the topics package in ./topics
 declare -A topics_and_partitions=(
     ["video"]=100
     ["video-resolutions"]=100
