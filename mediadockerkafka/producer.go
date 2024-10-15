@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"time"
 
 	"github.com/segmentio/kafka-go"
 )
@@ -19,21 +18,6 @@ var KafkaProducer = KafkaProducerManager{}
 // It contains a Kafka writer that is responsible for writing messages to specified topics.
 type KafkaProducerManager struct {
 	writer *kafka.Writer // Kafka writer used for producing messages to Kafka topics
-}
-
-// DLQMessage represents the structure of messages sent to the Dead-Letter Queue (DLQ).
-// It stores metadata about the original message, the error encountered, and additional processing details.
-type DLQMessage struct {
-	OriginalTopic  string    `json:"originalTopic" validate:"required"`  // The topic where the message originated
-	Partition      int       `json:"partition" validate:"required"`      // Kafka partition of the original message
-	Offset         int64     `json:"offset" validate:"required"`         // Offset position of the original message in the partition
-	HighWaterMark  int64     `json:"highWaterMark" validate:"required"`  // The high-water mark of the partition (latest offset)
-	Value          string    `json:"value" validate:"required"`          // The original message content as a string
-	ErrorDetails   string    `json:"errorDetails" validate:"required"`   // Description of the error encountered during processing
-	ProcessingTime time.Time `json:"processingTime" validate:"required"` // Timestamp of when the message was processed
-	ErrorTime      time.Time `json:"errorTime" validate:"required"`      // Timestamp of when the error occurred
-	Worker         string    `json:"worker" validate:"required"`         // Identifier of the worker that processed the message
-	CustomMessage  string    `json:"customMessage" validate:"required"`  // Additional custom message or context about the error
 }
 
 // InitializeKafkaProducerManager sets up the Kafka producer by creating a Kafka writer

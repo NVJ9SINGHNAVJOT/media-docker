@@ -9,17 +9,11 @@ import (
 	"github.com/nvj9singhnavjot/media-docker/helper"
 	"github.com/nvj9singhnavjot/media-docker/mediadockerkafka"
 	"github.com/nvj9singhnavjot/media-docker/pkg"
+	"github.com/nvj9singhnavjot/media-docker/topics"
 )
 
 type audioRequest struct {
 	Bitrate string `json:"bitrate" validate:"omitempty,oneof=128k 192k 256k 320k"` // Optional quality parameter
-}
-
-// AudioMessage represents the structure of the message sent to Kafka for audio processing.
-type AudioMessage struct {
-	FilePath string  `json:"filePath" validate:"required"` // Mandatory field for the file path
-	NewId    string  `json:"newId" validate:"required"`    // New unique identifier for the audio file URL
-	Bitrate  *string `json:"bitrate" validate:"omitempty"` // Optional quality parameter
 }
 
 // Audio handles audio file upload requests and sends processing messages to Kafka.
@@ -45,7 +39,7 @@ func Audio(w http.ResponseWriter, r *http.Request) {
 	outputPath := fmt.Sprintf("%s/audios/%s.mp3", helper.Constants.MediaStorage, id) // Define the output path for the audio file
 
 	// Create the AudioMessage struct without bitrate
-	message := AudioMessage{
+	message := topics.AudioMessage{
 		FilePath: audioPath, // Set the file path
 		NewId:    id,        // Set the new ID for the file URL
 	}

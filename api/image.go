@@ -9,13 +9,8 @@ import (
 	"github.com/nvj9singhnavjot/media-docker/helper"
 	"github.com/nvj9singhnavjot/media-docker/mediadockerkafka"
 	"github.com/nvj9singhnavjot/media-docker/pkg"
+	"github.com/nvj9singhnavjot/media-docker/topics"
 )
-
-// ImageMessage represents the structure of the message sent to Kafka for image processing.
-type ImageMessage struct {
-	FilePath string `json:"filePath" validate:"required"` // Mandatory field for the file path
-	NewId    string `json:"newId" validate:"required"`    // New unique identifier for the image file URL
-}
 
 // Image handles image file upload requests and sends processing messages to Kafka.
 func Image(w http.ResponseWriter, r *http.Request) {
@@ -32,7 +27,7 @@ func Image(w http.ResponseWriter, r *http.Request) {
 	outputPath := fmt.Sprintf("%s/images/%s.jpeg", helper.Constants.MediaStorage, id) // Define the output path for the image file
 
 	// Create the ImageMessage struct to be passed to Kafka
-	message := ImageMessage{
+	message := topics.ImageMessage{
 		FilePath: imagePath, // Set the file path
 		NewId:    id,        // Set the new ID for the file URL
 	}

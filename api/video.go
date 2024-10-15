@@ -10,18 +10,12 @@ import (
 	"github.com/nvj9singhnavjot/media-docker/helper"
 	"github.com/nvj9singhnavjot/media-docker/mediadockerkafka"
 	"github.com/nvj9singhnavjot/media-docker/pkg"
+	"github.com/nvj9singhnavjot/media-docker/topics"
 )
 
 // videoRequest represents the structure of the request for video upload.
 type videoRequest struct {
 	Quality string `json:"quality" validate:"omitempty,customVideoQuality"` // Optional quality parameter
-}
-
-// VideoMessage represents the structure of the message sent to Kafka for video processing.
-type VideoMessage struct {
-	FilePath string `json:"filePath" validate:"required"` // Mandatory field for the file path
-	NewId    string `json:"newId" validate:"required"`    // New unique identifier for the video file URL
-	Quality  *int   `json:"quality" validate:"omitempty"` // Optional video quality (using pointer for omitempty)
 }
 
 // Video handles video upload requests and sends processing messages to Kafka.
@@ -60,7 +54,7 @@ func Video(w http.ResponseWriter, r *http.Request) {
 	outputPath := fmt.Sprintf("%s/videos/%s", helper.Constants.MediaStorage, id) // Define the output path for the video
 
 	// Create the VideoMessage struct to be passed to Kafka
-	message := VideoMessage{
+	message := topics.VideoMessage{
 		FilePath: videoPath, // Set the file path
 		NewId:    id,        // Set the new ID
 		Quality:  quality,   // Set the optional quality (can be nil)

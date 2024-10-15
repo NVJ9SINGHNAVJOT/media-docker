@@ -9,13 +9,8 @@ import (
 	"github.com/nvj9singhnavjot/media-docker/helper"
 	"github.com/nvj9singhnavjot/media-docker/mediadockerkafka"
 	"github.com/nvj9singhnavjot/media-docker/pkg"
+	"github.com/nvj9singhnavjot/media-docker/topics"
 )
-
-// VideoResolutionsMessage represents the structure of the message sent to Kafka for video resolution processing.
-type VideoResolutionsMessage struct {
-	FilePath string `json:"filePath" validate:"required"` // Mandatory field for the file path
-	NewId    string `json:"newId" validate:"required"`    // New unique identifier for the video file URL
-}
 
 // VideoResolutions handles video file upload requests and sends processing messages to Kafka for resolution conversion.
 func VideoResolutions(w http.ResponseWriter, r *http.Request) {
@@ -31,7 +26,7 @@ func VideoResolutions(w http.ResponseWriter, r *http.Request) {
 	id := uuid.New().String()              // Generate a new UUID for the video file
 
 	// Create the VideoResolutionsMessage struct to be passed to Kafka
-	message := VideoResolutionsMessage{
+	message := topics.VideoResolutionsMessage{
 		FilePath: videoPath, // Set the file path
 		NewId:    id,        // Set the new ID for the file URL
 	}

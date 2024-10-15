@@ -1,13 +1,9 @@
 package mediadockerkafka
 
-import "github.com/rs/zerolog/log"
-
-// KafkaResponseMessage represents a message from the Media Docker system.
-type KafkaResponseMessage struct {
-	ID       string `json:"id" validate:"required,uuid4"`                                          // Unique identifier (UUIDv4) for the media file, required field
-	FileType string `json:"fileType" validate:"required,oneof=image video videoResolutions audio"` // Media file type, required and must be one of "image", "video", "videoResolutions", or "audio"
-	Status   string `json:"status" validate:"required,oneof=completed failed"`                     // Status of the media processing, required and must be either "completed" or "failed"
-}
+import (
+	"github.com/nvj9singhnavjot/media-docker/topics"
+	"github.com/rs/zerolog/log"
+)
 
 // SendConsumerResponse produces a Kafka message to the "media-docker-files-response" topic.
 //
@@ -28,7 +24,7 @@ type KafkaResponseMessage struct {
 // errors during further processing by client backend services.
 func SendConsumerResponse(workerName, newId, fileType, status string) {
 	// Create a response message object with the provided ID, FileType, and Status.
-	message := KafkaResponseMessage{
+	message := topics.KafkaResponseMessage{
 		ID:       newId,
 		FileType: fileType,
 		Status:   status,

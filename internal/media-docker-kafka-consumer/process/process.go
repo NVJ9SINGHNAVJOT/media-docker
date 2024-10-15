@@ -11,6 +11,7 @@ import (
 	"github.com/nvj9singhnavjot/media-docker/logger"
 	"github.com/nvj9singhnavjot/media-docker/mediadockerkafka"
 	"github.com/nvj9singhnavjot/media-docker/pkg"
+	"github.com/nvj9singhnavjot/media-docker/topics"
 	"github.com/rs/zerolog/log"
 	"github.com/segmentio/kafka-go"
 )
@@ -33,7 +34,7 @@ func handleErrorResponse(msg kafka.Message, workerName, fileType, newId, resMess
 	// enabling further processing and reducing retry load on the main consumption service.
 	//
 	// Create a DLQMessage struct with error details and original message information.
-	dlqMessage := mediadockerkafka.DLQMessage{
+	dlqMessage := topics.DLQMessage{
 		OriginalTopic:  msg.Topic,
 		Partition:      msg.Partition,
 		Offset:         msg.Offset,
@@ -127,7 +128,7 @@ func ProcessMessage(msg kafka.Message, workerName string) {
 
 // processVideoMessage processes video conversion and returns the new ID, message, or an error
 func processVideoMessage(kafkaMsg []byte) (string, string, error) {
-	var videoMsg api.VideoMessage
+	var videoMsg topics.VideoMessage
 
 	// Unmarshal and Validate the Kafka message into VideoMessage struct
 	errMsg, err := helper.UnmarshalAndValidate(kafkaMsg, &videoMsg)
@@ -169,7 +170,7 @@ func cleanUpResolutions(outputPaths map[string]string) {
 
 // processVideoResolutionsMessage processes video resolution conversion and returns the new ID, message, or an error
 func processVideoResolutionsMessage(kafkaMsg []byte) (string, string, error) {
-	var videoResolutionsMsg api.VideoResolutionsMessage
+	var videoResolutionsMsg topics.VideoResolutionsMessage
 
 	// Unmarshal and Validate the Kafka message into VideoResolutionsMessage struct
 	errMsg, err := helper.UnmarshalAndValidate(kafkaMsg, &videoResolutionsMsg)
@@ -207,7 +208,7 @@ func processVideoResolutionsMessage(kafkaMsg []byte) (string, string, error) {
 
 // processImageMessage processes image conversion and returns the new ID, message, or an error
 func processImageMessage(kafkaMsg []byte) (string, string, error) {
-	var imageMsg api.ImageMessage
+	var imageMsg topics.ImageMessage
 
 	// Unmarshal and Validate the Kafka message into ImageMessage struct
 	errMsg, err := helper.UnmarshalAndValidate(kafkaMsg, &imageMsg)
@@ -230,7 +231,7 @@ func processImageMessage(kafkaMsg []byte) (string, string, error) {
 
 // processAudioMessage processes audio conversion and returns the new ID, message, or an error
 func processAudioMessage(kafkaMsg []byte) (string, string, error) {
-	var audioMsg api.AudioMessage // Corrected type from ImageMessage to AudioMessage
+	var audioMsg topics.AudioMessage // Corrected type from ImageMessage to AudioMessage
 
 	// Unmarshal the Kafka message into AudioMessage struct
 	errMsg, err := helper.UnmarshalAndValidate(kafkaMsg, &audioMsg)
