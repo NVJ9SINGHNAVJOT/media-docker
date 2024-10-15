@@ -8,30 +8,6 @@ import (
 	"github.com/segmentio/kafka-go"
 )
 
-// LogErrorWithMissingID logs an error message with detailed Kafka message metadata and
-// highlights the case where the ID is missing from the message processing.
-//
-// Parameters:
-// - err: The error that occurred during message processing.
-// - workerName: The name of the worker processing the message.
-// - msg: The Kafka message being processed, which includes details like topic, partition, offset, etc.
-// - resMessage: A custom message that describes the error context or result.
-func LogErrorWithMissingID(err error, workerName string, msg kafka.Message, resMessage string) {
-	log.Error().
-		Err(err).
-		Str("worker", workerName).
-		Interface("message_details", map[string]interface{}{
-			"topic":         msg.Topic,
-			"partition":     msg.Partition,
-			"offset":        msg.Offset,
-			"highWaterMark": msg.HighWaterMark,
-			"value":         string(msg.Value),
-			"time":          msg.Time,
-		}).
-		Str("id", "ID not returned from message processing"). // Log missing ID error
-		Msg(resMessage)
-}
-
 // LogErrorWithKafkaMessage logs a standard error message with detailed Kafka message metadata.
 //
 // Parameters:
