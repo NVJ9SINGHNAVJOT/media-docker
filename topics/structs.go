@@ -17,17 +17,17 @@ import "time"
 //
 // Topic: "failed-letter-queue"
 type DLQMessage struct {
-	NewId          *string   `json:"newId" validate:"omitempty"`                    // Optional NewId from other topic Kafka message
-	OriginalTopic  string    `json:"originalTopic" validate:"required"`             // The topic where the message originated
-	Partition      int       `json:"partition" validate:"customNonNegativeInt"`     // Kafka partition of the original message
-	Offset         int64     `json:"offset" validate:"customNonNegativeInt"`        // Offset position of the original message in the partition
-	HighWaterMark  int64     `json:"highWaterMark" validate:"customNonNegativeInt"` // The high-water mark of the partition (latest offset)
-	Value          string    `json:"value" validate:"required"`                     // The original message content as a string
-	ErrorDetails   string    `json:"errorDetails" validate:"required"`              // Description of the error encountered during processing
-	ProcessingTime time.Time `json:"processingTime" validate:"required"`            // Timestamp of when the message was processed
-	ErrorTime      time.Time `json:"errorTime" validate:"required"`                 // Timestamp of when the error occurred
-	Worker         string    `json:"worker" validate:"required"`                    // Identifier of the worker that processed the message
-	CustomMessage  string    `json:"customMessage" validate:"required"`             // Additional custom message or context about the error
+	NewId          *string   `json:"newId" validate:"omitempty,uuid4"`                                            // Optional NewId from other topic Kafka message
+	OriginalTopic  string    `json:"originalTopic" validate:"required,oneof=image video video-resolutions audio"` // The topic where the message originated
+	Partition      int       `json:"partition" validate:"customNonNegativeInt"`                                   // Kafka partition of the original message
+	Offset         int64     `json:"offset" validate:"customNonNegativeInt"`                                      // Offset position of the original message in the partition
+	HighWaterMark  int64     `json:"highWaterMark" validate:"customNonNegativeInt"`                               // The high-water mark of the partition (latest offset)
+	Value          string    `json:"value" validate:"required"`                                                   // The original message content as a string
+	ErrorDetails   string    `json:"errorDetails" validate:"required"`                                            // Description of the error encountered during processing
+	ProcessingTime time.Time `json:"processingTime" validate:"required"`                                          // Timestamp of when the message was processed
+	ErrorTime      time.Time `json:"errorTime" validate:"required"`                                               // Timestamp of when the error occurred
+	Worker         string    `json:"worker" validate:"required"`                                                  // Identifier of the worker that processed the message
+	CustomMessage  string    `json:"customMessage" validate:"required"`                                           // Additional custom message or context about the error
 }
 
 // KafkaResponseMessage represents a message from the Media Docker system.
