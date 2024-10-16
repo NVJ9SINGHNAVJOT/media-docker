@@ -17,6 +17,7 @@ import "time"
 //
 // Topic: "failed-letter-queue"
 type DLQMessage struct {
+	NewId          *string   `json:"newId" validate:"omitempty"`                    // Optional NewId from other topic Kafka message
 	OriginalTopic  string    `json:"originalTopic" validate:"required"`             // The topic where the message originated
 	Partition      int       `json:"partition" validate:"customNonNegativeInt"`     // Kafka partition of the original message
 	Offset         int64     `json:"offset" validate:"customNonNegativeInt"`        // Offset position of the original message in the partition

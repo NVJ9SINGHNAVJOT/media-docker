@@ -47,6 +47,15 @@ func handleErrorResponse(msg kafka.Message, workerName, fileType, newId, resMess
 		CustomMessage:  resMessage,
 	}
 
+	// If newId is empty, attempt to extract it from the message value.
+	// If still unable to retrieve the ID, log the error.
+	if newId == "" {
+		newId, err = helper.ExtractNewId(msg.Value)
+		if err == nil {
+			dlqMessage.NewId = &newId
+		}
+	}
+
 	// Attempt to produce the DLQ message to the "failed-letter-queue" topic.
 	err = mediadockerkafka.KafkaProducer.Produce("failed-letter-queue", dlqMessage)
 
@@ -64,26 +73,14 @@ func handleErrorResponse(msg kafka.Message, workerName, fileType, newId, resMess
 		return
 	}
 
-	// If newId is empty, attempt to extract it from the message value.
-	// If still unable to retrieve the ID, log the error.
-	newId, iderr := helper.ExtractNewId(msg.Value)
-	if iderr != nil {
-		// NOTE: No response will be sent to "media-docker-files-response",
-		// leaving client backend services unnotified.
-		log.Error().
-			Err(err).
-			Str("worker", workerName).
-			Interface("dlq_message", dlqMessage).
-			Str("id", "ID not returned from message processing"). // Log missing ID error.
-			Msg("Error producing message to failed-letter-queue.")
-	} else {
-		log.Error().
-			Err(err).
-			Str("worker", workerName).
-			Interface("dlq_message", dlqMessage).
-			Msg("Error producing message to failed-letter-queue.")
-		mediadockerkafka.SendConsumerResponse(workerName, newId, fileType, "failed")
-	}
+	// NOTE: No response will be sent to "media-docker-files-response",
+	// leaving client backend services unnotified.
+	log.Error().
+		Err(err).
+		Str("worker", workerName).
+		Interface("dlq_message", dlqMessage).
+		Str("newId", "Failed to get newId"). // Log missing ID error.
+		Msg("Error producing message to failed-letter-queue.")
 }
 
 // ProcessMessage processes the Kafka messages based on the topic
