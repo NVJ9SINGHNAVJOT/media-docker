@@ -23,6 +23,8 @@ const (
 //
 // This function gives a total of 3 attempts for deleting the file. If it fails after 2 attempts,
 // the 3rd attempt will log an error. The retry wait time is fixed at 1 second.
+//
+// NOTE: It is important to call this function within a goroutine.
 func DeleteFileWorker() {
 	for path := range fileDeleteChan {
 
@@ -46,6 +48,8 @@ func DeleteFileWorker() {
 }
 
 // DeleteDirWorker listens on the dirDeleteChan and deletes directories as requested
+//
+// NOTE: It is important to call this function within a goroutine.
 func DeleteDirWorker() {
 	for path := range dirDeleteChan {
 		err := os.RemoveAll(path)
