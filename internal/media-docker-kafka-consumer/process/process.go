@@ -83,44 +83,63 @@ func handleErrorResponse(msg kafka.Message, workerName, fileType, newId, resMess
 		Msg("Error producing message to failed-letter-queue.")
 }
 
-// ProcessMessage processes the Kafka messages based on the topic
+// topicHandler is a struct that holds the fileType and the corresponding processing function for a given topic.
+type topicHandler struct {
+	fileType    string                               // Describes the type of file (e.g., "video", "audio").
+	processFunc func([]byte) (string, string, error) // Function to process the message and return newId, resultMessage, and error.
+}
+
+// topicHandlers is a map that associates Kafka topics with their respective handlers (fileType and processing function).
+var topicHandlers = map[string]topicHandler{
+	"video": {
+		fileType:    "video",             // File type for video messages.
+		processFunc: processVideoMessage, // Function to process video messages.
+	},
+	"video-resolutions": {
+		fileType:    "videoResolutions",             // File type for video resolution messages.
+		processFunc: processVideoResolutionsMessage, // Function to process video resolution messages.
+	},
+	"image": {
+		fileType:    "image",             // File type for image messages.
+		processFunc: processImageMessage, // Function to process image messages.
+	},
+	"audio": {
+		fileType:    "audio",             // File type for audio messages.
+		processFunc: processAudioMessage, // Function to process audio messages.
+	},
+}
+
+// ProcessMessage processes Kafka messages based on the topic and the associated handler.
+// It sends the appropriate success or error response after processing.
 func ProcessMessage(msg kafka.Message, workerName string) {
 	var err error
-	var fileType string
 	var newId string
 	var resMessage string
 
-	// Process messages based on their topic
-	switch msg.Topic {
-	case "video":
-		fileType = "video"                                      // Assign file type for video messages
-		newId, resMessage, err = processVideoMessage(msg.Value) // Process the video message
-	case "video-resolutions":
-		fileType = "videoResolutions"                                      // Assign file type for video resolution messages
-		newId, resMessage, err = processVideoResolutionsMessage(msg.Value) // Process the video resolution message
-	case "image":
-		fileType = "image"                                      // Assign file type for image messages
-		newId, resMessage, err = processImageMessage(msg.Value) // Process the image message
-	case "audio":
-		fileType = "audio"                                      // Assign file type for audio messages
-		newId, resMessage, err = processAudioMessage(msg.Value) // Process the audio message
-	case "delete-file":
-		processDeleteFileMessage(msg, workerName) // Handle file deletion request
-		return
-	default:
-		// Log an error for unknown topics
-		logger.LogUnknownTopic(workerName, msg)
+	// Lookup the handler for the topic in the map
+	handler, found := topicHandlers[msg.Topic]
+	if !found {
+		// Special case for the "delete-file" topic
+		if msg.Topic == "delete-file" {
+			processDeleteFileMessage(msg, workerName) // Handle file deletion request.
+		} else {
+			// Log an error if the topic is unknown
+			logger.LogUnknownTopic(workerName, msg)
+		}
 		return
 	}
 
-	// Handle errors that may have occurred during message processing
+	// Call the processing function for the specific topic and get the results
+	newId, resMessage, err = handler.processFunc(msg.Value)
+
+	// If an error occurred during processing, handle it appropriately
 	if err != nil {
-		handleErrorResponse(msg, workerName, fileType, newId, resMessage, err)
+		handleErrorResponse(msg, workerName, handler.fileType, newId, resMessage, err)
 		return
 	}
 
-	// If no errors occurred during processing, send a success response
-	mediadockerkafka.SendConsumerResponse(workerName, newId, fileType, "completed")
+	// If the message is processed successfully, send a success response
+	mediadockerkafka.SendConsumerResponse(workerName, newId, handler.fileType, "completed")
 }
 
 // processVideoMessage processes video conversion and returns the new ID, message, or an error
