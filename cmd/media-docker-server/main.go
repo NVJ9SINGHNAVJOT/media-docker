@@ -1,12 +1,8 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"net/http"
-	"os"
-	"os/signal"
-	"syscall"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -18,6 +14,7 @@ import (
 	"github.com/nvj9singhnavjot/media-docker/mediadockerkafka"
 	mw "github.com/nvj9singhnavjot/media-docker/middleware"
 	"github.com/nvj9singhnavjot/media-docker/pkg"
+	"github.com/nvj9singhnavjot/media-docker/shutdown"
 	"github.com/rs/zerolog/log"
 )
 
@@ -84,42 +81,29 @@ func main() {
 	})
 
 	// Setup the server with graceful shutdown
-	srv := &http.Server{
+	server := &http.Server{
 		Addr:    ":" + config.ServerEnv.SERVER_PORT,
 		Handler: router,
 	}
 
-	// Handle shutdown signals and worker tracking
-	go func() {
-		sigChan := make(chan os.Signal, 1)
-		signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
-
-		sig := <-sigChan
-		log.Info().Msgf("Received signal: %s. Shutting down...", sig)
-
-		// Gracefully shut down the server
-		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer shutdownCancel()
-
-		if err := srv.Shutdown(shutdownCtx); err != nil {
-			log.Error().Err(err).Msg("HTTP server shutdown error")
-		} else {
-			log.Info().Msg("Server shut down complete.")
-		}
-	}()
+	// Call graceful shutdown function with a goroutine to avoid blocking the main thread
+	go shutdown.WaitForShutdownSignal(server, 15)
 
 	// Start the HTTP server
 	log.Info().Msg("media-docker-server is running...")
-	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Error().Err(err).Msg("HTTP server crashed.")
+	} else {
+		log.Info().Msg("Server gracefully stopped.")
 	}
 
 	cleanUpForServer()
-	log.Info().Msg("Server stopped.")
+	log.Info().Msg("media-docker-server stopped.")
 }
 
 // cleanUpForServer performs any final cleanup actions before shutdown
 func cleanUpForServer() {
+	log.Info().Msg("Starting cleanup.")
 	if err := mediadockerkafka.KafkaProducer.Close(); err != nil {
 		log.Error().Err(err).Msg("Error while closing producer for media-docker-server")
 	} else {
@@ -129,4 +113,5 @@ func cleanUpForServer() {
 	pkg.CloseDeleteFileChannel()
 	log.Info().Msg("DeleteFile channel closed.")
 	time.Sleep(10 * time.Second)
+	log.Info().Msg("Cleanup completed.")
 }
