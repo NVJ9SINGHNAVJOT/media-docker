@@ -253,8 +253,11 @@ func (k *KafkaConsumerManager) consumeKafkaTopic(group, topic, workerName string
 			// Process the fetched message using the provided processing function.
 			k.ProcessMessage(msg, workerName)
 
+			// Create a 1-minute context for committing the message offset.
+			commitCtx, commitCancel := context.WithTimeout(context.Background(), 1*time.Minute)
+
 			// Commit the message offset to Kafka to mark the message as successfully processed.
-			if err := r.CommitMessages(k.ctx, msg); err != nil {
+			if err := r.CommitMessages(commitCtx, msg); err != nil {
 				// Log an error if committing the message offset fails.
 				log.Error().
 					Err(err).
@@ -269,6 +272,8 @@ func (k *KafkaConsumerManager) consumeKafkaTopic(group, topic, workerName string
 					}).
 					Msg("Commit failed for message offset") // Provide details of the message that failed to commit.
 			}
+
+			commitCancel()
 		}
 	}
 }
