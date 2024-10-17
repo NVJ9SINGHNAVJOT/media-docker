@@ -15,7 +15,7 @@ var (
 )
 
 const (
-	retries  = 2
+	retries  = 3
 	waitTime = 1 * time.Second // Constant 1 second delay between retries
 )
 
@@ -28,7 +28,7 @@ const (
 func DeleteFileWorker() {
 	for path := range fileDeleteChan {
 
-		for i := 0; i <= retries; i++ {
+		for i := 1; i <= retries; i++ {
 			err := os.Remove(path)
 			if err == nil {
 				break // Successfully deleted, no need to retry
@@ -36,11 +36,11 @@ func DeleteFileWorker() {
 
 			// If the error is because the file is in use, retry
 			if i < retries && strings.Contains(err.Error(), "The process cannot access the file because it is being used by another process.") {
-				log.Warn().Msgf("Path: %s, Attempt %d to delete file failed because it is in use. Retrying in 1 second...", path, i+1)
+				log.Warn().Msgf("Path: %s, Attempt %d to delete file failed because it is in use. Retrying in 1 second...", path, i)
 				time.Sleep(waitTime) // Constant 1-second wait before retrying
 			} else {
 				// Log error if it's not a file-in-use error or max retries exceeded
-				log.Error().Err(err).Str("filePath", path).Msg("error deleting file after retries")
+				log.Error().Err(err).Str("filePath", path).Msg("Error deleting file after retries")
 				break
 			}
 		}

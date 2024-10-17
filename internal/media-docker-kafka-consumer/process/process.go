@@ -178,12 +178,6 @@ func processVideoMessage(kafkaMsg []byte) (string, string, error) {
 	return videoMsg.NewId, "Video conversion completed successfully", nil
 }
 
-func cleanUpResolutions(outputPaths map[string]string) {
-	for _, outputPath := range outputPaths {
-		pkg.AddToDirDeleteChan(outputPath)
-	}
-}
-
 // processVideoResolutionsMessage processes video resolution conversion and returns the new ID, message, or an error
 func processVideoResolutionsMessage(kafkaMsg []byte) (string, string, error) {
 	var videoResolutionsMsg topics.VideoResolutionsMessage
@@ -211,7 +205,7 @@ func processVideoResolutionsMessage(kafkaMsg []byte) (string, string, error) {
 	for res, outputPath := range outputPaths {
 		// Execute the command and check for errors
 		if err = pkg.ConvertVideoResolutions(videoResolutionsMsg.FilePath, outputPath, res); err != nil {
-			cleanUpResolutions(outputPaths)
+			pkg.AddToDirDeleteChan(fmt.Sprintf("%s/videos/%s", helper.Constants.MediaStorage, videoResolutionsMsg.NewId))
 			return videoResolutionsMsg.NewId, "Video conversion failed for resolution " + res, err
 		}
 	}
