@@ -10,7 +10,7 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-// processVideoMessage processes a video message retrieved from the Dead Letter Queue (DLQ).
+// processVideoMessage processes a video message retrieved from the "failed-letter-queue".
 // It validates the message, checks for the existence of the input file, manages the output directory,
 // and attempts to convert the video file up to three times, implementing error handling and retry logic as necessary.
 func processVideoMessage(workerName string, dlqMsg topics.DLQMessage) (string, error) {
@@ -82,7 +82,7 @@ func processVideoMessage(workerName string, dlqMsg topics.DLQMessage) (string, e
 	return videoMsg.NewId, nil
 }
 
-// processVideoResolutionsMessage processes a video resolutions message retrieved from the Dead Letter Queue (DLQ).
+// processVideoResolutionsMessage processes a video resolutions message retrieved from the "failed-letter-queue".
 // It validates the message, checks for the existence of the input file, manages the output directories for each resolution,
 // and attempts to convert the video file into multiple resolutions with error handling and retry logic.
 func processVideoResolutionsMessage(workerName string, dlqMsg topics.DLQMessage) (string, error) {
@@ -154,7 +154,7 @@ func processVideoResolutionsMessage(workerName string, dlqMsg topics.DLQMessage)
 	return videoResolutionsMsg.NewId, nil
 }
 
-// processImageMessage handles the processing of an image message retrieved from the Dead Letter Queue (DLQ).
+// processImageMessage handles the processing of an image message retrieved from the "failed-letter-queue".
 // It performs message validation, verifies the existence of the input file, and attempts to convert the image
 // file up to three times, while logging warnings for failed attempts and errors for the final failure.
 func processImageMessage(workerName string, dlqMsg topics.DLQMessage) (string, error) {
@@ -199,7 +199,7 @@ func processImageMessage(workerName string, dlqMsg topics.DLQMessage) (string, e
 	return imageMsg.NewId, nil
 }
 
-// processAudioMessage processes an audio message from the Dead Letter Queue (DLQ).
+// processAudioMessage processes an audio message from the "failed-letter-queue".
 // It validates the message, checks for the existence of the input file,
 // and attempts to convert the audio file up to 3 times, logging warnings and errors as needed.
 func processAudioMessage(workerName string, dlqMsg topics.DLQMessage) (string, error) {

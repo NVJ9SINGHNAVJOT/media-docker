@@ -64,7 +64,7 @@ func ProcessMessage(msg kafka.Message, workerName string) {
 		Msg(errmsg + " DLQMessage")
 }
 
-// handleDLQMessage processes a Dead Letter Queue (DLQ) message by first checking if the original topic is recognized.
+// handleDLQMessage processes a "failed-letter-queue" message by first checking if the original topic is recognized.
 // It calls the corresponding processing function for the known topic.
 // If the original topic is unknown, an error is logged and no response is sent.
 // If the message processing fails, the error is logged, and a failure response is sent back to the consumer.
