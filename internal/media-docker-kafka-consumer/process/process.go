@@ -16,6 +16,32 @@ import (
 	"github.com/segmentio/kafka-go"
 )
 
+// topicHandler is a struct that holds the fileType and the corresponding processing function for a given topic.
+type topicHandler struct {
+	fileType    string                               // Describes the type of file (e.g., "video", "audio").
+	processFunc func([]byte) (string, string, error) // Function to process the message and return newId, resultMessage, and error.
+}
+
+// topicHandlers is a map that associates Kafka topics with their respective handlers (fileType and processing function).
+var topicHandlers = map[string]topicHandler{
+	"video": {
+		fileType:    "video",             // File type for video messages.
+		processFunc: processVideoMessage, // Function to process video messages.
+	},
+	"video-resolutions": {
+		fileType:    "videoResolutions",             // File type for video resolution messages.
+		processFunc: processVideoResolutionsMessage, // Function to process video resolution messages.
+	},
+	"image": {
+		fileType:    "image",             // File type for image messages.
+		processFunc: processImageMessage, // Function to process image messages.
+	},
+	"audio": {
+		fileType:    "audio",             // File type for audio messages.
+		processFunc: processAudioMessage, // Function to process audio messages.
+	},
+}
+
 // handleErrorResponse processes errors from message consumption functions.
 // If an error occurs, a DLQMessage is sent to the "failed-letter-queue" topic
 // for further processing by consumer workers in a different service.
@@ -81,32 +107,6 @@ func handleErrorResponse(msg kafka.Message, workerName, fileType, newId, resMess
 		Interface("dlq_message", dlqMessage).
 		Str("newId", "Failed to get newId"). // Log missing ID error.
 		Msg("Error producing message to failed-letter-queue.")
-}
-
-// topicHandler is a struct that holds the fileType and the corresponding processing function for a given topic.
-type topicHandler struct {
-	fileType    string                               // Describes the type of file (e.g., "video", "audio").
-	processFunc func([]byte) (string, string, error) // Function to process the message and return newId, resultMessage, and error.
-}
-
-// topicHandlers is a map that associates Kafka topics with their respective handlers (fileType and processing function).
-var topicHandlers = map[string]topicHandler{
-	"video": {
-		fileType:    "video",             // File type for video messages.
-		processFunc: processVideoMessage, // Function to process video messages.
-	},
-	"video-resolutions": {
-		fileType:    "videoResolutions",             // File type for video resolution messages.
-		processFunc: processVideoResolutionsMessage, // Function to process video resolution messages.
-	},
-	"image": {
-		fileType:    "image",             // File type for image messages.
-		processFunc: processImageMessage, // Function to process image messages.
-	},
-	"audio": {
-		fileType:    "audio",             // File type for audio messages.
-		processFunc: processAudioMessage, // Function to process audio messages.
-	},
 }
 
 // ProcessMessage processes Kafka messages based on the topic and the associated handler.
