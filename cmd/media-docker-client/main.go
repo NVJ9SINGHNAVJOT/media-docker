@@ -65,7 +65,6 @@ func main() {
 
 	// Initialize the server port based on the client configuration
 	port := ":" + config.ClientEnv.CLIENT_PORT
-	log.Info().Msg("media-docker-client server running...") // Log that the server is starting
 
 	// Create a new HTTP server
 	server := &http.Server{
