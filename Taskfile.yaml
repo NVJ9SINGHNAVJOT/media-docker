@@ -18,11 +18,12 @@ tasks:
     cmd: go mod tidy
 
   build:
-    desc: Compile the project into the "dist" directory.
+    desc: Compile the project and place the binaries in the "dist" directory. These binaries can be executed using `./dist/**binary-file**`.
     cmds:
       - cd cmd/media-docker-server && go build -o ../../dist/server-main main.go
       - cd cmd/media-docker-client && go build -o ../../dist/client-main main.go
-      - cd cmd/media-docker-kafka-consumer && go build -o ../../dist/consumer-main main.go
+      - cd cmd/media-docker-kafka-consumer && go build -o ../../dist/kafka-consumer-main main.go
+      - cd cmd/media-docker-failed-consumer && go build -o ../../dist/failed-consumer-main main.go
 
   proxy:
     desc: Set up a proxy network for Docker.
@@ -96,7 +97,7 @@ tasks:
       - task: kafka-cluster # Launch Kafka brokers in order
       - sleep 10 # Wait 10 seconds for brokers to fully initialize
       - task: kafka-topics # Create Kafka topics once brokers are running
-      - docker compose up -d media-docker-server # Automatically starts the consumer and Kafka services as per dependencies
+      - docker compose up -d media-docker-server # Automatically starts the consumers and Kafka services as per dependencies
       - docker compose up -d media-docker-client # Launch the client as the final step
 
   compose-down:
