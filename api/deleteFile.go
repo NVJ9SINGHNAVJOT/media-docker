@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"github.com/nvj9singhnavjot/media-docker/helper"
-	"github.com/nvj9singhnavjot/media-docker/mediadockerkafka"
+	"github.com/nvj9singhnavjot/media-docker/kafkahandler"
 )
 
 func dirExist(dirPath string) (bool, error) {
@@ -48,7 +48,7 @@ func DeleteFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := mediadockerkafka.KafkaProducer.Produce("delete-file", req); err != nil {
+	if err := kafkahandler.KafkaProducer.Produce("delete-file", req); err != nil {
 		helper.Response(w, http.StatusInternalServerError, "error deleting file", err)
 		return
 	}

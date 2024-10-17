@@ -11,7 +11,7 @@ import (
 	"github.com/nvj9singhnavjot/media-docker/config"
 	"github.com/nvj9singhnavjot/media-docker/helper"
 	"github.com/nvj9singhnavjot/media-docker/internal/media-docker-failed-consumer/process"
-	"github.com/nvj9singhnavjot/media-docker/mediadockerkafka"
+	"github.com/nvj9singhnavjot/media-docker/kafkahandler"
 	"github.com/nvj9singhnavjot/media-docker/pkg"
 	"github.com/rs/zerolog/log"
 )
@@ -38,7 +38,7 @@ func main() {
 	pkg.DirExist(helper.Constants.MediaStorage)
 
 	// Check Kafka connection
-	err = mediadockerkafka.CheckAllKafkaConnections(config.FailedConsumeEnv.KAFKA_BROKERS)
+	err = kafkahandler.CheckAllKafkaConnections(config.FailedConsumeEnv.KAFKA_BROKERS)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Error checking connection with Kafka")
 	}
@@ -56,8 +56,8 @@ func main() {
 	defer cancel() // Ensure context is cancelled on shutdown
 
 	// Set up Kafka producers and consumers
-	mediadockerkafka.InitializeKafkaProducerManager(config.FailedConsumeEnv.KAFKA_BROKERS)
-	mediadockerkafka.InitializeKafkaConsumerManager(
+	kafkahandler.InitializeKafkaProducerManager(config.FailedConsumeEnv.KAFKA_BROKERS)
+	kafkahandler.InitializeKafkaConsumerManager(
 		ctx,
 		workDone,
 		map[string]int{"failed-letter-queue": config.FailedConsumeEnv.KAFKA_FAILED_WORKERS},
@@ -68,7 +68,7 @@ func main() {
 
 	log.Info().Msg("media-docker-failed-consumer service started.")
 	// Kafka consumers setup
-	go mediadockerkafka.KafkaConsumer.KafkaConsumeSetup()
+	go kafkahandler.KafkaConsumer.KafkaConsumeSetup()
 
 	// Shutdown handling using signal and worker tracking
 	sigChan := make(chan os.Signal, 1)
@@ -105,7 +105,7 @@ func main() {
 
 // cleanUpForConsumer performs final cleanup actions before shutdown
 func cleanUpForConsumer() {
-	if err := mediadockerkafka.KafkaProducer.Close(); err != nil {
+	if err := kafkahandler.KafkaProducer.Close(); err != nil {
 		log.Error().Err(err).Msg("Error while closing producer for media-docker-failed-consumer.")
 	} else {
 		log.Info().Msg("Producer closed for media-docker-failed-consumer.")

@@ -44,14 +44,14 @@ func DirExist(dirPath string, createIfNotExist ...bool) {
 				// Attempt to create the directory if createIfNotExist is true
 				err := CreateDir(dirPath)
 				if err != nil {
-					log.Fatal().Err(err).Msg("failed to create directory: " + dirPath)
+					log.Fatal().Err(err).Msg("Failed to create directory: " + dirPath)
 				}
 				log.Info().Msg(dirPath + " directory created successfully.")
 			} else {
 				log.Fatal().Msg(dirPath + " dir does not exist") // Log and terminate if directory does not exist and createIfNotExist is false.
 			}
 		} else {
-			log.Fatal().Err(err).Msg("error while checking " + dirPath + " dir") // Log and terminate if there is an error checking the directory.
+			log.Fatal().Err(err).Msg("Error while checking " + dirPath + " dir") // Log and terminate if there is an error checking the directory.
 		}
 	}
 }

@@ -8,8 +8,8 @@ import (
 
 	"github.com/nvj9singhnavjot/media-docker/api"
 	"github.com/nvj9singhnavjot/media-docker/helper"
+	"github.com/nvj9singhnavjot/media-docker/kafkahandler"
 	"github.com/nvj9singhnavjot/media-docker/logger"
-	"github.com/nvj9singhnavjot/media-docker/mediadockerkafka"
 	"github.com/nvj9singhnavjot/media-docker/pkg"
 	"github.com/nvj9singhnavjot/media-docker/topics"
 	"github.com/rs/zerolog/log"
@@ -57,7 +57,7 @@ func handleErrorResponse(msg kafka.Message, workerName, fileType, newId, resMess
 	}
 
 	// Attempt to produce the DLQ message to the "failed-letter-queue" topic.
-	err = mediadockerkafka.KafkaProducer.Produce("failed-letter-queue", dlqMessage)
+	err = kafkahandler.KafkaProducer.Produce("failed-letter-queue", dlqMessage)
 
 	if err == nil {
 		return
@@ -69,7 +69,7 @@ func handleErrorResponse(msg kafka.Message, workerName, fileType, newId, resMess
 			Str("worker", workerName).
 			Interface("dlq_message", dlqMessage).
 			Msg("Error producing message to failed-letter-queue.")
-		mediadockerkafka.SendConsumerResponse(workerName, newId, fileType, "failed")
+		kafkahandler.SendConsumerResponse(workerName, newId, fileType, "failed")
 		return
 	}
 
@@ -139,7 +139,7 @@ func ProcessMessage(msg kafka.Message, workerName string) {
 	}
 
 	// If the message is processed successfully, send a success response
-	mediadockerkafka.SendConsumerResponse(workerName, newId, handler.fileType, "completed")
+	kafkahandler.SendConsumerResponse(workerName, newId, handler.fileType, "completed")
 }
 
 // processVideoMessage processes video conversion and returns the new ID, message, or an error

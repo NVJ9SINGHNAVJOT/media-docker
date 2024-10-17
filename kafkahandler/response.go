@@ -1,4 +1,4 @@
-package mediadockerkafka
+package kafkahandler
 
 import (
 	"github.com/nvj9singhnavjot/media-docker/topics"

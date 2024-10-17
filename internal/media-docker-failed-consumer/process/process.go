@@ -5,8 +5,8 @@ import (
 	"fmt"
 
 	"github.com/nvj9singhnavjot/media-docker/helper"
+	"github.com/nvj9singhnavjot/media-docker/kafkahandler"
 	"github.com/nvj9singhnavjot/media-docker/logger"
-	"github.com/nvj9singhnavjot/media-docker/mediadockerkafka"
 	"github.com/nvj9singhnavjot/media-docker/topics"
 	"github.com/rs/zerolog/log"
 	"github.com/segmentio/kafka-go"
@@ -48,7 +48,7 @@ func ProcessMessage(msg kafka.Message, workerName string) {
 		fileType, typeErr := getFileTypeByTopic(originalTopic)
 		if typeErr == nil {
 			logger.LogErrorWithKafkaMessage(err, workerName, msg, errmsg+" DLQMessage")
-			mediadockerkafka.SendConsumerResponse(workerName, newId, fileType, "failed")
+			kafkahandler.SendConsumerResponse(workerName, newId, fileType, "failed")
 			return
 		}
 	}
