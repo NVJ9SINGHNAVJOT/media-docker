@@ -3,9 +3,9 @@
    <p align="center">Streamline Your Media Management: On-Demand Streaming and Scalable Storage with Media-Docker</p>
 </p>
 
-# Media-Docker - Version 2
+# Media-Docker - Version 3
 
-**Media-Docker** is a media management service designed to handle video, audio, and image processing with the power of **FFmpeg** for conversion, storage, and on-demand streaming. This version introduces several new components, including a client, server, Kafka-based message queuing, and worker-based message consumption for media processing tasks.
+**Media-Docker** is a media management service designed to handle video, audio, and image processing with the power of **FFmpeg** for conversion, storage, and on-demand streaming. This version introduces several new components, including a client, server, Kafka-based message queuing, and worker-based message consumption for media processing tasks. Additionally, a failed consumer service has been integrated to manage retries, enhancing the system's fault tolerance.
 
 ## Note
 
@@ -29,6 +29,8 @@ A complete list of the libraries used can be found in the go.mod and go.sum file
 - **media-docker-kafka-cluster**: Manages the flow of messages from the media-docker-server to the media-docker-consumer by distributing them across Kafka topics to aid in media processing tasks. It also enables the mediaDocker module (as a consumer) to consume response messages for media files once conversion is complete.
 
 - **media-docker-kafka-consumer**: Consumes messages from Kafka topics and performs media-related operations, such as creating video segments or converting audio bitrates with **FFmpeg**. This component handles resource-intensive tasks.
+
+- **media-docker-failed-consumer**: Consumes messages from the **_failed-letter-queue_** (which acts as the dead-letter queue in this project) and processes them with retries based on the original topic. This minimizes the chances of sending a failed response, thereby enhancing fault tolerance.
 
 - **mediaDocker module (in the \_examples folder for backend servers, according to language)**: Contains the core logic for uploading files to the Media-Docker service and manages the consumption of messages from the Kafka response topic for media file task results.
 
@@ -86,7 +88,16 @@ The **Media-Docker** project, now in version 2, is a complete media processing s
   git clone https://github.com/NVJ9SINGHNAVJOT/media-docker.git
   ```
 - Set up environment variables.
-  In the root directory **.env.example** file is present. Replace it with **.env.client**, **.env.server**, **.env.consumer** file and set the required variables running application _(.env.example contains all variables examples for all envs)_.
+  In the root directory, you will find the **.env.example** file. Replace it with the following files:
+  - **.env.client**
+  - **.env.server**
+  - **.env.consumer**
+  - **.env.failed**
+  
+  _**.env.example** file contains example values for all the environment variables._
+  
+  Ensure that you set the required variables for each application.
+
 - Project can be run on local machine by Docker or by installing dependencies locally.
 - **Using Docker:** **_Recommended for Production_**
 
@@ -109,6 +120,7 @@ The **Media-Docker** project, now in version 2, is a complete media processing s
 
    # Below tasks need to run in different terminals:
    task consumer
+   task failed
    task server
    task client
    ```
@@ -249,9 +261,9 @@ console.log(result);
 
 ## System Design
 
-- [`Open`](https://raw.githubusercontent.com/NVJ9SINGHNAVJOT/media-docker/e2df0cef4f2721c04e7d138d568806ebf310bc98/Media-Docker-System-Design.svg)
+- [`Open`](https://raw.githubusercontent.com/NVJ9SINGHNAVJOT/media-docker/1820c111f81ec3915186600184112e10efb5f512/Media-Docker-System-Design.svg)
 
-  ![Media-Docker-System-Design](https://raw.githubusercontent.com/NVJ9SINGHNAVJOT/media-docker/e2df0cef4f2721c04e7d138d568806ebf310bc98/Media-Docker-System-Design.svg)
+  ![Media-Docker-System-Design](https://raw.githubusercontent.com/NVJ9SINGHNAVJOT/media-docker/1820c111f81ec3915186600184112e10efb5f512/Media-Docker-System-Design.svg)
 
 ## Important
 
