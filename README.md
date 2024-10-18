@@ -97,6 +97,7 @@ The **Media-Docker** project, now in version 2, is a complete media processing s
   _**.env.example** file contains example values for all the environment variables._
   
   Ensure that you set the required variables for each application.
+- When configuring the workers value in **.env.consumer** and **.env.failed**, ensure that the total number of workers does not exceed the number of partitions for each topic. Exceeding the partition count will result in idle workers. Additionally, if you're running multiple instances of Docker container services, the combined total number of workers for a given topic across all instances should also not exceed the partition count for that topic.
 
 - Project can be run on local machine by Docker or by installing dependencies locally.
 - **Using Docker:** **_Recommended for Production_**
@@ -261,9 +262,9 @@ console.log(result);
 
 ## System Design
 
-- [`Open`](https://raw.githubusercontent.com/NVJ9SINGHNAVJOT/media-docker/1820c111f81ec3915186600184112e10efb5f512/Media-Docker-System-Design.svg)
+- [`Open`](https://raw.githubusercontent.com/NVJ9SINGHNAVJOT/media-docker/ae87476cd1dc99641cf96a1cd949710be282f1e0/Media-Docker-System-Design.svg)
 
-  ![Media-Docker-System-Design](https://raw.githubusercontent.com/NVJ9SINGHNAVJOT/media-docker/1820c111f81ec3915186600184112e10efb5f512/Media-Docker-System-Design.svg)
+  ![Media-Docker-System-Design](https://raw.githubusercontent.com/NVJ9SINGHNAVJOT/media-docker/ae87476cd1dc99641cf96a1cd949710be282f1e0/Media-Docker-System-Design.svg)
 
 ## Important
 
