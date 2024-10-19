@@ -3,6 +3,7 @@
     "ffmpeg",
     "example",
     "system-design",
-    "channel"
+    "channel",
+    "module"
   ]
 }

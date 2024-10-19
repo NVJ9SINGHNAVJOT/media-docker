@@ -131,7 +131,7 @@ class MediaDocker {
     // Initialize Kafka instance with client ID and broker addresses
     this.kafka = new Kafka({
       clientId: "media-docker-response-client", // Unique identifier for this Kafka client
-      brokers: ["media-docker-kafka-0:9092", "media-docker-kafka-1:9092", "media-docker-kafka-129092"], // Kafka brokers to connect
+      brokers: ["media-docker-kafka-0:9092", "media-docker-kafka-1:9092", "media-docker-kafka-2:9092"], // Kafka brokers to connect
       retry: {
         retries: 5, // Number of retries for connection failure
       },
