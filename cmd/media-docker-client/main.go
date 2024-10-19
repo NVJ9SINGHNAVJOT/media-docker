@@ -73,7 +73,7 @@ func main() {
 	}
 
 	// Call graceful shutdown function with a goroutine to avoid blocking the main thread
-	go shutdown.WaitForShutdownSignal(server, 15)
+	go shutdown.WaitForShutdownSignal(server, 20)
 
 	// Start the HTTP server
 	log.Info().Msg("media-docker-client is running...")

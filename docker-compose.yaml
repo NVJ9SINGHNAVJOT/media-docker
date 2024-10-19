@@ -67,7 +67,7 @@ services:
     env_file: .env.consumer
     depends_on:
       - media-docker-kafka-0
-    stop_grace_period: 30s
+    stop_grace_period: 90s
 
   media-docker-failed-consumer:
     build:
@@ -84,7 +84,7 @@ services:
     env_file: .env.consumer
     depends_on:
       - media-docker-kafka-0
-    stop_grace_period: 30s
+    stop_grace_period: 60s
     
   media-docker-kafka-0:
     image: docker.io/bitnami/kafka:3.8.0
