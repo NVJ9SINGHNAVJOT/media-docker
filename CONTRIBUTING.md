@@ -50,8 +50,9 @@ Once the repo is cloned, the first thing is to set up environment variables for:
 - .env.client
 - .env.server
 - .env.consumer
+- .env.failed
 
-All examples are provided in a single .env.example file for all three files.
+All examples are provided in a single .env.example file for all four files.
 
 (Dependencies installed locally as mentioned in the Installation section of the readme.md file)
 
@@ -65,6 +66,9 @@ All required commands are given in the task file in the root folder.
 #### media-docker-consumer:
 - Run **_task consumer_**. This service is responsible for all heavy tasks related to file conversions and storage (Max resource consumption).
 
+#### media-docker-failed:
+- Run **_task failed_**. This service handles retries for failed messages from other topics by consuming them from the "failed-letter-queue".
+
 #### media-docker-server:
 - Run **_task server_**. This service provides API services for file upload and sending messages to Kafka.
 
@@ -76,5 +80,4 @@ Only media-docker-server and media-docker-consumer depend on the media-docker-ka
 
 ## Concurrent Workers in Consumer
 
-It is important to properly close the media-docker-consumer service as it has workers for Kafka messages running concurrently via goroutines. 
-If not, these will be running in the background and using system resources unnecessarily. All media-docker services have a graceful shutdown procedure.
+Properly closing the media-docker-consumer and media-docker-failed services is crucial, as they run Kafka message workers concurrently using goroutines. If not shut down correctly, these workers may continue running in the background, consuming system resources unnecessarily. Each media-docker service includes a graceful shutdown procedure to ensure resources are released appropriately.
