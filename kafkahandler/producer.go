@@ -11,17 +11,17 @@ import (
 // Global KafkaProducer variable represents the Kafka producer manager instance.
 //
 // Note: Before using KafkaProducer, the InitializeKafkaProducerManager function
-// should be called to properly set up KafkaProducer with the KafkaProducerManager.
-var KafkaProducer = KafkaProducerManager{}
+// should be called to properly set up KafkaProducer with the kafkaProducerManager.
+var KafkaProducer = kafkaProducerManager{}
 
-// KafkaProducerManager handles Kafka operations, specifically producing messages to Kafka topics.
+// kafkaProducerManager handles Kafka operations, specifically producing messages to Kafka topics.
 // It contains a Kafka writer that is responsible for writing messages to specified topics.
-type KafkaProducerManager struct {
+type kafkaProducerManager struct {
 	writer *kafka.Writer // Kafka writer used for producing messages to Kafka topics
 }
 
 // InitializeKafkaProducerManager sets up the Kafka producer by creating a Kafka writer
-// configured with the provided broker addresses. This initializes the KafkaProducerManager for message production.
+// configured with the provided broker addresses. This initializes the kafkaProducerManager for message production.
 func InitializeKafkaProducerManager(brokers []string) {
 	// Create and configure the Kafka writer using the provided broker addresses
 	KafkaProducer.writer = &kafka.Writer{
@@ -32,7 +32,7 @@ func InitializeKafkaProducerManager(brokers []string) {
 
 // Produce sends a message to the specified Kafka topic. The message value is marshaled to JSON format
 // before being sent. It returns an error if the marshaling or writing process fails.
-func (kp *KafkaProducerManager) Produce(topic string, value interface{}) error {
+func (kp *kafkaProducerManager) Produce(topic string, value interface{}) error {
 	// Convert the message value to JSON format for sending
 	jsonValue, err := json.Marshal(value)
 	if err != nil {
@@ -52,7 +52,7 @@ func (kp *KafkaProducerManager) Produce(topic string, value interface{}) error {
 
 // Close gracefully shuts down the Kafka producer by closing the Kafka writer.
 // It releases any resources associated with the producer, ensuring all buffered messages are sent.
-func (kp *KafkaProducerManager) Close() error {
+func (kp *kafkaProducerManager) Close() error {
 	// Check if the Kafka writer has been initialized before closing
 	if kp.writer == nil {
 		// Return an error if the producer is not initialized

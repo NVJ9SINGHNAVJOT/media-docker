@@ -15,8 +15,8 @@ import (
 // Global KafkaConsumer variable represents the Kafka consumer manager instance.
 //
 // Note: Before using KafkaConsumer, the InitializeKafkaConsumerManager function
-// should be called to properly set up KafkaConsumer with the KafkaConsumerManager.
-var KafkaConsumer = KafkaConsumerManager{}
+// should be called to properly set up KafkaConsumer with the kafkaConsumerManager.
+var KafkaConsumer = kafkaConsumerManager{}
 
 // Retry settings for Kafka message consumption.
 const retryAttempts = 5         // Number of retry attempts for consuming messages
@@ -35,9 +35,9 @@ type workerTracker struct {
 	topics map[string]*topicTracker // A map of topics with their respective worker trackers
 }
 
-// KafkaConsumerManager oversees the configuration and management of Kafka consumers,
+// kafkaConsumerManager oversees the configuration and management of Kafka consumers,
 // including context handling, signaling channels, and worker settings.
-type KafkaConsumerManager struct {
+type kafkaConsumerManager struct {
 	ctx                context.Context                            // Context for managing cancellation and timeouts.
 	workDone           chan int                                   // Channel for signaling when all workers have finished processing messages.
 	workersPerTopic    map[string]int                             // Mapping of topics to their corresponding worker counts.
@@ -48,7 +48,7 @@ type KafkaConsumerManager struct {
 	workerErrorManager workerTracker                              // Instance of workerTracker for monitoring and managing worker statuses.
 }
 
-// InitializeKafkaConsumerManager sets up the KafkaConsumerManager instance.
+// InitializeKafkaConsumerManager sets up the kafkaConsumerManager instance.
 // It configures the necessary parameters for managing Kafka consumers based on the provided input.
 //
 // Parameters:
@@ -77,8 +77,8 @@ func InitializeKafkaConsumerManager(ctx context.Context, workDone chan int, work
 		workerErrorManager.topics[topic] = &topicTracker{count: workersCount} // Assign the worker count to the topic tracker.
 	}
 
-	// Configure the KafkaConsumerManager instance with the provided parameters.
-	KafkaConsumer = KafkaConsumerManager{
+	// Configure the kafkaConsumerManager instance with the provided parameters.
+	KafkaConsumer = kafkaConsumerManager{
 		ctx:                ctx,                // Context for managing cancellation and timeouts.
 		workDone:           workDone,           // Channel to signal when all workers have completed their tasks.
 		workersPerTopic:    workersPerTopic,    // Mapping of topics to the number of workers assigned to each.
@@ -95,7 +95,7 @@ func InitializeKafkaConsumerManager(ctx context.Context, workDone chan int, work
 //
 // If there are remaining workers for the topic, it logs a warning with the updated worker count.
 // If all workers for the topic are exhausted, it logs an error indicating that no workers remain.
-func (k *KafkaConsumerManager) decrementWorker(group, topic, workerName string) {
+func (k *kafkaConsumerManager) decrementWorker(group, topic, workerName string) {
 	// Acquire the lock for the given topic to ensure thread-safe access to the worker count
 	t := k.workerErrorManager.topics[topic]
 	t.lock.Lock()
@@ -129,7 +129,7 @@ func (k *KafkaConsumerManager) decrementWorker(group, topic, workerName string) 
 // KafkaConsumeSetup creates a consumer group for each topic and spawns workers within that group.
 //
 // NOTE: It is important to call this function within a goroutine, as it waits for all workers to complete.
-func (k *KafkaConsumerManager) KafkaConsumeSetup() {
+func (k *kafkaConsumerManager) KafkaConsumeSetup() {
 
 	// Iterate over each topic to create a consumer group and spawn the corresponding workers.
 	for topic, workersCount := range k.workersPerTopic {
@@ -183,7 +183,7 @@ func (k *KafkaConsumerManager) KafkaConsumeSetup() {
 
 // consumeWithRetry attempts to consume messages from a Kafka topic and retries upon failure.
 // This function will make up to 5 retry attempts before giving up.
-func (k *KafkaConsumerManager) consumeWithRetry(group, topic, workerName string) {
+func (k *kafkaConsumerManager) consumeWithRetry(group, topic, workerName string) {
 	defer k.wg.Done() // Decrement the WaitGroup counter when the worker finishes its task.
 
 	// Log the start of the worker, providing context on the topic and group it is processing.
@@ -227,7 +227,7 @@ func (k *KafkaConsumerManager) consumeWithRetry(group, topic, workerName string)
 }
 
 // consumeKafkaTopic connects to Kafka and starts consuming messages for a specific topic with the given group ID.
-func (k *KafkaConsumerManager) consumeKafkaTopic(group, topic, workerName string) error {
+func (k *kafkaConsumerManager) consumeKafkaTopic(group, topic, workerName string) error {
 	// Create a new Kafka reader for the topic, specifying brokers and consumer group details.
 	r := kafka.NewReader(kafka.ReaderConfig{
 		Brokers: k.brokers, // Retrieve Kafka brokers from the environment configuration for connection.
