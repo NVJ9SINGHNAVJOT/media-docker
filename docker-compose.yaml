@@ -32,6 +32,7 @@ services:
       - proxy
     ports: [7000:7000] # Disable this in production
     env_file: .env.client
+    stop_grace_period: 30s
 
   media-docker-server:
     build:
@@ -50,7 +51,7 @@ services:
     depends_on:
       - media-docker-kafka-consumer
       - media-docker-failed-consumer
-    stop_grace_period: 90s
+    stop_grace_period: 60s
   
   media-docker-kafka-consumer:
     build:
@@ -67,7 +68,7 @@ services:
     env_file: .env.consumer
     depends_on:
       - media-docker-kafka-0
-    stop_grace_period: 90s
+    stop_grace_period: 60s
 
   media-docker-failed-consumer:
     build:
