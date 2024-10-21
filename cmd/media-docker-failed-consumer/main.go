@@ -61,7 +61,6 @@ func main() {
 		ctx,
 		workDone,
 		map[string]int{"failed-letter-queue": config.FailedConsumeEnv.KAFKA_FAILED_WORKERS},
-		"consumer",
 		&wg,
 		config.FailedConsumeEnv.KAFKA_BROKERS,
 		process.ProcessMessage)

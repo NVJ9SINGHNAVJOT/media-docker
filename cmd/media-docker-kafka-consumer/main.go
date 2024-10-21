@@ -61,7 +61,6 @@ func main() {
 		ctx,
 		workDone,
 		config.KafkaConsumeEnv.KAFKA_TOPIC_WORKERS,
-		config.KafkaConsumeEnv.KAFKA_GROUP_PREFIX_ID,
 		&wg,
 		config.KafkaConsumeEnv.KAFKA_BROKERS,
 		process.ProcessMessage)

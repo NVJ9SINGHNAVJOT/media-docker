@@ -41,7 +41,6 @@ type kafkaConsumerManager struct {
 	ctx                context.Context                            // Context for managing cancellation and timeouts.
 	workDone           chan int                                   // Channel for signaling when all workers have finished processing messages.
 	workersPerTopic    map[string]int                             // Mapping of topics to their corresponding worker counts.
-	groupID            string                                     // Unique identifier for the consumer group, used for coordinating worker instances.
 	wg                 *sync.WaitGroup                            // WaitGroup to synchronize the completion of goroutines.
 	brokers            []string                                   // Slice of Kafka broker addresses to connect to.
 	ProcessMessage     func(msg kafka.Message, workerName string) // Function to handle incoming Kafka messages.
@@ -56,15 +55,16 @@ type kafkaConsumerManager struct {
 //   - workDone: A channel of type int that signals when all worker goroutines have completed their tasks.
 //   - workersPerTopic: A map where keys are topic names (strings) and values are the number of workers (ints)
 //     assigned to each topic, dictating how many consumer instances will process messages from each topic.
-//   - groupID: A string that identifies the consumer group, used for coordinating the workers and ensuring
-//     balanced message consumption across multiple instances.
 //   - wg: A pointer to a sync.WaitGroup that helps synchronize the completion of goroutines, allowing
 //     the main program to wait for all worker goroutines to finish before proceeding or exiting.
 //   - brokers: A slice of strings representing the addresses of the Kafka brokers to which the consumer manager will connect.
 //   - processMsg: A function that takes a kafka.Message and a workerName (string) as parameters. This function is
 //     called to process each message that the consumer receives.
-func InitializeKafkaConsumerManager(ctx context.Context, workDone chan int, workersPerTopic map[string]int,
-	groupID string, wg *sync.WaitGroup, brokers []string,
+func InitializeKafkaConsumerManager(
+	ctx context.Context,
+	workDone chan int,
+	workersPerTopic map[string]int,
+	wg *sync.WaitGroup, brokers []string,
 	processMsg func(msg kafka.Message, workerName string)) {
 
 	// Initialize the workerErrorManager with a map to track the state of each topic.
@@ -82,7 +82,6 @@ func InitializeKafkaConsumerManager(ctx context.Context, workDone chan int, work
 		ctx:                ctx,                // Context for managing cancellation and timeouts.
 		workDone:           workDone,           // Channel to signal when all workers have completed their tasks.
 		workersPerTopic:    workersPerTopic,    // Mapping of topics to the number of workers assigned to each.
-		groupID:            groupID,            // Consumer group identifier for coordinating worker instances.
 		wg:                 wg,                 // WaitGroup for synchronizing goroutines.
 		brokers:            brokers,            // List of Kafka broker addresses to connect to.
 		ProcessMessage:     processMsg,         // Function to process consumed Kafka messages.
@@ -133,12 +132,12 @@ func (k *kafkaConsumerManager) KafkaConsumeSetup() {
 
 	// Iterate over each topic to create a consumer group and spawn the corresponding workers.
 	for topic, workersCount := range k.workersPerTopic {
-		// Create a unique Kafka consumer group name by combining the group ID (from configuration),
-		// the topic name, and a suffix to indicate it is a consumer group.
-		// For example, if the group ID is "md_consumer" and the topic is "video",
-		// the resulting groupName will be: "md_consumer-video-group".
-		// This "md_consumer-video-group" is the group name used for all workers under this topic.
-		groupName := fmt.Sprintf("%s-%s-group", k.groupID, topic)
+		// Create a Kafka consumer group name by combining "consumer" as a prefix,
+		// the topic name, and "group" as a suffix to indicate it is a consumer group configuration for the topic.
+		// For example, if the topic is "video",
+		// the resulting groupName will be: "consumer-video-group".
+		// This "consumer-video-group" is the group name used for all workers under this topic.
+		groupName := fmt.Sprintf("consumer-%s-group", topic)
 
 		// Log the creation of the consumer group, showing details such as the topic name,
 		// the generated group name, and the number of workers assigned to handle this topic's messages.
@@ -156,9 +155,9 @@ func (k *kafkaConsumerManager) KafkaConsumeSetup() {
 			// Create a unique worker name by appending a worker-specific ID to the group name.
 			// This ensures that each worker within the group has a unique identity, which includes the topic name,
 			// the group name, and its own ID. For example:
-			// If the groupName is "md_consumer-video-group" and the workerID is 1,
-			// the resulting workerName will be: "md_consumer-video-group-worker-1".
-			// Here, "md_consumer-video-group" is the group name for this worker, and "worker-1" is the worker's unique ID within this group.
+			// If the groupName is "consumer-video-group" and the workerID is 1,
+			// the resulting workerName will be: "consumer-video-group-worker-1".
+			// Here, "consumer-video-group" is the group name for this worker, and "worker-1" is the worker's unique ID within this group.
 			workerName := fmt.Sprintf("%s-worker-%d", groupName, workerID)
 
 			// Start a goroutine for each worker, which will handle message consumption with retry logic.

@@ -19,26 +19,6 @@ var (
 	FailedConsumeEnv = failedConsumeConfig{}
 )
 
-// getAndValidateWorkerCount retrieves and validates worker count from environment variables.
-// It checks that the worker count is not below 1, otherwise returns an error.
-func getAndValidateWorkerCount(envVar string) (int, error) {
-	workerCountStr, exists := os.LookupEnv(envVar)
-	if !exists {
-		return 0, fmt.Errorf("%s is not provided", envVar)
-	}
-
-	workerCount, err := strconv.Atoi(workerCountStr)
-	if err != nil {
-		return 0, fmt.Errorf("invalid worker count for %s: %v", envVar, err)
-	}
-
-	if workerCount < 1 {
-		return 0, fmt.Errorf("minimum size required for %s is 1", envVar)
-	}
-
-	return workerCount, nil
-}
-
 // clientConfig holds the configuration settings for the media-docker-client.
 type clientConfig struct {
 	ENVIRONMENT     string   // Current environment (e.g., development, production)
@@ -58,10 +38,9 @@ type serverConfig struct {
 
 // kafkaConsumeConfig holds the configuration settings for the Kafka consumer.
 type kafkaConsumeConfig struct {
-	ENVIRONMENT           string         // Current environment (e.g., development, production)
-	KAFKA_GROUP_PREFIX_ID string         // Prefix for Kafka consumer group IDs
-	KAFKA_BROKERS         []string       // List of Kafka broker addresses for message consumption
-	KAFKA_TOPIC_WORKERS   map[string]int // Map of topics to the number of workers assigned for each topic
+	ENVIRONMENT         string         // Current environment (e.g., development, production)
+	KAFKA_BROKERS       []string       // List of Kafka broker addresses for message consumption
+	KAFKA_TOPIC_WORKERS map[string]int // Map of topics to the number of workers assigned for each topic
 }
 
 // failedConsumeConfig holds the configuration settings for the failed consumer.
@@ -69,6 +48,26 @@ type failedConsumeConfig struct {
 	ENVIRONMENT          string   // Current environment (e.g., development, production)
 	KAFKA_BROKERS        []string // List of Kafka broker addresses for handling failed messages
 	KAFKA_FAILED_WORKERS int      // Number of workers assigned for processing failed messages
+}
+
+// getAndValidateWorkerCount retrieves and validates worker count from environment variables.
+// It checks that the worker count is not below 1, otherwise returns an error.
+func getAndValidateWorkerCount(envVar string) (int, error) {
+	workerCountStr, exists := os.LookupEnv(envVar)
+	if !exists {
+		return 0, fmt.Errorf("%s is not provided", envVar)
+	}
+
+	workerCount, err := strconv.Atoi(workerCountStr)
+	if err != nil {
+		return 0, fmt.Errorf("invalid worker count for %s: %v", envVar, err)
+	}
+
+	if workerCount < 1 {
+		return 0, fmt.Errorf("minimum size required for %s is 1", envVar)
+	}
+
+	return workerCount, nil
 }
 
 // ValidateClientEnv validates the environment variables for the client configuration.
@@ -152,12 +151,6 @@ func ValidateKafkaConsumeEnv() error {
 		return fmt.Errorf("environment is not provided")
 	}
 
-	// Validate KAFKA_GROUP_PREFIX_ID
-	groupID, exists := os.LookupEnv("KAFKA_GROUP_PREFIX_ID")
-	if !exists {
-		return fmt.Errorf("kafka consume group ID is not provided")
-	}
-
 	// Validate KAFKA_BROKERS
 	brokers, exists := os.LookupEnv("KAFKA_BROKERS")
 	if !exists {
@@ -185,7 +178,6 @@ func ValidateKafkaConsumeEnv() error {
 
 	// Set the validated environment variables in KafkaConsumeEnv
 	KafkaConsumeEnv.ENVIRONMENT = environment
-	KafkaConsumeEnv.KAFKA_GROUP_PREFIX_ID = groupID
 	KafkaConsumeEnv.KAFKA_BROKERS = strings.Split(brokers, ",")
 	KafkaConsumeEnv.KAFKA_TOPIC_WORKERS = workerCounts
 
