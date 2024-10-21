@@ -54,7 +54,7 @@ func ProcessMessage(msg kafka.Message, workerName string) {
 	}
 
 	// Log the error if newId and originalTopic extraction fails, without sending a response.
-	// NOTE: No response will be sent to "media-docker-files-response",
+	// CAUTION: No response will be sent to "media-docker-files-response",
 	// leaving client backend services unnotified.
 	log.Error().
 		Err(err).
@@ -74,7 +74,7 @@ func handleDLQMessage(dlqMsg topics.DLQMessage, workerName string) {
 	handler, exists := topicHandlers[dlqMsg.OriginalTopic]
 	if !exists {
 		// Log an error for the unknown original topic in the DLQ message.
-		// NOTE: No response will be sent to "media-docker-files-response",
+		// CAUTION: No response will be sent to "media-docker-files-response",
 		// which means the client backend services will not be notified about this failure.
 		log.Error().
 			Str("worker", workerName).
@@ -105,7 +105,7 @@ func handleDLQMessage(dlqMsg topics.DLQMessage, workerName string) {
 	// Log an error if the processing of the DLQ message fails.
 	// INFO: This indicates that the last attempt at file conversion or processing has failed.
 	if newId == "" && (dlqMsg.NewId == nil) {
-		// NOTE: No response will be sent to "media-docker-files-response",
+		// CAUTION: No response will be sent to "media-docker-files-response",
 		// which leaves client backend services unnotified.
 		log.Error().
 			Err(err).

@@ -46,7 +46,7 @@ var topicHandlers = map[string]topicHandler{
 // sending a response message to the "media-docker-files-response" topic.
 // If newId is not provided, an error is logged indicating the missing newId.
 //
-// NOTE: If producing the DLQ message and retrieving the ID both fail,
+// CAUTION: If producing the DLQ message and retrieving the ID both fail,
 // no response will be sent to the "media-docker-files-response" topic,
 // leaving client backend services unnotified.
 func handleErrorResponse(msg kafka.Message, workerName, fileType, newId, resMessage string, err error) {
@@ -95,7 +95,7 @@ func handleErrorResponse(msg kafka.Message, workerName, fileType, newId, resMess
 		return
 	}
 
-	// NOTE: No response will be sent to "media-docker-files-response",
+	// CAUTION: No response will be sent to "media-docker-files-response",
 	// leaving client backend services unnotified.
 	log.Error().
 		Err(err).

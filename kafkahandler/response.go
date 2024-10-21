@@ -20,7 +20,7 @@ import (
 //   - "completed"
 //   - "failed"
 //
-// NOTE: Providing values outside the allowed range for fileType or status may cause
+// CAUTION: Providing values outside the allowed range for fileType or status may cause
 // errors during further processing by client backend services.
 func SendConsumerResponse(workerName, newId, fileType, status string) {
 	// Create a response message object with the provided ID, FileType, and Status.
@@ -34,6 +34,8 @@ func SendConsumerResponse(workerName, newId, fileType, status string) {
 	err := KafkaProducer.Produce("media-docker-files-response", message)
 	if err != nil {
 		// Log an error if producing the response message fails.
+		// CAUTION: No response will be sent to "media-docker-files-response",
+		// leaving client backend services unnotified.
 		log.Error().
 			Err(err).
 			Str("worker", workerName).

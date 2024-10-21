@@ -269,6 +269,10 @@ func (k *kafkaConsumerManager) consumeKafkaTopic(group, topic, workerName string
 
 			// Commit the message offset to Kafka to mark the message as successfully processed.
 			if err = r.CommitMessages(commitCtx, msg); err != nil {
+				// CAUTION: Failure to commit means any worker in this group may reconsume
+				// the message, leading to duplication of Kafka messages from this topic
+				// within the assigned consumer group.
+				//
 				// Log an error if committing the message offset fails.
 				logger.LogErrorWithKafkaMessage(err, workerName, msg, "Commit failed for message offset")
 			}

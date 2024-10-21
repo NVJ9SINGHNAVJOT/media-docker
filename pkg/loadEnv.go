@@ -10,7 +10,7 @@ import (
 // LoadEnv loads environment variables from a given file, handling comments and preserving existing variables.
 // If the file does not exist, it logs a message and uses system environment variables instead.
 //
-// NOTE: filePath is used for development, for production with Docker it logs that the file is not found,
+// INFO: filePath is used for development, for production with Docker it logs that the file is not found,
 // and environment variables from the Docker container will be used.
 func LoadEnv(filePath string) error {
 	// Check if the file exists
