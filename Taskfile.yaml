@@ -30,6 +30,12 @@ tasks:
       # Windows (Git Bash)
       cd task_scripts && bash docker_proxy_network.sh
 
+  media-docker-proxy:
+    desc: Creates an internal media-docker-proxy network for backend projects to connect to the media-docker service.
+    cmd:
+      # Windows (Git Bash)
+      cd task_scripts && bash this_create_docker_networks.sh
+
   dev-kafka-topics:
     desc: Create Kafka topics for the development container using the `manage_kafka_config_file_topics.sh` script.
     cmd:
@@ -89,6 +95,7 @@ tasks:
     desc: Start all media-docker containers for production.
     cmds:
       - task: proxy
+      - task: media-docker-proxy
       - task: kafka-cluster # Launch Kafka brokers in order
       - sleep 10 # Wait 10 seconds for brokers to fully initialize
       - task: kafka-topics # Create Kafka topics once brokers are running

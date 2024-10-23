@@ -14,10 +14,14 @@ volumes:
     name: media-docker-kafka-2_data
 
 networks:
-  # NOTE: In production use nginx-proxy internal network
+  # NOTE: In production, use the nginx-proxy internal network for secure communication
+  # The proxy network is used to serve media files that are accessed by frontend projects
   proxy:
     external: true
+  # NOTE: The media-docker-proxy network is intended to be used with backend projects 
+  # to ensure proper network isolation and communication within the infrastructure
   media-docker-proxy:
+    external: true
 
 services:
   media-docker-client:
@@ -27,7 +31,7 @@ services:
     container_name: media-docker-client
     volumes:
       # Keep the volume mapping unchanged to prevent breaking changes.
-      - media-docker-files-volume:/app/media_docker_files:ro
+      - media-docker-files-data:/app/media_docker_files:ro
     networks:
       - proxy
     ports: [7000:7000] # Disable this in production
@@ -40,16 +44,16 @@ services:
     container_name: media-docker-server
     volumes:
       # Keep the volume mapping unchanged to prevent breaking changes.
-      - media-docker-upload-volume:/app/uploadStorage:rw
-      - media-docker-files-volume:/app/media_docker_files:ro
+      - media-docker-upload-data:/app/uploadStorage:rw
+      - media-docker-files-data:/app/media_docker_files:ro
     networks:
-      - proxy
       - media-docker-proxy
     ports: [7007:7007] # Disable this in production
     env_file: .env.server
     depends_on:
       - media-docker-kafka-consumer
-    stop_grace_period: 90s
+      - media-docker-failed-consumer
+    stop_grace_period: 60s
   
   media-docker-kafka-consumer:
     build:
@@ -58,8 +62,8 @@ services:
     container_name: media-docker-kafka-consumer
     volumes:
       # Keep the volume mapping unchanged to prevent breaking changes.
-      - media-docker-upload-volume:/app/uploadStorage:rw
-      - media-docker-files-volume:/app/media_docker_files:rw
+      - media-docker-upload-data:/app/uploadStorage:rw
+      - media-docker-files-data:/app/media_docker_files:rw
     networks:
       - media-docker-proxy
     restart: unless-stopped
