@@ -135,6 +135,10 @@ The **Media-Docker** project, now in version 2, is a complete media processing s
 
 ## Examples
 
+### Network
+- Connection: Use the **media-docker-proxy** network to connect your backend server to the media-docker service.
+- In your backend service configuration, ensure to add the **media-docker-proxy** network under networks. The **media-docker-proxy** network is an internal network specifically for this project.
+
 ### Node.js Integration
 
 - Copy the mediaDocker.ts file from the examples folder into your project.
