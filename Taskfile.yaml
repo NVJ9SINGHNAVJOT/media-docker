@@ -76,7 +76,7 @@ tasks:
     desc: Create Kafka topics for the production cluster (you can modify partition settings in the kafka_config.sh file).
     cmd:
       # Windows (Git Bash)
-      cd task_scripts && bash manage_kafka_config_file_topics.sh "media-docker-kafka-development" "../kafka_config.sh" "create" "3"
+      cd task_scripts && bash manage_kafka_config_file_topics.sh "media-docker-kafka-0" "../kafka_config.sh" "create" "3"
 
   delete-topics:
     desc: Delete Kafka topics from brokers cluster using the `manage_kafka_config_file_topics.sh`.
