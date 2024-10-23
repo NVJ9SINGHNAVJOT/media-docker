@@ -2,6 +2,8 @@ package pkg
 
 import (
 	"fmt"
+	// "io"
+	// "os"
 	"os/exec"
 )
 
@@ -14,14 +16,47 @@ func runCommand(cmd *exec.Cmd) error {
 		return fmt.Errorf("command: %s, %s", cmd.String(), err)
 	}
 	return nil
+
+	// NOTE: Used only development.
+	// Set the command's stdout and stderr to os.Stdout and os.Stderr
+	// so they will be printed in real-time.
+	// stdout, err := cmd.StdoutPipe()
+	// if err != nil {
+	// 	return fmt.Errorf("failed to get stdout: %w", err)
+	// }
+
+	// stderr, err := cmd.StderrPipe()
+	// if err != nil {
+	// 	return fmt.Errorf("failed to get stderr: %w", err)
+	// }
+
+	// // Start the command before consuming its output
+	// if err := cmd.Start(); err != nil {
+	// 	return fmt.Errorf("failed to start command: %w", err)
+	// }
+
+	// // Stream the command's stdout
+	// go io.Copy(os.Stdout, stdout)
+
+	// // Stream the command's stderr
+	// go io.Copy(os.Stderr, stderr)
+
+	// // Wait for the command to finish and return an error if it fails
+	// if err := cmd.Wait(); err != nil {
+	// 	return fmt.Errorf("command: %s, %s", cmd.String(), err)
+	// }
+	// return nil
 }
 
 // ConvertVideo converts a video file to HLS format (HTTP Live Streaming) using ffmpeg.
-// It accepts the video file path (videoPath), the output directory for the converted video (outputPath),
-// and an optional quality parameter (quality). If a quality value between 40 and 100 is provided,
-// it adjusts the video and audio bitrates accordingly. If no quality is specified, the video retains
-// its existing quality. The function generates a playlist (index.m3u8) and segments the video into
-// 10-second chunks.
+// It accepts the following parameters:
+//   - videoPath: the path to the input video file to be converted.
+//   - outputPath: the directory where the converted video segments and playlist will be saved.
+//   - quality: an optional parameter that adjusts the video and audio bitrates.
+//     If a quality value between 40 and 100 is provided, it calculates the corresponding
+//     bitrates for video and audio. If no quality is specified, the video retains its existing quality.
+//
+// The function generates a playlist (index.m3u8) and segments the video into 10-second chunks.
 func ConvertVideo(videoPath, outputPath string, quality ...int) error {
 	var args []string
 
@@ -50,20 +85,24 @@ func ConvertVideo(videoPath, outputPath string, quality ...int) error {
 }
 
 // heights is a map that associates common video resolution heights with their corresponding widths.
-// This is used to scale video resolutions during conversion in the ConvertVideoResolutions function.
+// This map is used to scale video resolutions during conversion in the ConvertVideoResolutions function.
 var heights = map[string]string{"360": "740", "480": "854", "720": "1280", "1080": "1920"}
 
 // ConvertVideoResolutions converts a video file to a specific resolution using ffmpeg.
-// It takes the video file path (videoPath), the output directory (outputPath), and the desired resolution.
+// It accepts the following parameters:
+//   - videoPath: the path to the input video file to be converted.
+//   - outputPath: the directory where the converted video segments and playlist will be saved.
+//   - resolution: the desired resolution to which the video will be scaled.
+//
 // The video is scaled to the specified resolution using a video filter and converted to HLS format.
 func ConvertVideoResolutions(videoPath, outputPath string, resolution string) error {
 	return runCommand(exec.Command("ffmpeg",
 		"-i", videoPath, // Input video file path
-		"-codec:v", "libx264", // Use the H.264 video codec
+		"-codec:v", "libx264", // Use the H.264 video codec for video conversion
 		"-codec:a", "aac", // Use AAC for audio codec
 		"-vf", fmt.Sprintf("scale=%s:%s", heights[resolution], resolution), // Scale the video to the specified resolution
 		"-hls_time", "10", // Split video into 10-second segments
-		"-hls_playlist_type", "vod", // Define playlist as Video on Demand (VOD)
+		"-hls_playlist_type", "vod", // Define the playlist as Video on Demand (VOD)
 		"-hls_segment_filename", fmt.Sprintf("%s/segment%%03d.ts", outputPath), // Define segment file name pattern
 		"-start_number", "0", // Start segment numbering from 0
 		fmt.Sprintf("%s/index.m3u8", outputPath), // Output the HLS playlist file
@@ -71,9 +110,12 @@ func ConvertVideoResolutions(videoPath, outputPath string, resolution string) er
 }
 
 // ConvertImage converts an image file using ffmpeg by applying compression.
-// It accepts the image file path (imagePath), the output file path (outputPath), and the compression level.
-// Compression values range from 1 (highest quality) to 31 (lowest quality).
-// The function applies the specified compression and generates the output image.
+// It accepts the following parameters:
+//   - imagePath: the path to the input image file.
+//   - outputPath: the path where the compressed image will be saved.
+//   - compression: a string representing the compression level, ranging from 1 (highest quality) to 31 (lowest quality).
+//
+// The function applies the specified compression level and generates the output image.
 func ConvertImage(imagePath, outputPath, compression string) error {
 	return runCommand(exec.Command("ffmpeg",
 		"-i", imagePath, // Input image file
@@ -83,10 +125,14 @@ func ConvertImage(imagePath, outputPath, compression string) error {
 }
 
 // ConvertAudio converts an audio file to a standard format using ffmpeg.
-// It accepts the audio file path (audioPath), the output file path (outputPath), and an optional audio bitrate.
-// The audio is converted with a sample rate of 44100 Hz and 2 channels (stereo). If a bitrate is specified,
-// it is used in the conversion; otherwise, ffmpeg defaults are applied.
-// The function can handle various audio bitrates, such as 128 Kbps for low quality, 192 Kbps for standard quality,
+// It accepts the following parameters:
+//   - audioPath: the path to the input audio file to be converted.
+//   - outputPath: the path where the converted audio file will be saved.
+//   - bitrate: an optional parameter to specify the audio bitrate for conversion.
+//     If a bitrate is provided, it will be used; otherwise, ffmpeg defaults will apply.
+//
+// The audio is converted with a sample rate of 44100 Hz and 2 channels (stereo).
+// It can handle various audio bitrates such as 128 Kbps for low quality, 192 Kbps for standard quality,
 // 256 Kbps for high quality, and 320 Kbps for maximum quality.
 func ConvertAudio(audioPath, outputPath string, bitrate ...string) error {
 	// Prepare the base arguments for the ffmpeg command
