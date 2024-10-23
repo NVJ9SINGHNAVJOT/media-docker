@@ -3,7 +3,6 @@ package api
 import (
 	"fmt"
 	"net/http"
-	"strconv"
 
 	"github.com/google/uuid"
 	"github.com/nvj9singhnavjot/media-docker/config"
@@ -15,39 +14,32 @@ import (
 
 // videoRequest represents the structure of the request for video upload.
 type videoRequest struct {
-	Quality string `json:"quality" validate:"omitempty,customVideoQuality"` // Optional quality parameter
+	UuidFilename string `json:"uuidFilename" validate:"required"`
+	Quality      *int   `json:"quality" validate:"omitempty,min=40,max=100"` // Quality must be >= 40 and <= 100
 }
 
 // Video handles video upload requests and sends processing messages to Kafka.
 func Video(w http.ResponseWriter, r *http.Request) {
-	// Read the video file from the request
-	_, header, err := r.FormFile("videoFile")
-	if err != nil {
-		// Respond with an error if the file cannot be read
-		helper.Response(w, http.StatusBadRequest, "error reading file", err)
-		return
-	}
-	videoPath := header.Header.Get("path") // Get the file path from the header
 
 	var req videoRequest
 	// Parse the JSON request and populate the VideoRequest struct
 	if err := helper.ValidateRequest(r, &req); err != nil {
-		pkg.AddToFileDeleteChan(videoPath) // Add to deletion channel on error
 		helper.Response(w, http.StatusBadRequest, "invalid data", err)
 		return
 	}
 
-	// Initialize quality as nil for optional use
-	var quality *int = nil
-	// Convert quality string to an integer if provided
-	if req.Quality != "" {
-		q, err := strconv.Atoi(req.Quality) // Convert string to int
-		if err != nil {
-			pkg.AddToFileDeleteChan(videoPath) // Add to deletion channel on error
-			helper.Response(w, http.StatusBadRequest, "invalid quality value", err)
-			return
-		}
-		quality = &q // Set quality as a pointer to the integer value
+	path := helper.Constants.UploadStorage + "/" + req.UuidFilename
+
+	// Check if the file exists at the specified path
+	exist, err := pkg.DirOrFileExist(path)
+	if err != nil {
+		helper.Response(w, http.StatusBadRequest, "invalid uuidFilename", err)
+		return
+	}
+
+	if !exist {
+		helper.Response(w, http.StatusBadRequest, "file doesn't exist", nil)
+		return
 	}
 
 	id := uuid.New().String()                                                    // Generate a new UUID for the video
@@ -55,19 +47,19 @@ func Video(w http.ResponseWriter, r *http.Request) {
 
 	// Create the VideoMessage struct to be passed to Kafka
 	message := topics.VideoMessage{
-		FilePath: videoPath, // Set the file path
-		NewId:    id,        // Set the new ID
-		Quality:  quality,   // Set the optional quality (can be nil)
+		FilePath: path,        // Set the file path
+		NewId:    id,          // Set the new ID
+		Quality:  req.Quality, // Set the optional quality (can be nil)
 	}
 
 	// Pass the struct to the Kafka producer
 	if err := kafkahandler.KafkaProducer.Produce("video", message); err != nil {
-		pkg.AddToFileDeleteChan(videoPath) // Add to deletion channel on error
+		pkg.AddToFileDeleteChan(path) // Add to deletion channel on error
 		helper.Response(w, http.StatusInternalServerError, "error sending Kafka message", err)
 		return
 	}
 
 	// Respond with success, providing the video URL
-	videoUrl := fmt.Sprintf("%s/%s/index.m3u8", config.ServerEnv.BASE_URL, outputPath)
+	videoUrl := fmt.Sprintf("%s/%s/index.m3u8", config.ServerEnv.BASE_URL, outputPath) // Construct the video file URL
 	helper.Response(w, http.StatusCreated, "video uploaded successfully", map[string]any{"id": id, "fileUrl": videoUrl})
 }

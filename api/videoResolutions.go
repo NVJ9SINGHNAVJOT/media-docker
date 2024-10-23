@@ -12,28 +12,44 @@ import (
 	"github.com/nvj9singhnavjot/media-docker/topics"
 )
 
+type videoResolutionsRequest struct {
+	UuidFilename string `json:"uuidFilename" validate:"required"`
+}
+
 // VideoResolutions handles video file upload requests and sends processing messages to Kafka for resolution conversion.
 func VideoResolutions(w http.ResponseWriter, r *http.Request) {
-	// Read the video file from the request
-	_, header, err := r.FormFile("videoFile")
-	if err != nil {
-		// Respond with an error if the file cannot be read
-		helper.Response(w, http.StatusBadRequest, "error reading file", err)
+	var req videoResolutionsRequest
+	// Parse the JSON request and populate the VideoResolutionsRequest struct
+	if err := helper.ValidateRequest(r, &req); err != nil {
+		helper.Response(w, http.StatusBadRequest, "invalid data", err)
 		return
 	}
 
-	videoPath := header.Header.Get("path") // Get the file path from the header
-	id := uuid.New().String()              // Generate a new UUID for the video file
+	path := helper.Constants.UploadStorage + "/" + req.UuidFilename
+
+	// Check if the file exists at the specified path
+	exist, err := pkg.DirOrFileExist(path)
+	if err != nil {
+		helper.Response(w, http.StatusBadRequest, "invalid uuidFilename", err)
+		return
+	}
+
+	if !exist {
+		helper.Response(w, http.StatusBadRequest, "file doesn't exist", nil)
+		return
+	}
+
+	id := uuid.New().String() // Generate a new UUID for the video
 
 	// Create the VideoResolutionsMessage struct to be passed to Kafka
 	message := topics.VideoResolutionsMessage{
-		FilePath: videoPath, // Set the file path
-		NewId:    id,        // Set the new ID for the file URL
+		FilePath: path, // Set the file path
+		NewId:    id,   // Set the new ID for the file URL
 	}
 
 	// Pass the struct to the Kafka producer
 	if err := kafkahandler.KafkaProducer.Produce("video-resolutions", message); err != nil {
-		pkg.AddToFileDeleteChan(videoPath) // Add to deletion channel on error
+		pkg.AddToFileDeleteChan(path) // Add to deletion channel on error
 		helper.Response(w, http.StatusInternalServerError, "error sending Kafka message", err)
 		return
 	}
