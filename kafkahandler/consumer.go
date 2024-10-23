@@ -229,13 +229,9 @@ func (k *kafkaConsumerManager) consumeWithRetry(group, topic, workerName string)
 func (k *kafkaConsumerManager) consumeKafkaTopic(group, topic, workerName string) error {
 	// Create a new Kafka reader for the topic, specifying brokers and consumer group details.
 	r := kafka.NewReader(kafka.ReaderConfig{
-		Brokers: k.brokers, // Retrieve Kafka brokers from the environment configuration for connection.
-		GroupID: group,     // Assign the consumer group ID for coordinated consumption of messages.
-		Topic:   topic,     // Specify the topic from which messages will be consumed.
-		Dialer: &kafka.Dialer{
-			Timeout:   10 * time.Second, // Set a timeout for Kafka connection attempts.
-			KeepAlive: 5 * time.Minute,  // Keep the connection alive for 5 minutes to maintain stability.
-		},
+		Brokers:           k.brokers,       // Retrieve Kafka brokers from the environment configuration for connection.
+		GroupID:           group,           // Assign the consumer group ID for coordinated consumption of messages.
+		Topic:             topic,           // Specify the topic from which messages will be consumed.
 		HeartbeatInterval: 3 * time.Second, // Interval for sending heartbeats to Kafka brokers to maintain the connection.
 		MaxAttempts:       retryAttempts,   // Set the maximum number of attempts to consume a message before giving up.
 	})
