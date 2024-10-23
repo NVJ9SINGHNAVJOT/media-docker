@@ -5,10 +5,8 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/httprate"
 	"github.com/nvj9singhnavjot/media-docker/config"
 	"github.com/nvj9singhnavjot/media-docker/helper"
 	mw "github.com/nvj9singhnavjot/media-docker/middleware"
@@ -43,11 +41,7 @@ func main() {
 
 	// NOTE: Adjust throttle middleware value based on the required traffic control
 	// Set up default middlewares such as CORS and logging for the router
-	mw.DefaultMiddlewares(router, config.ClientEnv.ALLOWED_ORIGINS, []string{"GET"}, 10000)
-
-	// NOTE: Adjust LimitByIP middleware value based on the allowed requests per IP
-	// Apply rate limiting middleware to limit requests by IP (500 requests per minute)
-	router.Use(httprate.LimitByIP(500, 1*time.Minute))
+	mw.DefaultMiddlewares(router, config.ClientEnv.ALLOWED_ORIGINS, []string{"GET"}, 40000)
 
 	/*
 		Create a route along "/media_docker_files" that serves files from the
