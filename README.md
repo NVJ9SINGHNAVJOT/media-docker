@@ -262,9 +262,9 @@ console.log(result);
 
 ## System Design
 
-- [`Open`](https://raw.githubusercontent.com/NVJ9SINGHNAVJOT/media-docker/ae87476cd1dc99641cf96a1cd949710be282f1e0/Media-Docker-System-Design.svg)
+- [`Open`](https://raw.githubusercontent.com/NVJ9SINGHNAVJOT/media-docker/ca232547406e93d7533c938057ffe1f7ae702847/Media-Docker-System-Design.svg)
 
-  ![Media-Docker-System-Design](https://raw.githubusercontent.com/NVJ9SINGHNAVJOT/media-docker/ae87476cd1dc99641cf96a1cd949710be282f1e0/Media-Docker-System-Design.svg)
+  ![Media-Docker-System-Design](https://raw.githubusercontent.com/NVJ9SINGHNAVJOT/media-docker/ca232547406e93d7533c938057ffe1f7ae702847/Media-Docker-System-Design.svg)
 
 ## Important
 
