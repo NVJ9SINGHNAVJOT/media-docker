@@ -5,21 +5,20 @@ import (
 	"github.com/nvj9singhnavjot/media-docker/pkg"
 )
 
-// CreateDirSetup sets up the required directories for media storage if they do not exist.
+// CreateDirSetup ensures that the required directories for media storage are created if they do not already exist.
+// It sets up directories for storing chunked files and media files for videos, images, and audios.
 func CreateDirSetup() {
-	// UploadStorage directory is created if it does not exist.
-	pkg.DirExist(helper.Constants.UploadStorage, true)
+	// Create directories within UploadStorage for chunked "videos", "images", and "audios" files, if they don't exist.
+	pkg.DirExist(helper.Constants.UploadStorage+"/videos", true)
+	pkg.DirExist(helper.Constants.UploadStorage+"/images", true)
+	pkg.DirExist(helper.Constants.UploadStorage+"/audios", true)
 
-	/*
-		NOTE: Along with the "/media_docker_files" folder, the "/images" and "/audios" folders
-		are also checked and created if they do not exist.
-		- Images and audios are stored directly in these folders.
-		- Each video, however, will have its own folder inside "/media_docker_files/videos".
-	*/
+	// Ensure the "videos" directory exists within MediaStorage.
+	pkg.DirExist(helper.Constants.MediaStorage+"/videos", true)
 
-	// Ensure the "images" directory exists inside MediaStorage.
+	// Ensure the "images" directory exists within MediaStorage.
 	pkg.DirExist(helper.Constants.MediaStorage+"/images", true)
 
-	// Ensure the "audios" directory exists inside MediaStorage.
+	// Ensure the "audios" directory exists within MediaStorage.
 	pkg.DirExist(helper.Constants.MediaStorage+"/audios", true)
 }

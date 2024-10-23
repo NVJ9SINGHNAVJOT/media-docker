@@ -47,6 +47,7 @@ func main() {
 	kafkahandler.InitializeKafkaProducerManager(config.ServerEnv.KAFKA_BROKERS)
 
 	go pkg.DeleteFileWorker()
+	go pkg.DeleteDirWorker()
 
 	// initialize validator
 	helper.InitializeValidator()
@@ -110,8 +111,8 @@ func cleanUpForServer() {
 		log.Info().Msg("Producer closed for media-docker-server.")
 	}
 
-	pkg.CloseDeleteFileChannel()
-	log.Info().Msg("DeleteFile channel closed.")
+	pkg.CloseDeleteChannels()
+	log.Info().Msg("Delete channels closed.")
 	time.Sleep(10 * time.Second)
 	log.Info().Msg("Cleanup completed.")
 }
