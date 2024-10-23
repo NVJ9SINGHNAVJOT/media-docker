@@ -70,24 +70,17 @@ func ProcessMessage(msg kafka.Message, workerName string) {
 // If the message processing fails, the error is logged, and a failure response is sent back to the consumer.
 func handleDLQMessage(dlqMsg topics.DLQMessage, workerName string) {
 
-	// Check if the originalTopic exists in the topicHandlers map.
-	handler, exists := topicHandlers[dlqMsg.OriginalTopic]
-	if !exists {
-		// Log an error for the unknown original topic in the DLQ message.
-		// CAUTION: No response will be sent to "media-docker-files-response",
-		// which means the client backend services will not be notified about this failure.
-		log.Error().
-			Str("worker", workerName).
-			Interface("dlq_message", dlqMsg).
-			Msg("Unknown originalTopic in DLQMessage")
-		return
-	} else {
-		// Log a success message if the DLQ message is recognized with a valid originalTopic.
-		log.Info().
-			Str("worker", workerName).
-			Interface("dlq_message", dlqMsg).
-			Msg("DLQMessage received.")
-	}
+	// Verify that the originalTopic exists in the topicHandlers map.
+	//
+	// NOTE: The existence of the handler is not checked because
+	// the originalTopic has already been validated in the ProcessMessage function.
+	handler := topicHandlers[dlqMsg.OriginalTopic]
+
+	// Log a success message if the DLQ message is recognized with a valid originalTopic.
+	log.Info().
+		Str("worker", workerName).
+		Interface("dlq_message", dlqMsg).
+		Msg("DLQMessage received.")
 
 	// Process the DLQ message using the appropriate handler function for the original topic.
 	newId, err := handler.processFunc(workerName, dlqMsg)
