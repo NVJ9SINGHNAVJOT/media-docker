@@ -36,12 +36,20 @@
   necessary, please review them carefully to avoid breaking the upload and response processing functionality.
 */
 
-// Importing file system promises for handling file operations
-import * as fs from "fs/promises";
+// Importing file system for handling file operations
+import * as fs from "fs";
+import * as fsp from "fs/promises";
 // Importing Kafka and Consumer classes from kafkajs library for handling Kafka messaging
 // Note: Ensure that the kafkajs library is installed in your project by running:
 // npm install kafkajs or yarn add kafkajs
 import { Kafka, Consumer, logLevel } from "kafkajs";
+
+type FileStatus = {
+  type: string;
+  status: string;
+  chunk: number;
+  chunkId?: string;
+};
 
 /**
  * Standardized response format
@@ -147,86 +155,176 @@ class MediaDocker {
   }
 
   /**
-   * Main function for uploading a file to the media-docker server
-   * @template T
-   * @param {string} filePath - Path to the file being uploaded
-   * @param {string} apiEndPoint - API endpoint for the upload
-   * @param {Object<string, unknown>} [formValues] - Optional additional form values
-   * @returns {Promise<Result<T>>} - Result containing the response data
+   * Uploads the file to the specified storage API endpoint.
+   * This function handles the HTTP POST request to send file data to the server.
+   *
+   * @param {FormData} formData - The form data containing the file and any associated fields.
+   * @param {"chunksStorage" | "fileStorage"} api - The API endpoint to use for the file upload.
+   * @returns {Promise<Response>} - A promise that resolves to the server's response.
    */
-  private async uploadFileToMediaDockerServer<T>(
-    filePath: string,
-    apiEndPoint: string,
-    formValues?: { [key: string]: unknown }
-  ): Promise<Result<T>> {
-    if (this._config.serverKey === "") {
-      throw new Error("mediaDocker is not connected"); // Ensure the server key is set
-    }
-
-    // Determine file extension from file path
-    let fileType = filePath.split(".").pop();
-    const ext = fileType; // Store file extension for MIME type
-
-    if (!fileType) {
-      throw new Error("Invalid file type: File extension is missing");
-    }
-
-    // Check based on apiEndPoint and ensure fileType matches for each case
-    if (apiEndPoint === "audio") {
-      if (!this._validFiles.audio.includes(fileType)) {
-        throw new Error(`Invalid file type: ${fileType} is not allowed for audio endpoint`);
-      }
-      fileType = "audio"; // Set file type as audio
-    } else if (apiEndPoint === "image") {
-      if (!this._validFiles.image.includes(fileType)) {
-        throw new Error(`Invalid file type: ${fileType} is not allowed for image endpoint`);
-      }
-      fileType = "image"; // Set file type as image
-    } else if (apiEndPoint === "video") {
-      if (!this._validFiles.video.includes(fileType)) {
-        throw new Error(`Invalid file type: ${fileType} is not allowed for video endpoint`);
-      }
-      fileType = "video"; // Set file type as video
-    } else if (apiEndPoint === "videoResolutions") {
-      if (!this._validFiles.video.includes(fileType)) {
-        throw new Error(`Invalid file type: ${fileType} is not allowed for videoResolutions endpoint`);
-      }
-      fileType = "video"; // Set file type as video
-    } else {
-      // If the apiEndPoint is not one of the above, throw an error
-      throw new Error(`Invalid API endpoint: ${apiEndPoint}`);
-    }
-
-    // Read the file content
-    const content = await fs.readFile(filePath);
-    const formData = new FormData();
-    // Append file content to formData
-    formData.append(fileType + "File", new Blob([content], { type: `${fileType}/${ext}` }));
-
-    // Add optional formValues to formData
-    if (formValues) {
-      Object.keys(formValues).forEach((key) => {
-        const value = formValues[key];
-        if (value !== null && value !== undefined) {
-          formData.append(key, `${value}`);
-        }
-      });
-    }
-
-    // Send the file to the media-docker server
-    const response = await fetch(this._config.serverBaseUrl + `/api/v1/uploads/${apiEndPoint}`, {
+  private async uploadToStorage(formData: FormData, api: "chunksStorage" | "fileStorage") {
+    return await fetch(this._config.serverBaseUrl + `/api/v1/uploads/${api}`, {
       method: "POST", // HTTP method for the upload
       body: formData as FormData, // Form data containing the file and other fields
       headers: {
         Authorization: this._config.serverKey, // Authorization header with server key
       },
     });
+  }
 
-    const resData = await response.json();
-    if (response.status !== 201) {
-      throw new Error("message" in resData ? resData.message : "unknown"); // Handle errors from the server
+  /**
+   * Main function for uploading a file to the media-docker server.
+   * This function handles both single-file and chunked file uploads, depending on the file size,
+   * and communicates with the media-docker server for validation and metadata handling.
+   *
+   * @template T - The type of the response data.
+   * @param {string} filePath - The file system path to the file being uploaded.
+   * @param {string} apiEndPoint - The API endpoint for the upload (e.g., 'audio', 'image', 'video').
+   * @param {object} [data] - Optional data for file upload, which can include additional metadata.
+   * @returns {Promise<Result<T>>} - A promise that resolves to the result containing the server response data.
+   */
+  private async uploadFileToMediaDockerServer<T>(
+    filePath: string,
+    apiEndPoint: string,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    data?: any
+  ): Promise<Result<T>> {
+    // Check if the server key is set, ensuring a valid connection to the media-docker server.
+    if (this._config.serverKey === "") {
+      throw new Error("mediaDocker is not connected"); // Error if server key is missing.
     }
-    return resData; // Return the server response
+
+    // Extract the file extension from the file path to determine its type.
+    let fileType = filePath.split(".").pop();
+    const ext = fileType; // Save the file extension for setting MIME type later.
+
+    // Validate that the file has an extension, throw an error if missing.
+    if (!fileType) {
+      throw new Error("Invalid file type: File extension is missing");
+    }
+
+    // Validate the file type based on the provided API endpoint (audio, image, video, etc.).
+    if (apiEndPoint === "audio") {
+      if (!this._validFiles.audio.includes(fileType)) {
+        throw new Error(`Invalid file type: ${fileType} is not allowed for audio endpoint`);
+      }
+      fileType = "audio";
+    } else if (apiEndPoint === "image") {
+      if (!this._validFiles.image.includes(fileType)) {
+        throw new Error(`Invalid file type: ${fileType} is not allowed for image endpoint`);
+      }
+      fileType = "image";
+    } else if (apiEndPoint === "video") {
+      if (!this._validFiles.video.includes(fileType)) {
+        throw new Error(`Invalid file type: ${fileType} is not allowed for video endpoint`);
+      }
+      fileType = "video";
+    } else if (apiEndPoint === "videoResolutions") {
+      if (!this._validFiles.video.includes(fileType)) {
+        throw new Error(`Invalid file type: ${fileType} is not allowed for videoResolutions endpoint`);
+      }
+      fileType = "video";
+    } else {
+      // Throw an error for any unsupported API endpoints.
+      throw new Error(`Invalid API endpoint: ${apiEndPoint}`);
+    }
+
+    // Set the size for each file chunk (2 MB for chunked uploads).
+    const CHUNK_SIZE = 2 * 1024 * 1024; // 2 MB chunk size.
+    const stats = fs.statSync(filePath); // Retrieve the file size.
+    const totalChunks = Math.ceil(stats.size / CHUNK_SIZE); // Calculate the total number of chunks.
+    let uuidFilename = ""; // Variable to store the UUID filename returned from the server.
+
+    if (totalChunks <= 1) {
+      // If the file size is less than or equal to 2 MB, upload the file in a single request.
+      const content = await fsp.readFile(filePath); // Read the entire file content.
+      const formData = new FormData();
+      formData.append(fileType + "File", new Blob([content], { type: `${fileType}/${ext}` })); // Append file content to FormData.
+      formData.append("type", fileType); // Append file type to FormData.
+      const response = await this.uploadToStorage(formData, "fileStorage"); // Send file to the file storage API.
+      const resData = await response.json(); // Parse the server's JSON response.
+
+      // Handle errors in the server response, if any.
+      if (response.status !== 200) {
+        throw new Error("message" in resData ? resData.message : "unknown");
+      }
+
+      // Store the UUID filename returned by the server for future reference.
+      uuidFilename = resData.data.uuidFilename;
+    } else {
+      // If the file is larger than 2 MB, perform chunked uploads.
+      const fileStream = fs.createReadStream(filePath, { highWaterMark: CHUNK_SIZE }); // Create a stream to read file chunks.
+
+      const fileStatus: FileStatus = {
+        type: fileType, // Set file type for the upload.
+        status: "start", // Initial upload status.
+        chunk: 0, // Starting chunk index.
+      };
+
+      // Iterate over each chunk of the file and upload it.
+      for await (const chunk of fileStream) {
+        const formData = new FormData(); // FormData object for the current chunk.
+        formData.append(`${fileType}File`, new Blob([chunk], { type: `${fileType}/${ext}` })); // Append the current chunk.
+
+        // Set the file status for the last chunk to 'completed'.
+        if (fileStatus.chunk === totalChunks - 1) {
+          fileStatus.status = "completed";
+        }
+
+        // Append fileStatus fields (e.g., chunkId, status) to the formData for the current upload.
+        Object.keys(fileStatus).forEach((key) => {
+          const value = fileStatus[key as keyof FileStatus];
+          if (value !== null && value !== undefined) {
+            formData.append(key, `${value}`);
+          }
+        });
+
+        // Upload the current chunk to the chunksStorage API.
+        const response = await this.uploadToStorage(formData, "chunksStorage");
+        const resData = await response.json();
+
+        // Handle errors in the server response, if any.
+        if (response.status !== 200) {
+          fileStream.close(); // Close the file stream on error.
+          throw new Error("message" in resData ? resData.message : "unknown");
+        }
+
+        // For the first chunk, set the status to 'uploading' and store the new chunkId.
+        if (fileStatus.chunk === 0) {
+          fileStatus.status = "uploading";
+          fileStatus.chunkId = resData.data.newChunkId;
+        } else if (fileStatus.chunk === totalChunks - 1) {
+          // For the last chunk, store the UUID filename from the server response.
+          uuidFilename = resData.data.uuidFilename;
+        }
+
+        // Increment the chunk index for the next iteration.
+        fileStatus.chunk++;
+      }
+
+      fileStream.close(); // Close the file stream after the chunked upload is complete.
+    }
+
+    // Ensure the data object exists and add the UUID filename for the final metadata upload.
+    data = data || {}; // Initialize an empty object if no data is provided.
+    data.uuidFilename = uuidFilename; // Add the UUID filename to the data.
+
+    // Send the final metadata (including the UUID filename) to the media-docker server.
+    const response = await fetch(this._config.serverBaseUrl + `/api/v1/uploads/${apiEndPoint}`, {
+      method: "POST", // HTTP method for sending metadata.
+      body: JSON.stringify(data), // Send the metadata as JSON.
+      headers: {
+        "Content-Type": "application/json", // Set content type to JSON.
+        Authorization: this._config.serverKey, // Include the server key in the headers.
+      },
+    });
+
+    const resData = await response.json(); // Parse the server's response.
+    if (response.status !== 201) {
+      throw new Error("message" in resData ? resData.message : "unknown"); // Handle errors from the server.
+    }
+
+    return resData; // Return the server's response indicating successful upload.
   }
 
   /**
@@ -271,22 +369,22 @@ class MediaDocker {
 
     // Check if the response status is not 200 (success). If it fails, log and throw an error.
     if (response.status !== 200) {
-      this.log("error", resData.message || "unknown"); // Log the error message (if any) from the server response
+      this.log("ERROR", resData.message || "unknown"); // Log the error message (if any) from the server response
       throw new Error("message" in resData ? resData.message : "unknown"); // Throw the error for further handling
     }
 
     // If successful, store the connection details (serverKey and serverBaseURL)
     this._config.serverKey = serverKey;
     this._config.serverBaseUrl = serverBaseURL;
-    this.log("info", "Connected to media server successfully."); // Log successful connection to the media server
+    this.log("INFO", "Connected to media server successfully."); // Log successful connection to the media server
 
     // Connect to Kafka and set up message handling for incoming messages
     await this.consumer.connect(); // Attempt to connect to the Kafka broker
-    this.log("info", "Connected to Kafka successfully."); // Log successful connection to Kafka
+    this.log("INFO", "Connected to Kafka successfully."); // Log successful connection to Kafka
 
     // Start handling messages from Kafka with the provided messageHandler function
     this.handleConsumer(messageHandler);
-    this.log("info", "Starting Kafka message consumption now."); // Log that message consumption has begun
+    this.log("INFO", "Starting Kafka message consumption now."); // Log that message consumption has begun
   }
 
   /**
@@ -301,9 +399,9 @@ class MediaDocker {
   async disconnect(): Promise<void> {
     try {
       await this.consumer.disconnect(); // Disconnect the Kafka consumer
-      this.log("info", "Disconnected from Kafka successfully."); // Log successful disconnection
+      this.log("INFO", "Disconnected from Kafka successfully."); // Log successful disconnection
     } catch (error) {
-      this.log("error", `Error during Kafka disconnection: ${error}`); // Log any errors during disconnection
+      this.log("ERROR", `Error during Kafka disconnection: ${error}`); // Log any errors during disconnection
     }
   }
 
@@ -334,7 +432,7 @@ class MediaDocker {
         if (attempt > 0) {
           // Reconnect to the Kafka broker only on subsequent attempts
           await this.consumer.connect();
-          this.log("info", "Reconnected to Kafka successfully."); // Log successful reconnection
+          this.log("INFO", "Reconnected to Kafka successfully."); // Log successful reconnection
         }
 
         // Subscribe to the specified topic
@@ -349,7 +447,7 @@ class MediaDocker {
             try {
               // Check if the message value is null or empty
               if (!message.value) {
-                this.log("error", `Received null or empty message from topic "${topic}", partition "${partition}"`);
+                this.log("ERROR", `Received null or empty message from topic "${topic}", partition "${partition}"`);
                 return; // Skip processing if message is invalid
               }
 
@@ -361,7 +459,7 @@ class MediaDocker {
             } catch (error) {
               // Log errors that occur during message processing, including the parsed value if available
               this.log(
-                "error",
+                "ERROR",
                 `Error processing message from topic "${topic}", partition "${partition}": ${error}. Parsed message value: ${value ? JSON.stringify(value) : "Not available"}`
               );
               this.delay(1000); // Delay for 1 second
@@ -373,14 +471,14 @@ class MediaDocker {
         return;
       } catch (error) {
         // Log the connection error
-        this.log("error", `Connection attempt failed: ${error}`);
-        this.log("info", `Retrying connection (${attempt + 1}/10)...`); // Log retry attempt
+        this.log("ERROR", `Connection attempt failed: ${error}`);
+        this.log("INFO", `Retrying connection (${attempt + 1}/10)...`); // Log retry attempt
         await this.delay(2000); // Wait before retrying
       }
     }
 
     // Log failure if maximum connection attempts are reached
-    this.log("error", "Max connection attempts reached. Could not connect to Kafka.");
+    this.log("ERROR", "Max connection attempts reached. Could not connect to Kafka.");
   }
 
   /**
@@ -394,10 +492,10 @@ class MediaDocker {
 
   /**
    * Log messages to console or other logging services
-   * @param {"info" | "error" | "success"} level - Severity level of the log
+   * @param {"INFO" | "ERROR" | "SUCCESS"} level - Severity level of the log
    * @param {string} message - Log message
    */
-  private log(level: "info" | "error" | "success", message: string): void {
+  private log(level: "INFO" | "ERROR" | "SUCCESS", message: string): void {
     console.log(`[${level.toUpperCase()}] [Media-Docker] ${message}`); // Log message to console
   }
 
