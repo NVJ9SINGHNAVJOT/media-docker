@@ -105,8 +105,8 @@ The **Media-Docker** project, now in version 2, is a complete media processing s
 
 - **Using local machine dependencies:** **_Recommended for Development_**
 
-1. Install golang (if not already installed).
-2. Install the required modules and components.
+1. Install [golang](https://go.dev) (if not already installed).
+2. Install [ffmpeg](https://www.ffmpeg.org) (if not already installed).
 3. If you have Apache Kafka installed locally, skip the _task dev-kafka_ and _task dev-kafka-topics_ steps, and create the topics as described in the _this_create_kafka_topics.sh_ file. Otherwise, start Docker (Apache Kafka is used in this project with Docker) and execute the following task commands:
 
    ```sh
