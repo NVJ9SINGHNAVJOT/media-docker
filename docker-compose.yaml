@@ -55,6 +55,23 @@ services:
       - media-docker-failed-consumer
     stop_grace_period: 60s
   
+  media-docker-failed-consumer:
+    build:
+      context: .
+      dockerfile: ./internal/media-docker-failed-consumer/Dockerfile
+    container_name: media-docker-failed-consumer
+    volumes:
+      # Keep the volume mapping unchanged to prevent breaking changes.
+      - media-docker-upload-data:/app/uploadStorage:rw
+      - media-docker-files-data:/app/media_docker_files:rw
+    networks:
+      - media-docker-proxy
+    restart: unless-stopped
+    env_file: .env.failed
+    depends_on:
+      - media-docker-kafka-consumer
+    stop_grace_period: 60s
+
   media-docker-kafka-consumer:
     build:
       context: .
@@ -70,24 +87,7 @@ services:
     env_file: .env.consumer
     depends_on:
       - media-docker-kafka-0
-    stop_grace_period: 60s
-
-  media-docker-failed-consumer:
-    build:
-      context: .
-      dockerfile: ./internal/media-docker-failed-consumer/Dockerfile
-    container_name: media-docker-failed-consumer
-    volumes:
-      # Keep the volume mapping unchanged to prevent breaking changes.
-      - media-docker-upload-data:/app/uploadStorage:rw
-      - media-docker-files-data:/app/media_docker_files:rw
-    networks:
-      - media-docker-proxy
-    restart: unless-stopped
-    env_file: .env.failed
-    depends_on:
-      - media-docker-kafka-0
-    stop_grace_period: 60s
+    stop_grace_period: 60s    
     
   media-docker-kafka-0:
     image: docker.io/bitnami/kafka:3.8.0
