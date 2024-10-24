@@ -82,14 +82,9 @@ func ValidateClientEnv() error {
 		return fmt.Errorf("allowed origins are not provided")
 	}
 
-	clientPort, exists := os.LookupEnv("CLIENT_PORT")
-	if !exists {
-		return fmt.Errorf("client port is not provided")
-	}
-
 	ClientEnv.ENVIRONMENT = environment
 	ClientEnv.ALLOWED_ORIGINS = strings.Split(allowedOrigins, ",")
-	ClientEnv.CLIENT_PORT = clientPort
+	ClientEnv.CLIENT_PORT = "7000"
 
 	return nil
 }
@@ -120,12 +115,6 @@ func ValidateServerEnv() error {
 		return fmt.Errorf("kafka brokers are not provided")
 	}
 
-	// SERVER_PORT validation
-	serverPort, exists := os.LookupEnv("SERVER_PORT")
-	if !exists {
-		return fmt.Errorf("server port is not provided")
-	}
-
 	// BASE_URL validation
 	baseURL, exists := os.LookupEnv("BASE_URL")
 	if !exists {
@@ -136,7 +125,7 @@ func ValidateServerEnv() error {
 	ServerEnv.ENVIRONMENT = environment
 	ServerEnv.ALLOWED_ORIGINS = strings.Split(allowedOrigins, ",")
 	ServerEnv.SERVER_KEY = serverKey
-	ServerEnv.SERVER_PORT = serverPort
+	ServerEnv.SERVER_PORT = "7007"
 	ServerEnv.BASE_URL = baseURL
 	ServerEnv.KAFKA_BROKERS = strings.Split(brokers, ",")
 

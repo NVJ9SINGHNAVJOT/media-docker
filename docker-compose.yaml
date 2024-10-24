@@ -49,7 +49,6 @@ services:
       - media-docker-files-data:/app/media_docker_files:ro
     networks:
       - media-docker-proxy
-    ports: [7007:7007] # Disable this in production
     env_file: .env.server
     depends_on:
       - media-docker-kafka-consumer

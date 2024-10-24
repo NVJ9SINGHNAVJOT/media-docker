@@ -122,37 +122,12 @@ class MediaDocker {
   };
 
   private _config = {
-    serverKey: "", // API key for authenticating to the media server
-    serverBaseUrl: "", // Base URL for the media server API
+    mediaDockerServerKey: "", // API key for authenticating to the media server
+    mediaDockerServerBaseURL: "", // Base URL for the media server API
   };
 
-  private kafka: Kafka; // Kafka instance for message handling
-  private consumer: Consumer; // Kafka consumer for processing messages
-
-  /**
-   * Initializes a Kafka instance with client ID, brokers, and retry settings,
-   * and creates a consumer with the specified group ID and session configurations.
-   * This ensures that the consumer can handle message processing within a 1-minute window.
-   * The default log level is set to WARN.
-   */
-  constructor() {
-    // Initialize Kafka instance with client ID and broker addresses
-    this.kafka = new Kafka({
-      clientId: "media-docker-response-client", // Unique identifier for this Kafka client
-      brokers: ["media-docker-kafka-0:9092", "media-docker-kafka-1:9092", "media-docker-kafka-2:9092"], // Kafka brokers to connect
-      retry: {
-        retries: 5, // Number of retries for connection failure
-      },
-      logLevel: logLevel.WARN, // Logging Kafka events
-    });
-
-    // Initialize Kafka consumer with specified group ID and heartbeat settings
-    this.consumer = this.kafka.consumer({
-      groupId: "media-docker-response-group", // Consumer group for coordinated consumption
-      heartbeatInterval: 3000, // Send heartbeats every 3 seconds to indicate alive status
-      sessionTimeout: 60000, // Session timeout of 60 seconds
-    });
-  }
+  private kafka!: Kafka; // Kafka instance for message handling
+  private consumer!: Consumer; // Kafka consumer for processing messages
 
   /**
    * Uploads the file to the specified storage API endpoint.
@@ -163,11 +138,11 @@ class MediaDocker {
    * @returns {Promise<Response>} - A promise that resolves to the server's response.
    */
   private async uploadToStorage(formData: FormData, api: "chunksStorage" | "fileStorage") {
-    return await fetch(this._config.serverBaseUrl + `/api/v1/uploads/${api}`, {
+    return await fetch(this._config.mediaDockerServerBaseURL + `/api/v1/uploads/${api}`, {
       method: "POST", // HTTP method for the upload
       body: formData as FormData, // Form data containing the file and other fields
       headers: {
-        Authorization: this._config.serverKey, // Authorization header with server key
+        Authorization: this._config.mediaDockerServerKey, // Authorization header with server key
       },
     });
   }
@@ -190,7 +165,7 @@ class MediaDocker {
     data?: any
   ): Promise<Result<T>> {
     // Check if the server key is set, ensuring a valid connection to the media-docker server.
-    if (this._config.serverKey === "") {
+    if (this._config.mediaDockerServerKey === "") {
       throw new Error("mediaDocker is not connected"); // Error if server key is missing.
     }
 
@@ -310,12 +285,12 @@ class MediaDocker {
     data.uuidFilename = uuidFilename; // Add the UUID filename to the data.
 
     // Send the final metadata (including the UUID filename) to the media-docker server.
-    const response = await fetch(this._config.serverBaseUrl + `/api/v1/uploads/${apiEndPoint}`, {
+    const response = await fetch(this._config.mediaDockerServerBaseURL + `/api/v1/uploads/${apiEndPoint}`, {
       method: "POST", // HTTP method for sending metadata.
       body: JSON.stringify(data), // Send the metadata as JSON.
       headers: {
         "Content-Type": "application/json", // Set content type to JSON.
-        Authorization: this._config.serverKey, // Include the server key in the headers.
+        Authorization: this._config.mediaDockerServerKey, // Include the server key in the headers.
       },
     });
 
@@ -328,63 +303,90 @@ class MediaDocker {
   }
 
   /**
-   * Connect to both the media server and Kafka broker with provided credentials.
-   * This function handles the connections to both services, ensuring that the
-   * media server is authenticated and the Kafka consumer is ready to receive messages.
-   * If either connection fails, an error is thrown.
+   * Establishes connections to both the media server and the Kafka broker.
+   * This function handles the authentication to the media server and sets up
+   * the Kafka consumer to process incoming messages from the specified topics.
    *
-   * Once Kafka is connected, the consumer will run in the background, continuously
-   * listening for incoming messages. If the connection to Kafka fails, it will retry
-   * up to 10 times before giving up.
+   * The connection to the media server is authenticated using the provided API key
+   * and base URL, while the Kafka consumer connects to the specified brokers and
+   * listens for messages within the defined consumer group.
    *
-   * The provided message handler function will be called for each
-   * incoming Kafka message, allowing for custom processing logic to be applied.
-   * This ensures that the application can react to messages as they arrive
-   * in real-time.
+   * Use `localhost` when running media Docker services locally (for development).
+   * When deploying in Docker or production, use the appropriate container or server URLs.
    *
-   * @param {string} serverKey - API key for the media server.
-   * @param {string} serverBaseURL - Base URL for the media server API.
+   * Upon successful connection to Kafka, the consumer will continuously listen
+   * for incoming messages. If any connection fails, an error is thrown and
+   * logged. If Kafka fails to connect, it retries up to 5 times before giving up.
+   *
+   * The provided message handler function will be invoked for each Kafka message
+   * received, enabling custom message processing logic to be executed in real-time.
+   *
+   * @param {string} mediaDockerServerKey - The API key required for authenticating
+   * with the media server.
+   * @param {"http://localhost:7007" | "http://media-docker-server:7007"} mediaDockerServerBaseURL -
+   * The base URL for the media server API. Use `localhost` for development and
+   * `media-docker-server` for Docker or production environments.
+   * @param {"localhost:9092" | "media-docker-kafka-0:9092,media-docker-kafka-1:9092,media-docker-kafka-2:9092"} kafkaBrokers -
+   * Comma-separated list of Kafka broker addresses. Use `localhost` for development
+   * and Docker container addresses for Docker or production environments.
    * @param {(message: MediaDockerMessage) => Promise<void>} messageHandler -
-   * Function to handle incoming Kafka messages. This function is called for each
-   * message received from the Kafka topic.
+   * Callback function to process each incoming Kafka message.
    *
-   * @returns {Promise<void>} - Resolves when both the media server and Kafka are
-   * successfully connected, or rejects if any connection fails.
+   * @returns {Promise<void>} - Resolves once both the media server and Kafka broker
+   * are connected, or rejects if a connection fails.
    */
   async connectMediaDockerAndKafka(
-    serverKey: string,
-    serverBaseURL: string,
+    mediaDockerServerKey: string,
+    mediaDockerServerBaseURL: "http://localhost:7007" | "http://media-docker-server:7007",
+    kafkaBrokers: "localhost:9092" | "media-docker-kafka-0:9092,media-docker-kafka-1:9092,media-docker-kafka-2:9092",
     messageHandler: (message: MediaDockerMessage) => Promise<void>
   ): Promise<void> {
+    // Initialize the Kafka instance with client ID and broker addresses
+    this.kafka = new Kafka({
+      clientId: "media-docker-response-client", // Unique client ID for Kafka
+      brokers: kafkaBrokers.split(","), // Connect to the specified Kafka brokers
+      retry: {
+        retries: 5, // Retry Kafka connection 5 times on failure
+      },
+      logLevel: logLevel.WARN, // Log Kafka events at WARN level
+    });
+
+    // Initialize the Kafka consumer with the specified group ID and heartbeat settings
+    this.consumer = this.kafka.consumer({
+      groupId: "media-docker-response-group", // Consumer group for coordinated message consumption
+      heartbeatInterval: 3000, // Heartbeat interval to maintain connection (3 seconds)
+      sessionTimeout: 60000, // Session timeout duration (60 seconds)
+    });
+
     // Connect to the media server using the provided API key and base URL
-    const response = await fetch(serverBaseURL + "/api/v1/connections/connect", {
+    const response = await fetch(mediaDockerServerBaseURL + "/api/v1/connections/connect", {
       method: "GET",
       headers: {
-        Authorization: serverKey, // Set the Authorization header with the serverKey
+        Authorization: mediaDockerServerKey, // Include the API key in the Authorization header
       },
     });
 
-    // Parse the response JSON from the media server
+    // Parse the response from the media server
     const resData = await response.json();
 
-    // Check if the response status is not 200 (success). If it fails, log and throw an error.
+    // Check if the server returned a success status code (200)
     if (response.status !== 200) {
-      this.log("ERROR", resData.message || "unknown"); // Log the error message (if any) from the server response
-      throw new Error("message" in resData ? resData.message : "unknown"); // Throw the error for further handling
+      this.log("ERROR", resData.message || "unknown"); // Log any error message returned by the server
+      throw new Error(resData.message || "unknown"); // Throw an error if connection fails
     }
 
-    // If successful, store the connection details (serverKey and serverBaseURL)
-    this._config.serverKey = serverKey;
-    this._config.serverBaseUrl = serverBaseURL;
-    this.log("INFO", "Connected to media server successfully."); // Log successful connection to the media server
+    // Store the media server connection details for future use
+    this._config.mediaDockerServerKey = mediaDockerServerKey;
+    this._config.mediaDockerServerBaseURL = mediaDockerServerBaseURL;
+    this.log("INFO", "Connected to media server successfully."); // Log successful media server connection
 
-    // Connect to Kafka and set up message handling for incoming messages
-    await this.consumer.connect(); // Attempt to connect to the Kafka broker
-    this.log("INFO", "Connected to Kafka successfully."); // Log successful connection to Kafka
+    // Connect the Kafka consumer to the Kafka brokers
+    await this.consumer.connect();
+    this.log("INFO", "Connected to Kafka successfully."); // Log successful Kafka connection
 
-    // Start handling messages from Kafka with the provided messageHandler function
+    // Start processing incoming Kafka messages using the provided message handler
     this.handleConsumer(messageHandler);
-    this.log("INFO", "Starting Kafka message consumption now."); // Log that message consumption has begun
+    this.log("INFO", "Kafka message consumption has started."); // Log the start of Kafka message consumption
   }
 
   /**
@@ -397,12 +399,8 @@ class MediaDocker {
    * or rejects if an error occurs during disconnection.
    */
   async disconnect(): Promise<void> {
-    try {
-      await this.consumer.disconnect(); // Disconnect the Kafka consumer
-      this.log("INFO", "Disconnected from Kafka successfully."); // Log successful disconnection
-    } catch (error) {
-      this.log("ERROR", `Error during Kafka disconnection: ${error}`); // Log any errors during disconnection
-    }
+    await this.consumer.disconnect(); // Disconnect the Kafka consumer
+    this.log("INFO", "Disconnected from Kafka successfully."); // Log successful disconnection
   }
 
   /**
@@ -551,15 +549,15 @@ class MediaDocker {
    * @returns {Promise<void>} - Resolves when deletion is successful
    */
   async deleteFile(id: string, type: "image" | "video" | "audio"): Promise<void> {
-    if (this._config.serverKey === "") {
+    if (this._config.mediaDockerServerKey === "") {
       throw new Error("mediaDocker is not connected"); // Ensure the server key is set
     }
 
-    const response = await fetch(this._config.serverBaseUrl + "/api/v1/destroys/deleteFile", {
+    const response = await fetch(this._config.mediaDockerServerBaseURL + "/api/v1/destroys/deleteFile", {
       method: "DELETE", // HTTP method for deletion
       body: JSON.stringify({ id: id, type: type }), // Body containing the file ID and type
       headers: {
-        Authorization: this._config.serverKey, // Authorization header with server key
+        Authorization: this._config.mediaDockerServerKey, // Authorization header with server key
         "Content-Type": "application/json", // Set content type to JSON
       },
     });
