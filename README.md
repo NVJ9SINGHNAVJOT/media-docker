@@ -69,10 +69,6 @@ By leveraging **Kafka** and **FFmpeg**, the project guarantees scalable, efficie
 
 - **FFmpeg** serves as the primary tool for converting video and audio files, segmenting videos into streamable parts, adjusting resolutions, and compressing images for storage.
 
-## Usage
-
-After setting up all components, upload media files through the server, which processes the uploads and sends messages to Kafka for various media tasks. Consumers will handle the intensive operations, while the client serves the processed files.
-
 ## Contributing
 
 Contributions to Media-Docker are always welcome! To submit feature requests, report bugs, or contribute to the project, please open an issue or submit a pull request. For guidelines on contributing and maintaining the project, refer to the [CODE_OF_CONDUCT.md](https://github.com/NVJ9SINGHNAVJOT/media-docker/blob/main/CODE_OF_CONDUCT.md) and [CONTRIBUTING.md](https://github.com/NVJ9SINGHNAVJOT/media-docker/blob/main/CONTRIBUTING.md) files.
@@ -132,12 +128,35 @@ The **Media-Docker** project, now in version 2, is a complete media processing s
 - You can execute the **_task_** command in the terminal to view all the available commands in the task file.
 
 ---
+## Usage
 
-## Examples
+After setting up all components, upload media files through the server, which processes the uploads and sends messages to Kafka for various media tasks. Consumers will handle the intensive operations, while the client serves the processed files.
 
 ### Network
-- Connection: Use the **media-docker-proxy** network to connect your backend server to the media-docker service.
-- In your backend service configuration, ensure to add the **media-docker-proxy** network under networks. The **media-docker-proxy** network is an internal network specifically for this project.
+
+- Docker Network Connection: When running your backend server inside Docker, use the media-docker-proxy network to connect it to the media-docker service. This ensures secure and internal communication between services.
+
+- Backend Service Configuration: In your backend service's Docker configuration, make sure to add the media-docker-proxy network under the networks section. This network is dedicated specifically to the media-docker service, facilitating communication between your backend and the media-docker services within Docker.
+
+- Local Development: If your backend service is running locally (outside of Docker), you can also run the media-docker services locally. In this case, use localhost in your media docker module configuration to connect to the services.
+
+### Configuration Parameters
+
+Set the following configuration parameters in the media docker module:
+
+- mediaDockerServerBaseURL:
+```ts
+"http://localhost:7007" | "http://media-docker-server:7007"
+```
+The base URL for the media server API. Use localhost for development and media-docker-server for Docker or production environments.
+
+- kafkaBrokers:
+```ts
+"localhost:9092" | "media-docker-kafka-0:9092,media-docker-kafka-1:9092,media-docker-kafka-2:9092"
+```
+Comma-separated list of Kafka broker addresses. Use localhost for development and Docker container addresses for Docker or production environments.
+
+## Examples
 
 ### Node.js Integration
 
@@ -152,20 +171,24 @@ import mediaDocker from "@/utils/mediaDocker";
 // First, connect to the media-docker-server
 async function connectToMediaDocker() {
   try {
-    // Establish a connection to the Media-Docker service and the Kafka broker.
-    // The connect function requires three parameters:
-    // 1. serverKey: A string representing the server key (e.g., "your_server_key").
-    // 2. mediaDockerURL: The URL for the Media-Docker server (e.g., "http://localhost:7007" or "https://your-media-docker-server.com").
-    // 3. messageHandler: A function that processes incoming Kafka messages.
+    // Establish a connection to both the Media-Docker server and the Kafka broker.
+    // The connect function requires four parameters:
+    // 1. serverKey: A string representing the API key for the media server (e.g., "your_server_key").
+    // 2. mediaDockerURL: The URL for the Media-Docker server.
+    //    Use "http://localhost:7007" for development or "http://media-docker-server:7007" when using Docker.
+    // 3. kafkaBrokers: The broker addresses for the Kafka cluster.
+    //    Use "localhost:9092" for local development or "media-docker-kafka-0:9092,media-docker-kafka-1:9092,media-docker-kafka-2:9092" for Docker.
+    // 4. messageHandler: A function to process incoming Kafka messages.
     //    This handler operates asynchronously in the background for each message received from the Kafka topic.
 
     await mediaDocker.connectMediaDockerAndKafka(
       "YOUR_SERVER_API_KEY",
-      "https://your.media.docker.server/api",
+      "http://localhost:7007", // Use "http://media-docker-server:7007" when in Docker
+      "localhost:9092", // Use "media-docker-kafka-0:9092,media-docker-kafka-1:9092,media-docker-kafka-2:9092" when in Docker
       async (message) => {
         // Handle incoming messages from Kafka
         console.log("Received message:", message);
-        // Received message:
+        // Received message example:
         // {
         //     id: "123e4567-e89b-12d3-a456-426614174000",
         //     fileType: "video",
