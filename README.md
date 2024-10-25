@@ -173,8 +173,8 @@ async function connectToMediaDocker() {
   try {
     // Establish a connection to both the Media-Docker server and the Kafka broker.
     // The connect function requires four parameters:
-    // 1. serverKey: A string representing the API key for the media server (e.g., "your_server_key").
-    // 2. mediaDockerURL: The URL for the Media-Docker server.
+    // 1. mediaDockerServerKey: A string representing the API key for the media server (e.g., "your_server_key").
+    // 2. mediaDockerServerBaseURL: The URL for the Media-Docker server.
     //    Use "http://localhost:7007" for development or "http://media-docker-server:7007" when using Docker.
     // 3. kafkaBrokers: The broker addresses for the Kafka cluster.
     //    Use "localhost:9092" for local development or "media-docker-kafka-0:9092,media-docker-kafka-1:9092,media-docker-kafka-2:9092" for Docker.
