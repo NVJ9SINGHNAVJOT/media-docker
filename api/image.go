@@ -13,7 +13,7 @@ import (
 )
 
 type imageRequest struct {
-	UuidFilename string `json:"uuidFilename" validate:"required"`
+	UuidFilename string `json:"uuidFilename" validate:"required,uuid4"`
 }
 
 // Image handles image file upload requests and sends processing messages to Kafka.

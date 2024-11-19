@@ -13,7 +13,7 @@ import (
 )
 
 type videoResolutionsRequest struct {
-	UuidFilename string `json:"uuidFilename" validate:"required"`
+	UuidFilename string `json:"uuidFilename" validate:"required,uuid4"`
 }
 
 // VideoResolutions handles video file upload requests and sends processing messages to Kafka for resolution conversion.

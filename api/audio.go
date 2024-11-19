@@ -13,7 +13,7 @@ import (
 )
 
 type audioRequest struct {
-	UuidFilename string  `json:"uuidFilename" validate:"required"`
+	UuidFilename string  `json:"uuidFilename" validate:"required,uuid4"`
 	Bitrate      *string `json:"bitrate" validate:"omitempty,oneof=128k 192k 256k 320k"` // Optional quality parameter
 }
 

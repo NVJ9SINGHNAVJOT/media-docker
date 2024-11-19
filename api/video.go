@@ -14,7 +14,7 @@ import (
 
 // videoRequest represents the structure of the request for video upload.
 type videoRequest struct {
-	UuidFilename string `json:"uuidFilename" validate:"required"`
+	UuidFilename string `json:"uuidFilename" validate:"required,uuid4"`
 	Quality      *int   `json:"quality" validate:"omitempty,min=40,max=100"` // Quality must be >= 40 and <= 100
 }
 
