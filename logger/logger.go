@@ -11,10 +11,10 @@ import (
 // LogErrorWithKafkaMessage logs a standard error message with detailed Kafka message metadata.
 //
 // Parameters:
-// - err: The error that occurred during message processing.
-// - workerName: The name of the worker processing the message.
-// - msg: The Kafka message being processed, which includes details like topic, partition, offset, etc.
-// - resMessage: A custom message that describes the error context or result.
+//   - err: The error that occurred during message processing.
+//   - workerName: The name of the worker processing the message.
+//   - msg: The Kafka message being processed, which includes details like topic, partition, offset, etc.
+//   - resMessage: A custom message that describes the error context or result.
 func LogErrorWithKafkaMessage(err error, workerName string, msg kafka.Message, resMessage string) {
 	log.Error().
 		Err(err).
@@ -34,8 +34,8 @@ func LogErrorWithKafkaMessage(err error, workerName string, msg kafka.Message, r
 // typically used when the topic of the Kafka message is unknown or unrecognized.
 //
 // Parameters:
-// - workerName: The name of the worker processing the message.
-// - msg: The Kafka message being processed, which includes details like topic, partition, offset, etc.
+//   - workerName: The name of the worker processing the message.
+//   - msg: The Kafka message being processed, which includes details like topic, partition, offset, etc.
 func LogUnknownTopic(workerName string, msg kafka.Message) {
 	log.Error().
 		Str("worker", workerName).
