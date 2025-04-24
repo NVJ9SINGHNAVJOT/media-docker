@@ -7,10 +7,10 @@ import (
 
 func UploadRoutes() func(router chi.Router) {
 	return func(router chi.Router) {
-		router.Post("/chunksStorage", api.ChunksStorage)
-		router.Post("/fileStorage", api.FileStorage)
+		router.Post("/chunks-storage", api.ChunksStorage)
+		router.Post("/file-storage", api.FileStorage)
 		router.Post("/video", api.Video)
-		router.Post("/videoResolutions", api.VideoResolutions)
+		router.Post("/video-resolutions", api.VideoResolutions)
 		router.Post("/image", api.Image)
 		router.Post("/audio", api.Audio)
 	}

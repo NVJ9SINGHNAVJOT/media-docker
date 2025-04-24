@@ -9,6 +9,6 @@ import (
 
 func DestroyRoutes() func(router chi.Router) {
 	return func(router chi.Router) {
-		router.Delete("/deleteFile", http.HandlerFunc(api.DeleteFile))
+		router.Delete("/delete-file", http.HandlerFunc(api.DeleteFile))
 	}
 }

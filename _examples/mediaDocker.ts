@@ -1,6 +1,6 @@
 /* eslint-disable no-unused-vars */
 /*
-  IMPORTANT: Please do not modify this file; copy and paste it as-is into your project.
+  IMPORTANT: Please do not modify this file, copy and paste it as-is into your project.
 
   This file contains the core logic for uploading files to the Media-Docker service.
   It handles the file upload process and manages the interaction with the Media-Docker API.
@@ -137,7 +137,7 @@ class MediaDocker {
    * @param {"chunksStorage" | "fileStorage"} api - The API endpoint to use for the file upload.
    * @returns {Promise<Response>} - A promise that resolves to the server's response.
    */
-  private async uploadToStorage(formData: FormData, api: "chunksStorage" | "fileStorage") {
+  private async uploadToStorage(formData: FormData, api: "chunks-storage" | "file-storage") {
     return await fetch(this._config.mediaDockerServerBaseURL + `/api/v1/uploads/${api}`, {
       method: "POST", // HTTP method for the upload
       body: formData as FormData, // Form data containing the file and other fields
@@ -194,9 +194,9 @@ class MediaDocker {
         throw new Error(`Invalid file type: ${fileType} is not allowed for video endpoint`);
       }
       fileType = "video";
-    } else if (apiEndPoint === "videoResolutions") {
+    } else if (apiEndPoint === "video-resolutions") {
       if (!this._validFiles.video.includes(fileType)) {
-        throw new Error(`Invalid file type: ${fileType} is not allowed for videoResolutions endpoint`);
+        throw new Error(`Invalid file type: ${fileType} is not allowed for video-resolutions endpoint`);
       }
       fileType = "video";
     } else {
@@ -216,7 +216,7 @@ class MediaDocker {
       const formData = new FormData();
       formData.append(fileType + "File", new Blob([content], { type: `${fileType}/${ext}` })); // Append file content to FormData.
       formData.append("type", fileType); // Append file type to FormData.
-      const response = await this.uploadToStorage(formData, "fileStorage"); // Send file to the file storage API.
+      const response = await this.uploadToStorage(formData, "file-storage"); // Send file to the file storage API.
       const resData = await response.json(); // Parse the server's JSON response.
 
       // Handle errors in the server response, if any.
@@ -254,8 +254,8 @@ class MediaDocker {
           }
         });
 
-        // Upload the current chunk to the chunksStorage API.
-        const response = await this.uploadToStorage(formData, "chunksStorage");
+        // Upload the current chunk to the chunks-storage API.
+        const response = await this.uploadToStorage(formData, "chunks-storage");
         const resData = await response.json();
 
         // Handle errors in the server response, if any.
@@ -517,7 +517,7 @@ class MediaDocker {
    * @returns {Promise<Result<VideoResolutions>>} - Result containing video resolutions upload response
    */
   async uploadVideoResolutions(filePath: string): Promise<Result<VideoResolutions>> {
-    const res = await this.uploadFileToMediaDockerServer<VideoResolutions>(filePath, "videoResolutions");
+    const res = await this.uploadFileToMediaDockerServer<VideoResolutions>(filePath, "video-resolutions");
     return res; // Return the response from the upload
   }
 
@@ -553,7 +553,7 @@ class MediaDocker {
       throw new Error("mediaDocker is not connected"); // Ensure the server key is set
     }
 
-    const response = await fetch(this._config.mediaDockerServerBaseURL + "/api/v1/destroys/deleteFile", {
+    const response = await fetch(this._config.mediaDockerServerBaseURL + "/api/v1/destroys/delete-file", {
       method: "DELETE", // HTTP method for deletion
       body: JSON.stringify({ id: id, type: type }), // Body containing the file ID and type
       headers: {
