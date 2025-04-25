@@ -3,9 +3,11 @@
    <p align="center">Streamline Your Media Management: On-Demand Streaming and Scalable Storage with Media-Docker</p>
 </p>
 
-# Media-Docker - Version 3
+# Media-Docker - Version 4 (Beta)
 
-**Media-Docker** is a media management service designed to handle video, audio, and image processing with the power of **FFmpeg** for conversion, storage, and on-demand streaming. This version introduces several new components, including a client, server, Kafka-based message queuing, and worker-based message consumption for media processing tasks. Additionally, a failed consumer service has been integrated to manage retries, enhancing the system's fault tolerance.
+**Version 4 (Beta)** introduces a refined microservices architecture, specifically tailored to handle each type of media file (video, audio, image) through dedicated services. Each consumer service now operates with a dedicated worker pool for a single media type, significantly improving load balancing and optimizing resource utilization.
+
+**Media-Docker** is a comprehensive media management platform designed for processing, converting, storing, and streaming media using FFmpeg. This release includes new system components such as a frontend client, backend server, Kafka-based message queuing system, and worker-based consumers for media processing tasks. Additionally, a fault-tolerant failed consumer service has been implemented to manage retries for failed jobs, increasing overall system reliability.
 
 ## Note
 
