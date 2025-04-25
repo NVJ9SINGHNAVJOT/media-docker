@@ -133,7 +133,10 @@ func mergeChunks(fileStatus fileStatus, uuidFilename string) error {
 
 		// Copy the contents of the chunk file to the final file.
 		_, err = io.Copy(finalFile, chunkFile)
-		chunkFile.Close() // Close the chunk file after copying.
+		closeErr := chunkFile.Close() // Close the chunk file after copying.
+		if closeErr != nil {
+			log.Warn().Err(closeErr).Msgf("Warning: Could not close uploaded chunk file: %s", chunkFilePath)
+		}
 		if err != nil {
 			return fmt.Errorf("error merging chunk %d: %w", i, err) // Return an error if merging fails.
 		}
@@ -184,6 +187,12 @@ func ChunksStorage(w http.ResponseWriter, r *http.Request) {
 		file.Close() // Close the file before returning.
 		return
 	}
+
+	// NOTE: `uuidFilename` is, for example, "9b9160d8-2914-4548-a4e8-94ec6a7fd85a.mp4",
+	// and it represents a folder within `helper.Constants.UploadStorage` for storing the chunks.
+	// This `uuidFilename` will later be used as the final name for the media file in the
+	// `helper.Constants.UploadStorage` folder, once all chunks are merged into a single file.
+	// For instance, the final name of the file will be: "9b9160d8-2914-4548-a4e8-94ec6a7fd85a.mp4".
 
 	// Extract the file extension and construct a unique filename for the chunk.
 	uuidFilename := fmt.Sprintf("%s.%s",
