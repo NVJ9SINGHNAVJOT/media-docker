@@ -1,5 +1,7 @@
 package helper
 
+import "slices"
+
 // FileConfig holds the configuration for a specific file category,
 // including the allowed MIME types and the maximum allowed size for uploads.
 type FileConfig struct {
@@ -35,13 +37,7 @@ func (c *constConfig) IsValidFileType(fileCategory, mimeType string) bool {
 	}
 
 	// Check if the provided MIME type is in the list of allowed types
-	for _, allowedType := range fileConfig.AllowedTypes {
-		if allowedType == mimeType {
-			return true // Valid MIME type found for the file category
-		}
-	}
-
-	return false // Valid file category, but the MIME type is not allowed
+	return slices.Contains(fileConfig.AllowedTypes, mimeType) // Valid file category, but the MIME type is not allowed
 }
 
 // NOTE: do not change these values, project will break
