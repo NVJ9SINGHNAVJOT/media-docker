@@ -10,6 +10,6 @@ import (
 // Connect handles incoming HTTP requests to establish a connection
 // Logs an informational message and sends a response with HTTP status 200
 func Connect(w http.ResponseWriter, r *http.Request) {
-	log.Info().Msg("connection established")                         // Log the successful connection establishment
-	helper.Response(w, http.StatusOK, "connection established", nil) // Send a successful response back to the client
+	log.Info().Msg("connection established")                                                        // Log the successful connection establishment
+	helper.SuccessResponse(w, helper.GetRequestID(r), http.StatusOK, "connection established", nil) // Send a successful response back to the client
 }

@@ -151,7 +151,7 @@ func ChunksStorage(w http.ResponseWriter, r *http.Request) {
 	fileConfig, fileStatus, err := checkForm(r)
 	if err != nil {
 		// Respond with a 400 Bad Request if file data is invalid.
-		helper.Response(w, http.StatusBadRequest, "invalid file data", err)
+		helper.ErrorResponse(w, helper.GetRequestID(r), http.StatusBadRequest, "invalid file data", err)
 		return
 	}
 
@@ -160,7 +160,7 @@ func ChunksStorage(w http.ResponseWriter, r *http.Request) {
 	// Parse multipart form data with a size limit defined by helper.Constants.MaxChunkSize.
 	if err := r.ParseMultipartForm(helper.Constants.MaxChunkSize); err != nil {
 		// Respond with a 400 Bad Request if parsing fails.
-		helper.Response(w, http.StatusBadRequest, "error parsing form data", err)
+		helper.ErrorResponse(w, helper.GetRequestID(r), http.StatusBadRequest, "error parsing form data", err)
 		return
 	}
 
@@ -168,14 +168,14 @@ func ChunksStorage(w http.ResponseWriter, r *http.Request) {
 	file, header, err := r.FormFile(fileName)
 	if err != nil {
 		// Respond with a 400 Bad Request if no file is present.
-		helper.Response(w, http.StatusBadRequest, "error reading file - no file present", err)
+		helper.ErrorResponse(w, helper.GetRequestID(r), http.StatusBadRequest, "error reading file - no file present", err)
 		return
 	}
 
 	// Validate the file type using a custom function.
 	if !helper.Constants.IsValidFileType(fileStatus.Type, header.Header.Get("Content-Type")) {
 		// Respond with a 415 Unsupported Media Type if the file type is invalid.
-		helper.Response(w, http.StatusUnsupportedMediaType, "unsupported "+fileName+" file type", nil)
+		helper.ErrorResponse(w, helper.GetRequestID(r), http.StatusUnsupportedMediaType, "unsupported "+fileName+" file type", nil)
 		file.Close() // Close the file before returning.
 		return
 	}
@@ -183,7 +183,7 @@ func ChunksStorage(w http.ResponseWriter, r *http.Request) {
 	// Check if the file size exceeds the allowed limit by helper.Constants.MaxChunkSize.
 	if header.Size > helper.Constants.MaxChunkSize {
 		// Respond with a 413 Request Entity Too Large if the file is too large.
-		helper.Response(w, http.StatusRequestEntityTooLarge, "file too large", nil)
+		helper.ErrorResponse(w, helper.GetRequestID(r), http.StatusRequestEntityTooLarge, "file too large", nil)
 		file.Close() // Close the file before returning.
 		return
 	}
@@ -206,7 +206,7 @@ func ChunksStorage(w http.ResponseWriter, r *http.Request) {
 		// Create a directory for the chunk files if the upload is starting.
 		if err := pkg.CreateDir(chunksDir); err != nil {
 			// Respond with a 500 Internal Server Error if directory creation fails.
-			helper.Response(w, http.StatusInternalServerError, "error while creating dir for chunks", err)
+			helper.ErrorResponse(w, helper.GetRequestID(r), http.StatusInternalServerError, "error while creating dir for chunks", err)
 			file.Close() // Close the uploaded file before returning.
 			return
 		}
@@ -222,7 +222,7 @@ func ChunksStorage(w http.ResponseWriter, r *http.Request) {
 		file.Close()
 		pkg.AddToDirDeleteChan(chunksDir)
 		// Respond with a 500 Internal Server Error if chunk file creation fails.
-		helper.Response(w, http.StatusInternalServerError, "error creating chunk file", err)
+		helper.ErrorResponse(w, helper.GetRequestID(r), http.StatusInternalServerError, "error creating chunk file", err)
 		return
 	}
 	// The file and output streams will be closed later after copying the file content.
@@ -235,7 +235,7 @@ func ChunksStorage(w http.ResponseWriter, r *http.Request) {
 		out.Close()
 		pkg.AddToDirDeleteChan(chunksDir)
 		// Respond with a 500 Internal Server Error if saving the chunk file fails.
-		helper.Response(w, http.StatusInternalServerError, "error saving chunk file", err)
+		helper.ErrorResponse(w, helper.GetRequestID(r), http.StatusInternalServerError, "error saving chunk file", err)
 		return
 	}
 
@@ -254,10 +254,10 @@ func ChunksStorage(w http.ResponseWriter, r *http.Request) {
 	// Respond based on the file upload status.
 	if fileStatus.Status == "start" {
 		// Respond with a 200 OK indicating the upload has started successfully.
-		helper.Response(w, http.StatusOK, "file chunk upload started successfully", map[string]string{"newChunkId": fileStatus.ChunkId})
+		helper.SuccessResponse(w, helper.GetRequestID(r), http.StatusOK, "file chunk upload started successfully", map[string]string{"newChunkId": fileStatus.ChunkId})
 	} else if fileStatus.Status == "uploading" {
 		// Respond with a 200 OK indicating the chunk has been uploaded successfully.
-		helper.Response(w, http.StatusOK, fmt.Sprintf("file chunk uploaded successfully chunkId: %s", fileStatus.ChunkId), nil)
+		helper.SuccessResponse(w, helper.GetRequestID(r), http.StatusOK, fmt.Sprintf("file chunk uploaded successfully chunkId: %s", fileStatus.ChunkId), nil)
 	} else {
 		// Remove all chunk files.
 		defer pkg.AddToDirDeleteChan(chunksDir)
@@ -265,22 +265,22 @@ func ChunksStorage(w http.ResponseWriter, r *http.Request) {
 		// Check total file size
 		totalSize, err := totalChunksSize(chunksDir)
 		if err != nil {
-			helper.Response(w, http.StatusInternalServerError, "error checking total chunks size", err)
+			helper.ErrorResponse(w, helper.GetRequestID(r), http.StatusInternalServerError, "error checking total chunks size", err)
 			return
 		}
 		if totalSize > fileConfig.MaxSize {
-			helper.Response(w, http.StatusBadRequest, "total chunks size is greater than valid max size", err)
+			helper.ErrorResponse(w, helper.GetRequestID(r), http.StatusBadRequest, "total chunks size is greater than valid max size", err)
 			return
 		}
 		// Merge all chunks into a final file once all chunks are uploaded.
 		err = mergeChunks(fileStatus, uuidFilename)
 		if err != nil {
 			// Respond with a 500 Internal Server Error if merging fails.
-			helper.Response(w, http.StatusInternalServerError, "error saving file", err)
+			helper.ErrorResponse(w, helper.GetRequestID(r), http.StatusInternalServerError, "error saving file", err)
 			return
 		}
 		// Respond with a 200 OK indicating that the chunk uploading has completed successfully.
-		helper.Response(w, http.StatusOK, fmt.Sprintf("file chunk uploading completed successfully chunkId: %s", fileStatus.ChunkId),
+		helper.SuccessResponse(w, helper.GetRequestID(r), http.StatusOK, fmt.Sprintf("file chunk uploading completed successfully chunkId: %s", fileStatus.ChunkId),
 			map[string]string{"uuidFilename": uuidFilename})
 	}
 }

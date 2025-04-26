@@ -27,7 +27,7 @@ func ServerKey(serverKey string) func(http.Handler) http.Handler {
 			// Check if the provided key matches the serverKey
 			if checkKey != serverKey {
 				// If the key does not match, respond with a 403 Forbidden status
-				helper.Response(w, http.StatusForbidden, "unauthorized access denied for server", nil)
+				helper.ErrorResponse(w, helper.GetRequestID(r), http.StatusForbidden, "unauthorized access denied for server", nil)
 				return
 			}
 			// If the key matches, proceed to the next handler

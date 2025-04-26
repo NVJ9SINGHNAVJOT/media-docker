@@ -16,7 +16,7 @@ func FileServer(r chi.Router, path string, root http.FileSystem) {
 	if strings.ContainsAny(path, "{}*") {
 		r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 			// Respond with a 400 Bad Request status if the path contains URL parameters.
-			helper.Response(w, 400, "fileServer does not permit any URL parameters.", nil)
+			helper.ErrorResponse(w, helper.GetRequestID(r), 400, "fileServer does not permit any URL parameters.", nil)
 		})
 		return
 	}

@@ -64,6 +64,7 @@ func main() {
 	// middlewares for this router
 	router.Use(middleware.AllowContentEncoding("deflate", "gzip"))
 	router.Use(middleware.AllowContentType("application/json", "multipart/form-data"))
+	router.Use(mw.LoggingRequest)
 
 	// all routes for server
 	router.Route("/api/v1/uploads", routes.UploadRoutes())
@@ -74,7 +75,7 @@ func main() {
 
 	// index handler
 	router.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		helper.Response(w, 200, "server running...", nil)
+		helper.SuccessResponse(w, helper.GetRequestID(r), 200, "server running...", nil)
 	})
 
 	// Setup the server with graceful shutdown

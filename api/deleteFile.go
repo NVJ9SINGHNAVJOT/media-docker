@@ -19,7 +19,7 @@ func DeleteFile(w http.ResponseWriter, r *http.Request) {
 
 	// Parse the JSON request and populate the DeleteFileRequest struct.
 	if err := helper.ValidateRequest(r, &req); err != nil {
-		helper.Response(w, http.StatusBadRequest, "invalid data", err)
+		helper.ErrorResponse(w, helper.GetRequestID(r), http.StatusBadRequest, "invalid data", err)
 		return
 	}
 
@@ -27,19 +27,19 @@ func DeleteFile(w http.ResponseWriter, r *http.Request) {
 
 	exist, err := pkg.DirOrFileExist(path)
 	if err != nil {
-		helper.Response(w, http.StatusBadRequest, "invalid file for deleting", err)
+		helper.ErrorResponse(w, helper.GetRequestID(r), http.StatusBadRequest, "invalid file for deleting", err)
 		return
 	}
 
 	if !exist {
-		helper.Response(w, http.StatusBadRequest, "file doesn't exist for deleting", nil)
+		helper.ErrorResponse(w, helper.GetRequestID(r), http.StatusBadRequest, "file doesn't exist for deleting", nil)
 		return
 	}
 
 	if err := kafkahandler.KafkaProducer.Produce("delete-file", req); err != nil {
-		helper.Response(w, http.StatusInternalServerError, "error deleting file", err)
+		helper.ErrorResponse(w, helper.GetRequestID(r), http.StatusInternalServerError, "error deleting file", err)
 		return
 	}
 
-	helper.Response(w, http.StatusOK, req.Id+" "+req.Type+" file deleted", nil)
+	helper.SuccessResponse(w, helper.GetRequestID(r), http.StatusOK, req.Id+" "+req.Type+" file deleted", nil)
 }

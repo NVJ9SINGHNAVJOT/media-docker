@@ -22,7 +22,7 @@ func Audio(w http.ResponseWriter, r *http.Request) {
 	var req audioRequest
 	// Parse the JSON request and populate the AudioRequest struct
 	if err := helper.ValidateRequest(r, &req); err != nil {
-		helper.Response(w, http.StatusBadRequest, "invalid data", err)
+		helper.ErrorResponse(w, helper.GetRequestID(r), http.StatusBadRequest, "invalid data", err)
 		return
 	}
 
@@ -31,12 +31,12 @@ func Audio(w http.ResponseWriter, r *http.Request) {
 	// Check if the file exists at the specified path
 	exist, err := pkg.DirOrFileExist(path)
 	if err != nil {
-		helper.Response(w, http.StatusBadRequest, "invalid uuidFilename", err)
+		helper.ErrorResponse(w, helper.GetRequestID(r), http.StatusBadRequest, "invalid uuidFilename", err)
 		return
 	}
 
 	if !exist {
-		helper.Response(w, http.StatusBadRequest, "file doesn't exist", nil)
+		helper.ErrorResponse(w, helper.GetRequestID(r), http.StatusBadRequest, "file doesn't exist", nil)
 		return
 	}
 
@@ -53,11 +53,11 @@ func Audio(w http.ResponseWriter, r *http.Request) {
 	// Pass the struct to the Kafka producer
 	if err := kafkahandler.KafkaProducer.Produce("audio", message); err != nil {
 		pkg.AddToFileDeleteChan(path) // Add to deletion channel on error
-		helper.Response(w, http.StatusInternalServerError, "error sending Kafka message", err)
+		helper.ErrorResponse(w, helper.GetRequestID(r), http.StatusInternalServerError, "error sending Kafka message", err)
 		return
 	}
 
 	// Respond with success, providing the audio URL
 	audioUrl := fmt.Sprintf("%s/%s", config.ServerEnv.BASE_URL, outputPath) // Construct the audio file URL
-	helper.Response(w, http.StatusCreated, "audio uploaded and processed successfully", map[string]any{"id": id, "fileUrl": audioUrl})
+	helper.SuccessResponse(w, helper.GetRequestID(r), http.StatusCreated, "audio uploaded and processed successfully", map[string]any{"id": id, "fileUrl": audioUrl})
 }

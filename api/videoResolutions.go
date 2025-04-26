@@ -21,7 +21,7 @@ func VideoResolutions(w http.ResponseWriter, r *http.Request) {
 	var req videoResolutionsRequest
 	// Parse the JSON request and populate the VideoResolutionsRequest struct
 	if err := helper.ValidateRequest(r, &req); err != nil {
-		helper.Response(w, http.StatusBadRequest, "invalid data", err)
+		helper.ErrorResponse(w, helper.GetRequestID(r), http.StatusBadRequest, "invalid data", err)
 		return
 	}
 
@@ -30,12 +30,12 @@ func VideoResolutions(w http.ResponseWriter, r *http.Request) {
 	// Check if the file exists at the specified path
 	exist, err := pkg.DirOrFileExist(path)
 	if err != nil {
-		helper.Response(w, http.StatusBadRequest, "invalid uuidFilename", err)
+		helper.ErrorResponse(w, helper.GetRequestID(r), http.StatusBadRequest, "invalid uuidFilename", err)
 		return
 	}
 
 	if !exist {
-		helper.Response(w, http.StatusBadRequest, "file doesn't exist", nil)
+		helper.ErrorResponse(w, helper.GetRequestID(r), http.StatusBadRequest, "file doesn't exist", nil)
 		return
 	}
 
@@ -50,12 +50,12 @@ func VideoResolutions(w http.ResponseWriter, r *http.Request) {
 	// Pass the struct to the Kafka producer
 	if err := kafkahandler.KafkaProducer.Produce("video-resolutions", message); err != nil {
 		pkg.AddToFileDeleteChan(path) // Add to deletion channel on error
-		helper.Response(w, http.StatusInternalServerError, "error sending Kafka message", err)
+		helper.ErrorResponse(w, helper.GetRequestID(r), http.StatusInternalServerError, "error sending Kafka message", err)
 		return
 	}
 
 	// Respond with success, providing URLs for different video resolutions
-	helper.Response(w, http.StatusCreated, "video uploaded successfully",
+	helper.SuccessResponse(w, helper.GetRequestID(r), http.StatusCreated, "video uploaded successfully",
 		map[string]any{
 			"id": id,
 			"fileUrls": map[string]string{

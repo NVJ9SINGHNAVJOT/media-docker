@@ -22,7 +22,7 @@ func FileStorage(w http.ResponseWriter, r *http.Request) {
 	_, exist := helper.Constants.Files[fileType]
 	if !exist {
 		// Respond with a 400 Bad Request if the file type is invalid.
-		helper.Response(w, http.StatusBadRequest, "invalid type in form data", nil)
+		helper.ErrorResponse(w, helper.GetRequestID(r), http.StatusBadRequest, "invalid type in form data", nil)
 		return
 	}
 
@@ -31,7 +31,7 @@ func FileStorage(w http.ResponseWriter, r *http.Request) {
 	// Parse the form data with a maximum allowed file size specified by helper.Constants.MaxChunkSize.
 	if err := r.ParseMultipartForm(helper.Constants.MaxChunkSize); err != nil {
 		// Respond with a 400 Bad Request if there's an error parsing the form data.
-		helper.Response(w, http.StatusBadRequest, "error parsing form data", err)
+		helper.ErrorResponse(w, helper.GetRequestID(r), http.StatusBadRequest, "error parsing form data", err)
 		return
 	}
 
@@ -39,14 +39,14 @@ func FileStorage(w http.ResponseWriter, r *http.Request) {
 	file, header, err := r.FormFile(fileName)
 	if err != nil {
 		// Respond with a 400 Bad Request if no file is present in the request.
-		helper.Response(w, http.StatusBadRequest, "error reading file - no file present", err)
+		helper.ErrorResponse(w, helper.GetRequestID(r), http.StatusBadRequest, "error reading file - no file present", err)
 		return
 	}
 
 	// Validate the file type using a custom validation function.
 	if !helper.Constants.IsValidFileType(fileType, header.Header.Get("Content-Type")) {
 		// Respond with a 415 Unsupported Media Type if the file type is invalid.
-		helper.Response(w, http.StatusUnsupportedMediaType, "unsupported "+fileName+" file type", nil)
+		helper.ErrorResponse(w, helper.GetRequestID(r), http.StatusUnsupportedMediaType, "unsupported "+fileName+" file type", nil)
 		file.Close() // Close the uploaded file before returning to free resources.
 		return
 	}
@@ -54,7 +54,7 @@ func FileStorage(w http.ResponseWriter, r *http.Request) {
 	// Check if the uploaded file size exceeds the maximum allowed size.
 	if header.Size > helper.Constants.MaxChunkSize {
 		// Respond with a 413 Request Entity Too Large if the file size exceeds the limit.
-		helper.Response(w, http.StatusRequestEntityTooLarge, "file too large", nil)
+		helper.ErrorResponse(w, helper.GetRequestID(r), http.StatusRequestEntityTooLarge, "file too large", nil)
 		file.Close() // Close the uploaded file before returning.
 		return
 	}
@@ -70,7 +70,7 @@ func FileStorage(w http.ResponseWriter, r *http.Request) {
 	out, err := os.Create(filePath)
 	if err != nil {
 		// Respond with a 500 Internal Server Error if there's an issue creating the file.
-		helper.Response(w, http.StatusInternalServerError, "error creating file", err)
+		helper.ErrorResponse(w, helper.GetRequestID(r), http.StatusInternalServerError, "error creating file", err)
 		file.Close() // Close the uploaded file before returning.
 		return
 	}
@@ -80,7 +80,7 @@ func FileStorage(w http.ResponseWriter, r *http.Request) {
 	_, err = io.Copy(out, file)
 	if err != nil {
 		// Respond with a 500 Internal Server Error if there's an issue saving the file.
-		helper.Response(w, http.StatusInternalServerError, "error saving file", err)
+		helper.ErrorResponse(w, helper.GetRequestID(r), http.StatusInternalServerError, "error saving file", err)
 		file.Close() // Close the uploaded file.
 		out.Close()  // Close the output file before returning.
 		return
@@ -95,5 +95,5 @@ func FileStorage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Respond with a 200 OK, indicating that the file was successfully uploaded.
-	helper.Response(w, http.StatusOK, "file uploaded successfully", map[string]string{"uuidFilename": uuidFilename})
+	helper.SuccessResponse(w, helper.GetRequestID(r), http.StatusOK, "file uploaded successfully", map[string]string{"uuidFilename": uuidFilename})
 }

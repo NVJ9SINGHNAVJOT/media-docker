@@ -54,7 +54,7 @@ func main() {
 
 	// Define the index handler that responds with a simple message indicating the server is running
 	router.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		helper.Response(w, 200, "server running...", nil)
+		helper.SuccessResponse(w, helper.GetRequestID(r), 200, "server running...", nil)
 	})
 
 	// Initialize the server port based on the client configuration
