@@ -9,6 +9,7 @@ import (
 	"github.com/nvj9singhnavjot/media-docker/logger"
 	"github.com/nvj9singhnavjot/media-docker/pkg"
 	"github.com/nvj9singhnavjot/media-docker/topics"
+	"github.com/nvj9singhnavjot/media-docker/validator"
 	"github.com/segmentio/kafka-go"
 )
 
@@ -17,7 +18,7 @@ func processVideoMessage(kafkaMsg []byte) (string, string, error) {
 	var videoMsg topics.VideoMessage
 
 	// Unmarshal and Validate the Kafka message into VideoMessage struct
-	errMsg, err := helper.UnmarshalAndValidate(kafkaMsg, &videoMsg)
+	errMsg, err := validator.UnmarshalAndValidate(kafkaMsg, &videoMsg)
 	if err != nil {
 		return "", errMsg + " VideoMessage", err
 	}
@@ -53,7 +54,7 @@ func processVideoResolutionsMessage(kafkaMsg []byte) (string, string, error) {
 	var videoResolutionsMsg topics.VideoResolutionsMessage
 
 	// Unmarshal and Validate the Kafka message into VideoResolutionsMessage struct
-	errMsg, err := helper.UnmarshalAndValidate(kafkaMsg, &videoResolutionsMsg)
+	errMsg, err := validator.UnmarshalAndValidate(kafkaMsg, &videoResolutionsMsg)
 	if err != nil {
 		return "", errMsg + " VideoResolutionsMessage", err
 	}
@@ -91,7 +92,7 @@ func processImageMessage(kafkaMsg []byte) (string, string, error) {
 	var imageMsg topics.ImageMessage
 
 	// Unmarshal and Validate the Kafka message into ImageMessage struct
-	errMsg, err := helper.UnmarshalAndValidate(kafkaMsg, &imageMsg)
+	errMsg, err := validator.UnmarshalAndValidate(kafkaMsg, &imageMsg)
 	if err != nil {
 		return "", errMsg + " ImageMessage", err
 	}
@@ -114,7 +115,7 @@ func processAudioMessage(kafkaMsg []byte) (string, string, error) {
 	var audioMsg topics.AudioMessage // Corrected type from ImageMessage to AudioMessage
 
 	// Unmarshal the Kafka message into AudioMessage struct
-	errMsg, err := helper.UnmarshalAndValidate(kafkaMsg, &audioMsg)
+	errMsg, err := validator.UnmarshalAndValidate(kafkaMsg, &audioMsg)
 	if err != nil {
 		return "", errMsg + " AudioMessage", err
 	}
@@ -142,7 +143,7 @@ func processDeleteFileMessage(msg kafka.Message, workerName string) {
 	var deleteFileMsg api.DeleteFileRequest
 
 	// Unmarshal and Validate the Kafka message into DeleteFileRequest struct to retrieve the delete request details
-	errMsg, err := helper.UnmarshalAndValidate(msg.Value, &deleteFileMsg)
+	errMsg, err := validator.UnmarshalAndValidate(msg.Value, &deleteFileMsg)
 	if err != nil {
 		// Log an error if unmarshalling fails, including message details for troubleshooting
 		logger.LogErrorWithKafkaMessage(err, workerName, msg, errMsg+" DeleteFileMessage")

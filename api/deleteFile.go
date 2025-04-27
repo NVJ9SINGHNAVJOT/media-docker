@@ -7,6 +7,7 @@ import (
 	"github.com/nvj9singhnavjot/media-docker/helper"
 	"github.com/nvj9singhnavjot/media-docker/kafkahandler"
 	"github.com/nvj9singhnavjot/media-docker/pkg"
+	"github.com/nvj9singhnavjot/media-docker/validator"
 )
 
 type DeleteFileRequest struct {
@@ -18,7 +19,7 @@ func DeleteFile(w http.ResponseWriter, r *http.Request) {
 	var req DeleteFileRequest
 
 	// Parse the JSON request and populate the DeleteFileRequest struct.
-	if err := helper.ValidateRequest(r, &req); err != nil {
+	if err := validator.ValidateRequest(r, &req); err != nil {
 		helper.ErrorResponse(w, helper.GetRequestID(r), http.StatusBadRequest, "invalid data", err)
 		return
 	}

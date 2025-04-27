@@ -12,6 +12,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/nvj9singhnavjot/media-docker/helper"
 	"github.com/nvj9singhnavjot/media-docker/pkg"
+	"github.com/nvj9singhnavjot/media-docker/validator"
 	"github.com/rs/zerolog/log"
 )
 
@@ -63,7 +64,7 @@ func checkForm(r *http.Request) (helper.FileConfig, fileStatus, error) {
 	case "uploading", "completed":
 		// Validate and retrieve the existing ChunkId from the form.
 		chunkId := r.FormValue("chunkId")
-		if err := helper.ValidateAndParseUUID(chunkId); err != nil {
+		if err := validator.ValidateAndParseUUID(chunkId); err != nil {
 			// Return an error if the ChunkId is invalid.
 			return helper.FileConfig{}, fileStatus{}, fmt.Errorf("invalid chunkId")
 		}

@@ -13,6 +13,7 @@ import (
 	"github.com/nvj9singhnavjot/media-docker/internal/media-docker-failed-consumer/process"
 	"github.com/nvj9singhnavjot/media-docker/kafkahandler"
 	"github.com/nvj9singhnavjot/media-docker/pkg"
+	"github.com/nvj9singhnavjot/media-docker/validator"
 	"github.com/rs/zerolog/log"
 )
 
@@ -44,7 +45,7 @@ func main() {
 	}
 
 	// Initialize validator
-	helper.InitializeValidator()
+	validator.InitializeValidator()
 
 	// Create a WaitGroup to track worker goroutines
 	var wg sync.WaitGroup

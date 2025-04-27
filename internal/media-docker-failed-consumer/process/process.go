@@ -2,10 +2,10 @@
 package process
 
 import (
-	"github.com/nvj9singhnavjot/media-docker/helper"
 	"github.com/nvj9singhnavjot/media-docker/kafkahandler"
 	"github.com/nvj9singhnavjot/media-docker/logger"
 	"github.com/nvj9singhnavjot/media-docker/topics"
+	"github.com/nvj9singhnavjot/media-docker/validator"
 	"github.com/rs/zerolog/log"
 	"github.com/segmentio/kafka-go"
 )
@@ -32,7 +32,7 @@ func ProcessMessage(msg kafka.Message, workerName string) {
 	var dlqMsg topics.DLQMessage
 
 	// Unmarshal and validate the message.
-	errmsg, err := helper.UnmarshalAndValidate(msg.Value, &dlqMsg)
+	errmsg, err := validator.UnmarshalAndValidate(msg.Value, &dlqMsg)
 
 	if err == nil {
 		// Handle the DLQ message if unmarshalling was successful.
@@ -41,7 +41,7 @@ func ProcessMessage(msg kafka.Message, workerName string) {
 	}
 
 	// Attempt to extract newId and originalTopic from the message on failure.
-	newId, originalTopic, extractErr := helper.ExtractNewIdAndOriginalTopic(msg.Value)
+	newId, originalTopic, extractErr := validator.ExtractNewIdAndOriginalTopic(msg.Value)
 	if extractErr == nil {
 		// Check if the original topic exists in the topicHandlers map.
 		handler, exists := topicHandlers[originalTopic]

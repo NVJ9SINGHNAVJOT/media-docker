@@ -10,6 +10,7 @@ import (
 	"github.com/nvj9singhnavjot/media-docker/kafkahandler"
 	"github.com/nvj9singhnavjot/media-docker/pkg"
 	"github.com/nvj9singhnavjot/media-docker/topics"
+	"github.com/nvj9singhnavjot/media-docker/validator"
 )
 
 type audioRequest struct {
@@ -21,7 +22,7 @@ type audioRequest struct {
 func Audio(w http.ResponseWriter, r *http.Request) {
 	var req audioRequest
 	// Parse the JSON request and populate the AudioRequest struct
-	if err := helper.ValidateRequest(r, &req); err != nil {
+	if err := validator.ValidateRequest(r, &req); err != nil {
 		helper.ErrorResponse(w, helper.GetRequestID(r), http.StatusBadRequest, "invalid data", err)
 		return
 	}

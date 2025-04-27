@@ -7,6 +7,7 @@ import (
 	"github.com/nvj9singhnavjot/media-docker/helper"
 	"github.com/nvj9singhnavjot/media-docker/pkg"
 	"github.com/nvj9singhnavjot/media-docker/topics"
+	"github.com/nvj9singhnavjot/media-docker/validator"
 	"github.com/rs/zerolog/log"
 )
 
@@ -17,7 +18,7 @@ func processVideoMessage(workerName string, dlqMsg topics.DLQMessage) (string, e
 	var videoMsg topics.VideoMessage
 
 	// Unmarshal and validate the Kafka message into the VideoMessage struct.
-	errMsg, err := helper.UnmarshalAndValidate([]byte(dlqMsg.Value), &videoMsg)
+	errMsg, err := validator.UnmarshalAndValidate([]byte(dlqMsg.Value), &videoMsg)
 	if err != nil {
 		return "", fmt.Errorf("error during message unmarshalling and validation: %s, %v", errMsg, err)
 	}
@@ -89,7 +90,7 @@ func processVideoResolutionsMessage(workerName string, dlqMsg topics.DLQMessage)
 	var videoResolutionsMsg topics.VideoResolutionsMessage
 
 	// Unmarshal and validate the Kafka message into the VideoResolutionsMessage struct.
-	errMsg, err := helper.UnmarshalAndValidate([]byte(dlqMsg.Value), &videoResolutionsMsg)
+	errMsg, err := validator.UnmarshalAndValidate([]byte(dlqMsg.Value), &videoResolutionsMsg)
 	if err != nil {
 		return "", fmt.Errorf("error during message unmarshalling and validation: %s, %v", errMsg, err)
 	}
@@ -161,7 +162,7 @@ func processImageMessage(workerName string, dlqMsg topics.DLQMessage) (string, e
 	var imageMsg topics.ImageMessage
 
 	// Unmarshal the Kafka message from the DLQ and validate it into the ImageMessage struct.
-	errMsg, err := helper.UnmarshalAndValidate([]byte(dlqMsg.Value), &imageMsg)
+	errMsg, err := validator.UnmarshalAndValidate([]byte(dlqMsg.Value), &imageMsg)
 	if err != nil {
 		return "", fmt.Errorf("error during message unmarshalling and validation: %s, %v", errMsg, err)
 	}
@@ -206,7 +207,7 @@ func processAudioMessage(workerName string, dlqMsg topics.DLQMessage) (string, e
 	var audioMsg topics.AudioMessage // Corrected type from ImageMessage to AudioMessage
 
 	// Unmarshal the Kafka message into the AudioMessage struct and validate its contents.
-	errMsg, err := helper.UnmarshalAndValidate([]byte(dlqMsg.Value), &audioMsg)
+	errMsg, err := validator.UnmarshalAndValidate([]byte(dlqMsg.Value), &audioMsg)
 	if err != nil {
 		return "", fmt.Errorf("error during message unmarshalling and validation: %s, %v", errMsg, err)
 	}

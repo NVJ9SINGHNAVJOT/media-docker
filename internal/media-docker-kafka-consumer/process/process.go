@@ -4,10 +4,10 @@ package process
 import (
 	"time"
 
-	"github.com/nvj9singhnavjot/media-docker/helper"
 	"github.com/nvj9singhnavjot/media-docker/kafkahandler"
 	"github.com/nvj9singhnavjot/media-docker/logger"
 	"github.com/nvj9singhnavjot/media-docker/topics"
+	"github.com/nvj9singhnavjot/media-docker/validator"
 	"github.com/rs/zerolog/log"
 	"github.com/segmentio/kafka-go"
 )
@@ -72,7 +72,7 @@ func handleErrorResponse(msg kafka.Message, workerName, fileType, newId, resMess
 	// If newId is empty, attempt to extract it from the message value.
 	// If still unable to retrieve the ID, log the error.
 	if newId == "" {
-		newId, err = helper.ExtractNewId(msg.Value)
+		newId, err = validator.ExtractNewId(msg.Value)
 		if err == nil {
 			dlqMessage.NewId = &newId
 		}

@@ -14,8 +14,24 @@ import (
 	mw "github.com/nvj9singhnavjot/media-docker/middleware"
 	"github.com/nvj9singhnavjot/media-docker/pkg"
 	"github.com/nvj9singhnavjot/media-docker/shutdown"
+	"github.com/nvj9singhnavjot/media-docker/validator"
 	"github.com/rs/zerolog/log"
 )
+
+// cleanUpForServer performs any final cleanup actions before shutdown
+func cleanUpForServer() {
+	log.Info().Msg("Starting cleanup.")
+	if err := kafkahandler.KafkaProducer.Close(); err != nil {
+		log.Error().Err(err).Msg("Error while closing producer for media-docker-server")
+	} else {
+		log.Info().Msg("Producer closed for media-docker-server.")
+	}
+
+	pkg.CloseDeleteChannels()
+	log.Info().Msg("Delete channels closed.")
+	time.Sleep(10 * time.Second)
+	log.Info().Msg("Cleanup completed.")
+}
 
 func main() {
 	// Load env file
@@ -48,8 +64,8 @@ func main() {
 	go pkg.DeleteFileWorker()
 	go pkg.DeleteDirWorker()
 
-	// initialize validator
-	helper.InitializeValidator()
+	// Initialize validator
+	validator.InitializeValidator()
 
 	// router intialized
 	router := chi.NewRouter()
@@ -70,10 +86,8 @@ func main() {
 	router.Route("/api/v1/uploads", routes.UploadRoutes())
 	router.Route("/api/v1/destroys", routes.DestroyRoutes())
 	router.Route("/api/v1/connections", routes.ConnectionRoutes())
-	// TODO: In progress
-	// router.Route("/api/v1/checks", routes.StatusRoutes())
 
-	// index handler
+	// Index handler
 	router.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		helper.SuccessResponse(w, helper.GetRequestID(r), 200, "server running...", nil)
 	})
@@ -97,19 +111,4 @@ func main() {
 
 	cleanUpForServer()
 	log.Info().Msg("media-docker-server stopped.")
-}
-
-// cleanUpForServer performs any final cleanup actions before shutdown
-func cleanUpForServer() {
-	log.Info().Msg("Starting cleanup.")
-	if err := kafkahandler.KafkaProducer.Close(); err != nil {
-		log.Error().Err(err).Msg("Error while closing producer for media-docker-server")
-	} else {
-		log.Info().Msg("Producer closed for media-docker-server.")
-	}
-
-	pkg.CloseDeleteChannels()
-	log.Info().Msg("Delete channels closed.")
-	time.Sleep(10 * time.Second)
-	log.Info().Msg("Cleanup completed.")
 }
