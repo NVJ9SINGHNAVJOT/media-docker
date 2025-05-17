@@ -85,18 +85,18 @@ Properly closing the media-docker-consumer and media-docker-failed services is c
 ## Code Comments
 The Media Docker project follows this format for code comments, each with a specific purpose:
 
-// TODO: Marks a task or feature that needs to be implemented in the future.
-
-// NOTE: Provides additional context or explanation about a specific part of the code.
+// CAUTION: Warns about potential risks or sensitive areas in the code.
 
 // FIXME: Highlights an issue in the code that needs to be fixed.
 
 // BUG: Indicates a known bug or defect that should be addressed.
 
-// INFO: Offers useful information or clarification about the current implementation.
+// HACK: Signifies a temporary or non-ideal solution that needs improvement later.
 
 // PERF: Marks a section of code that could be optimized for better performance.
 
-// HACK: Signifies a temporary or non-ideal solution that needs improvement later.
+// TODO: Marks a task or feature that needs to be implemented in the future.
 
-// CAUTION: Warns about potential risks or sensitive areas in the code.
+// NOTE: Provides additional context or explanation about a specific part of the code.
+
+// INFO: Offers useful information or clarification about the current implementation.
