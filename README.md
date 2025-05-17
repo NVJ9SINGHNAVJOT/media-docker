@@ -13,7 +13,7 @@
 
 - This project is created for developers, eliminating the hassle of using third-party services to store critical media files.
 - It **_can be deployed on a live server_** as **_all features_** all fully **_operational_**.
-- **When running single or multiple instances of consumer services, the total number of workers per service must not exceed the number of Kafka topic partitions.**
+- **Whether running one or multiple instances of a consumer service, the total number of workers must not exceed the number of Kafka topic partitions assigned to that service.**
 
 ## Acknowledgements
 
