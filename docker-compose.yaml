@@ -1,28 +1,5 @@
 version: '3.8'
 
-volumes:
-  # NOTE: Do not rename or change the volume names, this will cause breaking changes.
-  media-docker-files-data:
-    name: media-docker-files-data
-  media-docker-upload-data:
-    name: media-docker-upload-data
-  media-docker-kafka-0_data:
-    name: media-docker-kafka-0_data
-  media-docker-kafka-1_data:
-    name: media-docker-kafka-1_data
-  media-docker-kafka-2_data:
-    name: media-docker-kafka-2_data
-
-networks:
-  # NOTE: In production, use the nginx-proxy internal network for secure communication
-  # The proxy network is used to serve media files that are accessed by frontend projects
-  proxy:
-    external: true
-  # NOTE: The media-docker-proxy network is intended to be used with backend projects 
-  # to ensure proper network isolation and communication within the infrastructure
-  media-docker-proxy:
-    external: true
-
 services:
   media-docker-client:
     build:
@@ -173,3 +150,26 @@ services:
       - KAFKA_CFG_OFFSETS_TOPIC_REPLICATION_FACTOR=3
       - KAFKA_CFG_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=3
       - KAFKA_CFG_TRANSACTION_STATE_LOG_MIN_ISR=2
+
+volumes:
+  # NOTE: Do not rename or change the volume names, this will cause breaking changes.
+  media-docker-files-data:
+    name: media-docker-files-data
+  media-docker-upload-data:
+    name: media-docker-upload-data
+  media-docker-kafka-0_data:
+    name: media-docker-kafka-0_data
+  media-docker-kafka-1_data:
+    name: media-docker-kafka-1_data
+  media-docker-kafka-2_data:
+    name: media-docker-kafka-2_data
+
+networks:
+  # NOTE: In production, use the nginx-proxy internal network for secure communication
+  # The proxy network is used to serve media files that are accessed by frontend projects
+  proxy:
+    external: true
+  # NOTE: The media-docker-proxy network is intended to be used with backend projects 
+  # to ensure proper network isolation and communication within the infrastructure
+  media-docker-proxy:
+    external: true
