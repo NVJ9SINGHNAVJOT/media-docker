@@ -159,11 +159,12 @@ func processDeleteFileMessage(msg kafka.Message, workerName string) {
 	*/
 
 	// Determine the media type and call the appropriate deletion function
-	if deleteFileMsg.Type == "image" {
+	switch deleteFileMsg.Type {
+	case "image":
 		err = os.Remove(path + ".jpeg") // Delete the image file with a .jpeg extension
-	} else if deleteFileMsg.Type == "audio" {
+	case "audio":
 		err = os.Remove(path + ".mp3") // Delete the audio file with a .mp3 extension
-	} else {
+	default:
 		err = os.RemoveAll(path) // Delete the directory for other types
 	}
 
