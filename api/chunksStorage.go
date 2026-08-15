@@ -7,29 +7,32 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
-	"strings"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/nvj9singhnavjot/media-docker/helper"
 	"github.com/nvj9singhnavjot/media-docker/pkg"
+	"github.com/nvj9singhnavjot/media-docker/pkg/asset"
 	"github.com/nvj9singhnavjot/media-docker/validator"
 	"github.com/rs/zerolog/log"
 )
 
-// fileStatus holds metadata about the file being uploaded, including its type, status, chunk number, and unique chunk identifier.
+// fileStatus holds metadata about the file being uploaded, including its type, status, chunk number, and asset id.
 type fileStatus struct {
-	Type    string `json:"type"`    // The type of the file (e.g., "image", "video").
-	Status  string `json:"status"`  // The current status of the file upload (e.g., "start", "uploading", "completed").
-	Chunk   int64  `json:"chunk"`   // The current chunk number being processed.
-	ChunkId string `json:"chunkId"` // A unique identifier for the chunk, used for tracking uploads.
+	Type     string // The storage category of the file (e.g. "image", "video", "document").
+	Status   string // The current status of the file upload ("start", "uploading", "completed").
+	Chunk    int64  // The current chunk number being processed.
+	ID       string // The asset id; also the directory the finished asset lives in.
+	FileName string // The original file name supplied by the client, used to derive the extension.
 }
 
 // checkForm validates the form data from the HTTP request and returns the file configuration, file status, and any error encountered.
 func checkForm(r *http.Request) (helper.FileConfig, fileStatus, error) {
 	// Initialize a fileStatus struct with the type and status from the form values.
 	checkFileStatus := fileStatus{
-		Type:   r.FormValue("type"),   // Retrieve the file type from the form data.
-		Status: r.FormValue("status"), // Retrieve the file status from the form data.
+		Type:     r.FormValue("type"),     // Retrieve the storage category from the form data.
+		Status:   r.FormValue("status"),   // Retrieve the file status from the form data.
+		FileName: r.FormValue("fileName"), // Original file name; optional, used only to derive the extension.
 	}
 
 	// Check if the file type exists in the helper's constants.
@@ -55,22 +58,25 @@ func checkForm(r *http.Request) (helper.FileConfig, fileStatus, error) {
 	// Set the validated chunk number in the fileStatus struct.
 	checkFileStatus.Chunk = intFileChunk
 
-	// ChunkId generation/validation based on the current status.
+	// Asset id generation/validation based on the current status.
 	switch checkFileStatus.Status {
 	case "start":
-		// Generate a new ChunkId when the upload starts.
-		// This ensures the uploaded file is saved with a unique name to prevent overwriting.
-		checkFileStatus.ChunkId = uuid.New().String()
+		// Mint the asset id when the upload starts.
+		//
+		// NOTE: Since v4 this is the final media id, not a throwaway upload
+		// handle. The dispatch endpoints reuse it, so an asset has exactly one
+		// identifier from its first chunk to the URL it is served under.
+		checkFileStatus.ID = uuid.New().String()
 	case "uploading", "completed":
-		// Validate and retrieve the existing ChunkId from the form.
-		chunkId := r.FormValue("chunkId")
-		if err := validator.ValidateAndParseUUID(chunkId); err != nil {
-			// Return an error if the ChunkId is invalid.
-			return helper.FileConfig{}, fileStatus{}, fmt.Errorf("invalid chunkId")
+		// Validate and retrieve the existing asset id from the form.
+		id := r.FormValue("id")
+		if err := validator.ValidateAndParseUUID(id); err != nil {
+			// Return an error if the id is invalid.
+			return helper.FileConfig{}, fileStatus{}, fmt.Errorf("invalid id")
 		}
-		checkFileStatus.ChunkId = chunkId
+		checkFileStatus.ID = id
 
-		// Check if the chunk size exceeds the maximum allowed size.
+		// Check if the chunk count exceeds what the maximum file size allows.
 		if checkFileStatus.Chunk > (fileConfig.MaxSize / 2) {
 			return helper.FileConfig{}, fileStatus{}, fmt.Errorf("chunk size exceeded")
 		}
@@ -106,25 +112,27 @@ func totalChunksSize(directory string) (int64, error) {
 	return totalSize, nil // Return the total size of chunks.
 }
 
-// mergeChunks combines all uploaded file chunks into a single final file.
-// It takes a fileStatus structure, the unique filename for the final file,
-// the original file name, and its extension as parameters.
-func mergeChunks(fileStatus fileStatus, uuidFilename string) error {
-	// Construct the path for the final file where all chunks will be merged.
-	finalFilePath := filepath.Join(helper.Constants.UploadStorage, uuidFilename)
-
+// mergeChunks combines all uploaded chunks into the asset's raw file.
+//
+// The merge writes straight to its final destination inside media storage
+// rather than to a staging file that would then need copying across. Assembling
+// the file is one full pass over the data either way, so spending that pass on
+// the final location avoids a second full copy of every upload.
+func mergeChunks(status fileStatus, finalFilePath string) error {
 	// Create or open the final file for writing; if it doesn't exist, it will be created.
-	finalFile, err := os.OpenFile(finalFilePath, os.O_CREATE|os.O_WRONLY, 0644)
+	finalFile, err := os.OpenFile(finalFilePath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0644)
 	if err != nil {
 		return fmt.Errorf("error creating final file: %w", err) // Return an error if final file creation fails.
 	}
 	defer finalFile.Close() // Ensure the final file is closed when the function returns.
 
-	intFilesChunk := int(fileStatus.Chunk) // Convert Chunk from int64 to int for iteration.
+	chunksDir := asset.StagingDir(status.Type, status.ID)
+
+	intFilesChunk := int(status.Chunk) // Convert Chunk from int64 to int for iteration.
 	// Iterate through all chunks based on the total number of chunks indicated in fileStatus.
 	for i := 0; i <= intFilesChunk; i++ {
 		// Construct the path for each individual chunk file.
-		chunkFilePath := filepath.Join(helper.Constants.UploadStorage, fileStatus.Type+"s", uuidFilename, fmt.Sprintf("chunk_%d", i))
+		chunkFilePath := filepath.Join(chunksDir, fmt.Sprintf("chunk_%d", i))
 
 		// Open the chunk file for reading.
 		chunkFile, err := os.Open(chunkFilePath)
@@ -149,14 +157,14 @@ func mergeChunks(fileStatus fileStatus, uuidFilename string) error {
 // and manages chunked file uploads by saving chunks to disk.
 func ChunksStorage(w http.ResponseWriter, r *http.Request) {
 	// Validate form data and retrieve file configuration and status.
-	fileConfig, fileStatus, err := checkForm(r)
+	fileConfig, status, err := checkForm(r)
 	if err != nil {
 		// Respond with a 400 Bad Request if file data is invalid.
 		helper.ErrorResponse(w, helper.GetRequestID(r), http.StatusBadRequest, "invalid file data", err)
 		return
 	}
 
-	fileName := fileStatus.Type + "File" // Determine the file name based on the file type.
+	fileName := status.Type + "File" // Determine the form field name based on the file type.
 
 	// Parse multipart form data with a size limit defined by helper.Constants.MaxChunkSize.
 	if err := r.ParseMultipartForm(helper.Constants.MaxChunkSize); err != nil {
@@ -173,8 +181,10 @@ func ChunksStorage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	contentType := header.Header.Get("Content-Type")
+
 	// Validate the file type using a custom function.
-	if !helper.Constants.IsValidFileType(fileStatus.Type, header.Header.Get("Content-Type")) {
+	if !helper.Constants.IsValidFileType(status.Type, contentType) {
 		// Respond with a 415 Unsupported Media Type if the file type is invalid.
 		helper.ErrorResponse(w, helper.GetRequestID(r), http.StatusUnsupportedMediaType, "unsupported "+fileName+" file type", nil)
 		file.Close() // Close the file before returning.
@@ -189,21 +199,12 @@ func ChunksStorage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// NOTE: `uuidFilename` is, for example, "9b9160d8-2914-4548-a4e8-94ec6a7fd85a.mp4",
-	// and it represents a folder within `helper.Constants.UploadStorage` for storing the chunks.
-	// This `uuidFilename` will later be used as the final name for the media file in the
-	// `helper.Constants.UploadStorage` folder, once all chunks are merged into a single file.
-	// For instance, the final name of the file will be: "9b9160d8-2914-4548-a4e8-94ec6a7fd85a.mp4".
-
-	// Extract the file extension and construct a unique filename for the chunk.
-	uuidFilename := fmt.Sprintf("%s.%s",
-		fileStatus.ChunkId,
-		strings.Split(header.Header.Get("Content-Type"), "/")[1],
-	)
-	chunksDir := helper.Constants.UploadStorage + "/" + fileStatus.Type + "s" + "/" + uuidFilename
+	// Chunks are staged in a private directory on the upload storage volume,
+	// keyed by the asset id. Only the merged result reaches media storage.
+	chunksDir := asset.StagingDir(status.Type, status.ID)
 
 	// Determine the chunk file path based on the upload status.
-	if fileStatus.Status == "start" {
+	if status.Status == "start" {
 		// Create a directory for the chunk files if the upload is starting.
 		if err := pkg.CreateDir(chunksDir); err != nil {
 			// Respond with a 500 Internal Server Error if directory creation fails.
@@ -214,7 +215,7 @@ func ChunksStorage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Save chunk file path based on the upload status and chunk number.
-	chunkFilepath := filepath.Join(chunksDir, fmt.Sprintf("chunk_%d", fileStatus.Chunk))
+	chunkFilepath := filepath.Join(chunksDir, fmt.Sprintf("chunk_%d", status.Chunk))
 
 	// Create a new file on disk for the chunk.
 	out, err := os.Create(chunkFilepath)
@@ -253,14 +254,17 @@ func ChunksStorage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Respond based on the file upload status.
-	if fileStatus.Status == "start" {
+	switch status.Status {
+	case "start":
 		// Respond with a 200 OK indicating the upload has started successfully.
-		helper.SuccessResponse(w, helper.GetRequestID(r), http.StatusOK, "file chunk upload started successfully", map[string]string{"newChunkId": fileStatus.ChunkId})
-	} else if fileStatus.Status == "uploading" {
+		helper.SuccessResponse(w, helper.GetRequestID(r), http.StatusOK, "file chunk upload started successfully", map[string]string{"id": status.ID})
+
+	case "uploading":
 		// Respond with a 200 OK indicating the chunk has been uploaded successfully.
-		helper.SuccessResponse(w, helper.GetRequestID(r), http.StatusOK, fmt.Sprintf("file chunk uploaded successfully chunkId: %s", fileStatus.ChunkId), nil)
-	} else {
-		// Remove all chunk files.
+		helper.SuccessResponse(w, helper.GetRequestID(r), http.StatusOK, fmt.Sprintf("file chunk uploaded successfully id: %s", status.ID), nil)
+
+	default:
+		// Remove all chunk files once the upload is finished, whatever the outcome.
 		defer pkg.AddToDirDeleteChan(chunksDir)
 
 		// Check total file size
@@ -270,18 +274,57 @@ func ChunksStorage(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if totalSize > fileConfig.MaxSize {
-			helper.ErrorResponse(w, helper.GetRequestID(r), http.StatusBadRequest, "total chunks size is greater than valid max size", err)
+			helper.ErrorResponse(w, helper.GetRequestID(r), http.StatusBadRequest, "total chunks size is greater than valid max size", nil)
 			return
 		}
-		// Merge all chunks into a final file once all chunks are uploaded.
-		err = mergeChunks(fileStatus, uuidFilename)
-		if err != nil {
-			// Respond with a 500 Internal Server Error if merging fails.
+
+		// Merge all chunks into the asset's raw file and record its metadata.
+		if err := finalizeUpload(status, contentType, func(finalPath string) error {
+			return mergeChunks(status, finalPath)
+		}); err != nil {
 			helper.ErrorResponse(w, helper.GetRequestID(r), http.StatusInternalServerError, "error saving file", err)
 			return
 		}
+
 		// Respond with a 200 OK indicating that the chunk uploading has completed successfully.
-		helper.SuccessResponse(w, helper.GetRequestID(r), http.StatusOK, fmt.Sprintf("file chunk uploading completed successfully chunkId: %s", fileStatus.ChunkId),
-			map[string]string{"uuidFilename": uuidFilename})
+		helper.SuccessResponse(w, helper.GetRequestID(r), http.StatusOK, fmt.Sprintf("file chunk uploading completed successfully id: %s", status.ID),
+			map[string]string{"id": status.ID})
 	}
+}
+
+// finalizeUpload creates the asset directory, writes the raw file through the
+// supplied write function, and records the asset's metadata.
+//
+// From the moment this returns the asset is publicly resolvable: the raw upload
+// is already in media storage and can be served while conversion is pending. It
+// is written with dispatched=false, so an upload the caller never hands off is
+// reaped by the janitor rather than lingering forever.
+func finalizeUpload(status fileStatus, contentType string, write func(finalPath string) error) error {
+	ext := helper.Constants.SanitizeExt(status.Type, status.FileName, contentType)
+	assetDir := asset.Dir(status.Type, status.ID)
+
+	if err := pkg.CreateDir(assetDir); err != nil {
+		return fmt.Errorf("error creating asset directory: %w", err)
+	}
+
+	if err := write(asset.OriginalPath(status.Type, status.ID, ext)); err != nil {
+		// Do not leave a half-written asset behind; it would resolve to a
+		// truncated file.
+		pkg.AddToDirDeleteChan(assetDir)
+		return err
+	}
+
+	if err := asset.WriteMeta(asset.Meta{
+		ID:           status.ID,
+		Type:         status.Type,
+		Ext:          ext,
+		OriginalName: status.FileName,
+		Dispatched:   false,
+		CreatedAt:    time.Now(),
+	}); err != nil {
+		pkg.AddToDirDeleteChan(assetDir)
+		return err
+	}
+
+	return nil
 }

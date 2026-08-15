@@ -20,10 +20,18 @@ tasks:
   build:
     desc: Compile the project and place the binaries in the "dist" directory. These binaries can be executed using `./dist/**binary-file**`.
     cmds:
-      - cd cmd/media-docker-server && go build -o ../../dist/server-main main.go
-      - cd cmd/media-docker-client && go build -o ../../dist/client-main main.go
-      - cd cmd/media-docker-kafka-consumer && go build -o ../../dist/kafka-consumer-main main.go
-      - cd cmd/media-docker-failed-consumer && go build -o ../../dist/failed-consumer-main main.go
+      - go build -o dist/server-main ./cmd/media-docker-server
+      - go build -o dist/client-main ./cmd/media-docker-client
+      - go build -o dist/video-consumer-main ./cmd/media-docker-video-consumer
+      - go build -o dist/video-resolutions-consumer-main ./cmd/media-docker-video-resolutions-consumer
+      - go build -o dist/audio-consumer-main ./cmd/media-docker-audio-consumer
+      - go build -o dist/image-consumer-main ./cmd/media-docker-image-consumer
+      - go build -o dist/delete-consumer-main ./cmd/media-docker-delete-consumer
+      - go build -o dist/failed-consumer-main ./cmd/media-docker-failed-consumer
+
+  test:
+    desc: Run the test suite.
+    cmd: go test ./...
 
   proxy:
     desc: Set up a proxy network for Docker.
@@ -64,19 +72,36 @@ tasks:
     desc: Execute the `main.go` file for the server located in the `cmd` folder.
     cmd: go run cmd/media-docker-server/main.go
 
-  consumer:
-    desc: Execute the `main.go` file for the Kafka consumer located in the `cmd` folder.
-    cmd: go run cmd/media-docker-kafka-consumer/main.go
+  video:
+    desc: Run the video consumer (topic "video").
+    cmd: go run ./cmd/media-docker-video-consumer
+
+  video-resolutions:
+    desc: Run the video resolutions consumer (topic "video-resolutions").
+    cmd: go run ./cmd/media-docker-video-resolutions-consumer
+
+  audio:
+    desc: Run the audio consumer (topic "audio").
+    cmd: go run ./cmd/media-docker-audio-consumer
+
+  image:
+    desc: Run the image consumer (topic "image").
+    cmd: go run ./cmd/media-docker-image-consumer
+
+  delete:
+    desc: Run the delete consumer (topic "delete-file").
+    cmd: go run ./cmd/media-docker-delete-consumer
 
   failed:
-    desc: Execute the `main.go` file for the Failed consumer located in the `cmd` folder.
-    cmd: go run cmd/media-docker-failed-consumer/main.go
+    desc: Run the failed consumer (topic "failed-letter-queue").
+    cmd: go run ./cmd/media-docker-failed-consumer
 
   k-cluster:
     desc: Display information about the Kafka broker cluster.
     cmds:
-      - docker exec media-docker-kafka-0 kafka-metadata-quorum.sh --bootstrap-server media-docker-kafka-0:9092 describe --status
-      - docker exec media-docker-kafka-0 kafka-metadata-quorum.sh --bootstrap-server media-docker-kafka-0:9092 describe --replication
+      - docker exec media-docker-kafka-0 /opt/kafka/bin/kafka-metadata-quorum.sh --bootstrap-server media-docker-kafka-0:9092 describe --status
+      - docker exec media-docker-kafka-0 /opt/kafka/bin/kafka-metadata-quorum.sh --bootstrap-server media-docker-kafka-0:9092 describe --replication
+      - docker exec media-docker-kafka-0 /opt/kafka/bin/kafka-topics.sh --bootstrap-server media-docker-kafka-0:9092 --describe
 
   kafka-topics:
     desc: Create Kafka topics for the production cluster (you can modify partition settings in the kafka_config.sh file).
@@ -104,7 +129,7 @@ tasks:
       - task: kafka-cluster # Launch Kafka brokers in order
       - sleep 10 # Wait 10 seconds for brokers to fully initialize
       - task: kafka-topics # Create Kafka topics once brokers are running
-      - docker compose up -d media-docker-server # Automatically starts the consumers and Kafka services as per dependencies
+      - docker compose up -d media-docker-server # Automatically starts all consumers and Kafka services as per dependencies
       - docker compose up -d media-docker-client # Launch the client as the final step
 
   compose-down:

@@ -12,12 +12,6 @@ type newIdMessage struct {
 	NewId string `json:"newId"` // The unique identifier in the JSON message
 }
 
-// newIdAndOriginalTopicsMessage represents the structure for extracting both 'NewId' and 'OriginalTopic' fields from JSON data.
-type newIdAndOriginalTopicsMessage struct {
-	NewId         string `json:"newId"`         // The unique identifier in the JSON message
-	OriginalTopic string `json:"originalTopic"` // The topic from which the message originated
-}
-
 // ValidateAndParseUUID checks if the provided string is a valid UUID of version 4.
 // It returns an error if the UUID is invalid or not version 4.
 func ValidateAndParseUUID(idStr string) error {
@@ -58,29 +52,4 @@ func ExtractNewId(value []byte) (string, error) {
 	}
 
 	return newIdMsg.NewId, nil // Return the valid NewId
-}
-
-// ExtractNewIdAndOriginalTopic retrieves 'NewId' and 'OriginalTopic' fields from a JSON byte slice.
-// It validates that the NewId is a UUID v4 and returns both values, or an error if validation fails.
-func ExtractNewIdAndOriginalTopic(value []byte) (string, string, error) {
-	var newIdMsg newIdAndOriginalTopicsMessage // Struct to hold NewId and OriginalTopic
-
-	// Unmarshal the JSON data into the struct
-	err := json.Unmarshal(value, &newIdMsg)
-	if err != nil {
-		return "", "", fmt.Errorf("failed to parse JSON: %w", err) // Error if JSON parsing fails
-	}
-
-	// Validate the NewId field
-	err = ValidateAndParseUUID(newIdMsg.NewId)
-	if err != nil {
-		return "", "", err // Return validation error
-	}
-
-	// Ensure OriginalTopic is not empty
-	if newIdMsg.OriginalTopic == "" {
-		return "", "", fmt.Errorf("original topic not found") // Error if OriginalTopic is missing
-	}
-
-	return newIdMsg.NewId, newIdMsg.OriginalTopic, nil // Return both the NewId and OriginalTopic
 }

@@ -1,21 +1,29 @@
+# Runtime image for services that run ffmpeg: the four media consumers and the
+# failed consumer.
+#
+# The service to build is selected by the SERVICE build argument, so all of them
+# share one definition instead of drifting apart across five near-identical files.
+#
+#   docker build --build-arg SERVICE=media-docker-video-consumer -f internal/Dockerfile.ffmpeg .
+
 # Build Stage
 FROM golang:1.22-alpine AS builder
 
+ARG SERVICE
 WORKDIR /app
 
 # Pre-copy go.mod and go.sum to leverage Docker caching
-# This helps in downloading dependencies only when these files change, 
+# This helps in downloading dependencies only when these files change,
 # speeding up subsequent builds
 COPY go.mod go.sum ./
 RUN go mod download && go mod verify
 
 # Copy the entire application source code into the working directory
-# This includes the task script and any other necessary files
 COPY . .
 
-# Build the Go application
-# Change directory to the location of the main.go file and build the binary
-RUN cd cmd/media-docker-failed-consumer && go build -o ../../dist/main main.go
+# Build the selected service's binary
+RUN test -n "$SERVICE" || (echo "SERVICE build argument is required" && exit 1) \
+    && go build -o /app/dist/main ./cmd/${SERVICE}
 
 # Runner Stage
 FROM alpine:latest AS runner
@@ -23,7 +31,6 @@ FROM alpine:latest AS runner
 WORKDIR /app
 
 # Copy the built binary from the builder stage to the runner stage
-# This transfers the compiled application to the new image
 COPY --from=builder /app/dist .
 
 # Install FFmpeg in the runner image for media processing capabilities

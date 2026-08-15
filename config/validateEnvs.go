@@ -13,10 +13,8 @@ var (
 	ClientEnv = clientConfig{}
 	// Configuration for the media-docker-server
 	ServerEnv = serverConfig{}
-	// Configuration for the Kafka consumer
-	KafkaConsumeEnv = kafkaConsumeConfig{}
-	// Configuration for the failed consumer
-	FailedConsumeEnv = failedConsumeConfig{}
+	// Configuration shared by every consumer service
+	ConsumerEnv = consumerConfig{}
 )
 
 // clientConfig holds the configuration settings for the media-docker-client.
@@ -36,18 +34,14 @@ type serverConfig struct {
 	SERVER_PORT     string   // Port on which the server will run
 }
 
-// kafkaConsumeConfig holds the configuration settings for the Kafka consumer.
-type kafkaConsumeConfig struct {
-	ENVIRONMENT         string         // Current environment (e.g., development, production)
-	KAFKA_BROKERS       []string       // List of Kafka broker addresses for message consumption
-	KAFKA_TOPIC_WORKERS map[string]int // Map of topics to the number of workers assigned for each topic
-}
-
-// failedConsumeConfig holds the configuration settings for the failed consumer.
-type failedConsumeConfig struct {
-	ENVIRONMENT          string   // Current environment (e.g., development, production)
-	KAFKA_BROKERS        []string // List of Kafka broker addresses for handling failed messages
-	KAFKA_FAILED_WORKERS int      // Number of workers assigned for processing failed messages
+// consumerConfig holds the configuration settings shared by every consumer service.
+//
+// Since v4 each consumer owns exactly one topic, so a single worker count
+// replaces the per-topic map the combined consumer needed.
+type consumerConfig struct {
+	ENVIRONMENT   string   // Current environment (e.g., development, production)
+	KAFKA_BROKERS []string // List of Kafka broker addresses for message consumption
+	KAFKA_WORKERS int      // Number of workers for this service's topic
 }
 
 // getAndValidateWorkerCount retrieves and validates worker count from environment variables.
@@ -132,8 +126,13 @@ func ValidateServerEnv() error {
 	return nil
 }
 
-// ValidateKafkaConsumeEnv validates the environment variables for Kafka consume configuration.
-func ValidateKafkaConsumeEnv() error {
+// ValidateConsumerEnv validates the environment variables every consumer service needs.
+//
+// CAUTION: KAFKA_WORKERS is bounded by the partition count of the service's
+// topic, summed across every running instance of that service. Workers beyond
+// that count are never assigned a partition and sit idle. Partition counts are
+// declared in ./kafka_config.sh.
+func ValidateConsumerEnv() error {
 	// Validate ENVIRONMENT
 	environment, exists := os.LookupEnv("ENVIRONMENT")
 	if !exists {
@@ -146,57 +145,16 @@ func ValidateKafkaConsumeEnv() error {
 		return fmt.Errorf("kafka brokers are not provided")
 	}
 
-	// Validate worker counts for each Kafka topic
-	topicWorkers := map[string]string{
-		"video":             "KAFKA_VIDEO_WORKERS",
-		"video-resolutions": "KAFKA_VIDEO_RESOLUTIONS_WORKERS",
-		"image":             "KAFKA_IMAGE_WORKERS",
-		"audio":             "KAFKA_AUDIO_WORKERS",
-		"delete-file":       "KAFKA_DELETE_FILE_WORKERS",
-	}
-
-	workerCounts := make(map[string]int)
-
-	for topic, envVar := range topicWorkers {
-		workerCount, err := getAndValidateWorkerCount(envVar)
-		if err != nil {
-			return err
-		}
-		workerCounts[topic] = workerCount
-	}
-
-	// Set the validated environment variables in KafkaConsumeEnv
-	KafkaConsumeEnv.ENVIRONMENT = environment
-	KafkaConsumeEnv.KAFKA_BROKERS = strings.Split(brokers, ",")
-	KafkaConsumeEnv.KAFKA_TOPIC_WORKERS = workerCounts
-
-	return nil
-}
-
-// ValidateFailedConsumeEnv validates the environment variables for Failed consume configuration.
-func ValidateFailedConsumeEnv() error {
-	// Validate ENVIRONMENT
-	environment, exists := os.LookupEnv("ENVIRONMENT")
-	if !exists {
-		return fmt.Errorf("environment is not provided")
-	}
-
-	// Validate KAFKA_BROKERS
-	brokers, exists := os.LookupEnv("KAFKA_BROKERS")
-	if !exists {
-		return fmt.Errorf("kafka brokers are not provided")
-	}
-
-	// Validate KAFKA_FAILED_WORKERS
-	workerCount, err := getAndValidateWorkerCount("KAFKA_FAILED_WORKERS")
+	// Validate KAFKA_WORKERS
+	workerCount, err := getAndValidateWorkerCount("KAFKA_WORKERS")
 	if err != nil {
 		return err
 	}
 
-	// Set the validated environment variables in FailedConsumeEnv
-	FailedConsumeEnv.ENVIRONMENT = environment
-	FailedConsumeEnv.KAFKA_BROKERS = strings.Split(brokers, ",")
-	FailedConsumeEnv.KAFKA_FAILED_WORKERS = workerCount
+	// Set the validated environment variables in ConsumerEnv
+	ConsumerEnv.ENVIRONMENT = environment
+	ConsumerEnv.KAFKA_BROKERS = strings.Split(brokers, ",")
+	ConsumerEnv.KAFKA_WORKERS = workerCount
 
 	return nil
 }

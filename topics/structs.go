@@ -9,7 +9,29 @@ package topics
 
 import "time"
 
+// Topic names. These must match the entries in `./kafka_config.sh`, which is
+// what actually creates them in the cluster.
+const (
+	Video             = "video"
+	VideoResolutions  = "video-resolutions"
+	Image             = "image"
+	Audio             = "audio"
+	DeleteFile        = "delete-file"
+	FailedLetterQueue = "failed-letter-queue"
+)
+
+// All returns every topic the system uses.
+func All() []string {
+	return []string{Video, VideoResolutions, Image, Audio, DeleteFile, FailedLetterQueue}
+}
+
 // INFO: All topics are listed in the root folder in `./kafka_config.sh`.
+//
+// NOTE: Since v4 the FilePath of a job message points at the raw upload inside
+// the publicly served media storage (media_docker_files/<type>s/<id>/original.<ext>),
+// not at a private staging directory. That file is already reachable over HTTP
+// when the job is produced, and it must not be deleted unless conversion
+// succeeds -- deleting it would break a URL a caller is already using.
 
 // DLQMessage represents the structure of messages sent to the "failed-letter-queue",
 // acting as the Dead-Letter Queue (DLQ) for this project.
@@ -30,15 +52,6 @@ type DLQMessage struct {
 	CustomMessage  string    `json:"customMessage" validate:"required"`                                           // Additional custom message or context about the error
 }
 
-// KafkaResponseMessage represents a message from the Media Docker system.
-//
-// Topic: "media-docker-files-response"
-type KafkaResponseMessage struct {
-	ID       string `json:"id" validate:"required,uuid4"`                                          // Unique identifier (UUIDv4) for the media file, required field
-	FileType string `json:"fileType" validate:"required,oneof=image video videoResolutions audio"` // Media file type, required and must be one of "image", "video", "videoResolutions", or "audio"
-	Status   string `json:"status" validate:"required,oneof=completed failed"`                     // Status of the media processing, required and must be either "completed" or "failed"
-}
-
 // AudioMessage represents the structure of the message sent to Kafka for audio processing.
 //
 // Topic: "audio"
@@ -54,6 +67,9 @@ type AudioMessage struct {
 type ImageMessage struct {
 	FilePath string `json:"filePath" validate:"required"` // Mandatory field for the file path
 	NewId    string `json:"newId" validate:"required"`    // New unique identifier for the image file URL
+	// Compression is the ffmpeg -q:v value, 1 (highest quality) to 31 (lowest).
+	// Optional; the consumer applies its default when omitted.
+	Compression *int `json:"compression" validate:"omitempty,min=1,max=31"`
 }
 
 // VideoMessage represents the structure of the message sent to Kafka for video processing.

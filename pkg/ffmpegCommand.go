@@ -1,19 +1,30 @@
 package pkg
 
 import (
+	"bytes"
 	"fmt"
 	// "io"
 	// "os"
 	"os/exec"
+	"strings"
 )
+
+// maxLoggedStderr caps how much of ffmpeg's stderr is carried in an error. Only
+// the tail is kept: ffmpeg prints its banner first and the actual reason last.
+const maxLoggedStderr = 1024
 
 // runCommand runs the provided command and returns an error if it fails.
 // It uses the os/exec package to execute the command and checks if
 // the command fails. In case of failure, it returns a formatted error
-// message containing the command that failed and the corresponding error.
+// message containing the command that failed, the corresponding error, and the
+// tail of the command's stderr -- without it a conversion failure reaches the
+// dead-letter queue as a bare exit status with no cause attached.
 func runCommand(cmd *exec.Cmd) error {
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+
 	if err := cmd.Run(); err != nil {
-		return fmt.Errorf("command: %s, %s", cmd.String(), err)
+		return fmt.Errorf("command: %s, %s, stderr: %s", cmd.String(), err, tailStderr(stderr.String()))
 	}
 	return nil
 
@@ -46,6 +57,19 @@ func runCommand(cmd *exec.Cmd) error {
 	// 	return fmt.Errorf("command: %s, %s", cmd.String(), err)
 	// }
 	// return nil
+}
+
+// tailStderr returns the last maxLoggedStderr characters of a command's stderr,
+// collapsed to a single line.
+func tailStderr(s string) string {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return "(empty)"
+	}
+	if len(s) > maxLoggedStderr {
+		s = "...(truncated)" + s[len(s)-maxLoggedStderr:]
+	}
+	return strings.ReplaceAll(s, "\n", " | ")
 }
 
 // ConvertVideo converts a video file to HLS format (HTTP Live Streaming) using ffmpeg.
@@ -84,23 +108,23 @@ func ConvertVideo(videoPath, outputPath string, quality ...int) error {
 	return runCommand(exec.Command("ffmpeg", args...))
 }
 
-// heights is a map that associates common video resolution heights with their corresponding widths.
-// This map is used to scale video resolutions during conversion in the ConvertVideoResolutions function.
-var heights = map[string]string{"360": "740", "480": "854", "720": "1280", "1080": "1920"}
-
 // ConvertVideoResolutions converts a video file to a specific resolution using ffmpeg.
 // It accepts the following parameters:
 //   - videoPath: the path to the input video file to be converted.
 //   - outputPath: the directory where the converted video segments and playlist will be saved.
-//   - resolution: the desired resolution to which the video will be scaled.
+//   - scale: the ffmpeg scale filter argument, "width:height" (e.g. "1280:720").
+//
+// The resolution ladder itself is defined by asset.Ladder; the caller passes the
+// scale for the rung being produced so that widths and heights live in exactly
+// one place, shared with the master playlist that advertises them.
 //
 // The video is scaled to the specified resolution using a video filter and converted to HLS format.
-func ConvertVideoResolutions(videoPath, outputPath string, resolution string) error {
+func ConvertVideoResolutions(videoPath, outputPath string, scale string) error {
 	return runCommand(exec.Command("ffmpeg",
 		"-i", videoPath, // Input video file path
 		"-codec:v", "libx264", // Use the H.264 video codec for video conversion
 		"-codec:a", "aac", // Use AAC for audio codec
-		"-vf", fmt.Sprintf("scale=%s:%s", heights[resolution], resolution), // Scale the video to the specified resolution
+		"-vf", "scale="+scale, // Scale the video to the specified resolution
 		"-hls_time", "10", // Split video into 10-second segments
 		"-hls_playlist_type", "vod", // Define the playlist as Video on Demand (VOD)
 		"-hls_segment_filename", fmt.Sprintf("%s/segment%%03d.ts", outputPath), // Define segment file name pattern

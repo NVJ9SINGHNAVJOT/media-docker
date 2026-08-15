@@ -1,69 +1,61 @@
 package api
 
 import (
-	"fmt"
 	"net/http"
 
-	"github.com/google/uuid"
-	"github.com/nvj9singhnavjot/media-docker/config"
 	"github.com/nvj9singhnavjot/media-docker/helper"
 	"github.com/nvj9singhnavjot/media-docker/kafkahandler"
-	"github.com/nvj9singhnavjot/media-docker/pkg"
+	"github.com/nvj9singhnavjot/media-docker/pkg/asset"
 	"github.com/nvj9singhnavjot/media-docker/topics"
 	"github.com/nvj9singhnavjot/media-docker/validator"
 )
 
 type videoResolutionsRequest struct {
-	UuidFilename string `json:"uuidFilename" validate:"required,uuid4"`
+	ID string `json:"id" validate:"required,uuid4"`
 }
 
-// VideoResolutions handles video file upload requests and sends processing messages to Kafka for resolution conversion.
+// VideoResolutions queues a video for multi-resolution HLS conversion and
+// returns its public URLs.
+//
+// Every URL works immediately, resolving to the raw upload until the ladder is
+// promoted into place. Afterwards the base URL serves a master playlist, so a
+// player can switch quality on its own, and the per-resolution URLs serve their
+// individual playlists.
 func VideoResolutions(w http.ResponseWriter, r *http.Request) {
 	var req videoResolutionsRequest
-	// Parse the JSON request and populate the VideoResolutionsRequest struct
+	// Parse the JSON request and populate the videoResolutionsRequest struct
 	if err := validator.ValidateRequest(r, &req); err != nil {
 		helper.ErrorResponse(w, helper.GetRequestID(r), http.StatusBadRequest, "invalid data", err)
 		return
 	}
 
-	path := helper.Constants.UploadStorage + "/" + req.UuidFilename
-
-	// Check if the file exists at the specified path
-	exist, err := pkg.DirOrFileExist(path)
-	if err != nil {
-		helper.ErrorResponse(w, helper.GetRequestID(r), http.StatusBadRequest, "invalid uuidFilename", err)
+	meta, ok := claimForDispatch(w, r, asset.TypeVideo, "video-resolutions", req.ID)
+	if !ok {
 		return
 	}
-
-	if !exist {
-		helper.ErrorResponse(w, helper.GetRequestID(r), http.StatusBadRequest, "file doesn't exist", nil)
-		return
-	}
-
-	id := uuid.New().String() // Generate a new UUID for the video
 
 	// Create the VideoResolutionsMessage struct to be passed to Kafka
 	message := topics.VideoResolutionsMessage{
-		FilePath: path, // Set the file path
-		NewId:    id,   // Set the new ID for the file URL
+		FilePath: originalPathFor(meta), // The raw upload, already publicly served
+		NewId:    meta.ID,               // Asset id, minted at upload time
 	}
 
 	// Pass the struct to the Kafka producer
 	if err := kafkahandler.KafkaProducer.Produce("video-resolutions", message); err != nil {
-		pkg.AddToFileDeleteChan(path) // Add to deletion channel on error
-		helper.ErrorResponse(w, helper.GetRequestID(r), http.StatusInternalServerError, "error sending Kafka message", err)
+		dispatchFailed(w, r, asset.TypeVideo, meta.ID, err)
 		return
 	}
 
-	// Respond with success, providing URLs for different video resolutions
+	// Build one URL per rung of the ladder, alongside the adaptive master URL.
+	fileUrls := make(map[string]string, len(asset.Resolutions))
+	for _, resolution := range asset.Resolutions {
+		fileUrls[resolution] = variantURL(asset.TypeVideo, meta.ID, resolution)
+	}
+
 	helper.SuccessResponse(w, helper.GetRequestID(r), http.StatusCreated, "video uploaded successfully",
 		map[string]any{
-			"id": id,
-			"fileUrls": map[string]string{
-				"360":  fmt.Sprintf("%s/%s/videos/%s/360/index.m3u8", config.ServerEnv.BASE_URL, helper.Constants.MediaStorage, id),
-				"480":  fmt.Sprintf("%s/%s/videos/%s/480/index.m3u8", config.ServerEnv.BASE_URL, helper.Constants.MediaStorage, id),
-				"720":  fmt.Sprintf("%s/%s/videos/%s/720/index.m3u8", config.ServerEnv.BASE_URL, helper.Constants.MediaStorage, id),
-				"1080": fmt.Sprintf("%s/%s/videos/%s/1080/index.m3u8", config.ServerEnv.BASE_URL, helper.Constants.MediaStorage, id),
-			},
+			"id":       meta.ID,
+			"fileUrl":  fileURL(asset.TypeVideo, meta.ID), // Master playlist once converted
+			"fileUrls": fileUrls,
 		})
 }

@@ -1,62 +1,53 @@
 package api
 
 import (
-	"fmt"
 	"net/http"
 
-	"github.com/google/uuid"
-	"github.com/nvj9singhnavjot/media-docker/config"
 	"github.com/nvj9singhnavjot/media-docker/helper"
 	"github.com/nvj9singhnavjot/media-docker/kafkahandler"
-	"github.com/nvj9singhnavjot/media-docker/pkg"
+	"github.com/nvj9singhnavjot/media-docker/pkg/asset"
 	"github.com/nvj9singhnavjot/media-docker/topics"
 	"github.com/nvj9singhnavjot/media-docker/validator"
 )
 
 type imageRequest struct {
-	UuidFilename string `json:"uuidFilename" validate:"required,uuid4"`
+	ID string `json:"id" validate:"required,uuid4"`
+	// Compression is the ffmpeg -q:v value, 1 (highest quality) to 31 (lowest).
+	Compression *int `json:"compression" validate:"omitempty,min=1,max=31"`
 }
 
-// Image handles image file upload requests and sends processing messages to Kafka.
+// Image queues an image for compression and returns its public URL.
+//
+// The URL works immediately, serving the uploaded image until the compressed
+// JPEG replaces it.
 func Image(w http.ResponseWriter, r *http.Request) {
 	var req imageRequest
 
-	// Parse the JSON request and populate the ImageRequest struct
+	// Parse the JSON request and populate the imageRequest struct
 	if err := validator.ValidateRequest(r, &req); err != nil {
 		helper.ErrorResponse(w, helper.GetRequestID(r), http.StatusBadRequest, "invalid data", err)
 		return
 	}
-	path := helper.Constants.UploadStorage + "/" + req.UuidFilename
 
-	// Check if the file exists at the specified path
-	exist, err := pkg.DirOrFileExist(path)
-	if err != nil {
-		helper.ErrorResponse(w, helper.GetRequestID(r), http.StatusBadRequest, "invalid uuidFilename", err)
+	meta, ok := claimForDispatch(w, r, asset.TypeImage, "image", req.ID)
+	if !ok {
 		return
 	}
-
-	if !exist {
-		helper.ErrorResponse(w, helper.GetRequestID(r), http.StatusBadRequest, "file doesn't exist", nil)
-		return
-	}
-
-	id := uuid.New().String()                                                         // Generate a new UUID for the image file
-	outputPath := fmt.Sprintf("%s/images/%s.jpeg", helper.Constants.MediaStorage, id) // Define the output path for the image file
 
 	// Create the ImageMessage struct to be passed to Kafka
 	message := topics.ImageMessage{
-		FilePath: path, // Set the file path
-		NewId:    id,   // Set the new ID for the file URL
+		FilePath:    originalPathFor(meta), // The raw upload, already publicly served
+		NewId:       meta.ID,               // Asset id, minted at upload time
+		Compression: req.Compression,       // Optional compression level (can be nil)
 	}
 
 	// Pass the struct to the Kafka producer
 	if err := kafkahandler.KafkaProducer.Produce("image", message); err != nil {
-		pkg.AddToFileDeleteChan(path) // Add to deletion channel on error
-		helper.ErrorResponse(w, helper.GetRequestID(r), http.StatusInternalServerError, "error sending Kafka message", err)
+		dispatchFailed(w, r, asset.TypeImage, meta.ID, err)
 		return
 	}
 
-	// Respond with success, providing the image URL
-	imageUrl := fmt.Sprintf("%s/%s", config.ServerEnv.BASE_URL, outputPath) // Construct the image file URL
-	helper.SuccessResponse(w, helper.GetRequestID(r), http.StatusCreated, "image uploaded successfully", map[string]any{"id": id, "fileUrl": imageUrl})
+	// Respond with success, providing the stable image URL
+	helper.SuccessResponse(w, helper.GetRequestID(r), http.StatusCreated, "image uploaded successfully",
+		map[string]any{"id": meta.ID, "fileUrl": fileURL(asset.TypeImage, meta.ID)})
 }

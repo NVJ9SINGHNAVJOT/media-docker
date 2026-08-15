@@ -1,20 +1,21 @@
 package api
 
 import (
-	"fmt"
 	"io"
 	"net/http"
 	"os"
-	"path/filepath"
-	"strings"
 
 	"github.com/google/uuid"
 	"github.com/nvj9singhnavjot/media-docker/helper"
 	"github.com/rs/zerolog/log"
 )
 
-// FileStorage handles file upload requests, validates the input data,
-// and saves the uploaded file to disk.
+// FileStorage handles single-request uploads for files that fit in one chunk,
+// validates the input data, and writes the file straight into media storage.
+//
+// Unlike the chunked path there is nothing to stage: the file arrives whole, so
+// it is written directly to its final location and is resolvable as soon as the
+// request completes.
 func FileStorage(w http.ResponseWriter, r *http.Request) {
 	fileType := r.FormValue("type")
 
@@ -43,8 +44,10 @@ func FileStorage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	contentType := header.Header.Get("Content-Type")
+
 	// Validate the file type using a custom validation function.
-	if !helper.Constants.IsValidFileType(fileType, header.Header.Get("Content-Type")) {
+	if !helper.Constants.IsValidFileType(fileType, contentType) {
 		// Respond with a 415 Unsupported Media Type if the file type is invalid.
 		helper.ErrorResponse(w, helper.GetRequestID(r), http.StatusUnsupportedMediaType, "unsupported "+fileName+" file type", nil)
 		file.Close() // Close the uploaded file before returning to free resources.
@@ -59,41 +62,38 @@ func FileStorage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Generate a unique filename using a UUID and the file's content type to avoid name collisions.
-	uuidFilename := fmt.Sprintf("%s.%s",
-		uuid.New().String(),
-		strings.Split(header.Header.Get("Content-Type"), "/")[1],
-	)
-	filePath := filepath.Join(helper.Constants.UploadStorage, uuidFilename)
-
-	// Create a new file on disk at the specified path to store the uploaded file content.
-	out, err := os.Create(filePath)
-	if err != nil {
-		// Respond with a 500 Internal Server Error if there's an issue creating the file.
-		helper.ErrorResponse(w, helper.GetRequestID(r), http.StatusInternalServerError, "error creating file", err)
-		file.Close() // Close the uploaded file before returning.
-		return
+	status := fileStatus{
+		Type:     fileType,
+		ID:       uuid.New().String(),
+		FileName: r.FormValue("fileName"),
 	}
-	// Both the input (uploaded file) and output (new file) will be closed later.
 
-	// Copy the content of the uploaded file to the newly created file on disk.
-	_, err = io.Copy(out, file)
+	// Write the uploaded bytes into the asset directory and record its metadata.
+	err = finalizeUpload(status, contentType, func(finalPath string) error {
+		out, err := os.Create(finalPath)
+		if err != nil {
+			return err
+		}
+
+		if _, err = io.Copy(out, file); err != nil {
+			out.Close()
+			return err
+		}
+
+		return out.Close()
+	})
+
+	// Close the uploaded file to release system resources after the file is saved.
+	if closeErr := file.Close(); closeErr != nil {
+		log.Warn().Err(closeErr).Msgf("Warning: Could not close uploaded file for asset: %s", status.ID)
+	}
+
 	if err != nil {
 		// Respond with a 500 Internal Server Error if there's an issue saving the file.
 		helper.ErrorResponse(w, helper.GetRequestID(r), http.StatusInternalServerError, "error saving file", err)
-		file.Close() // Close the uploaded file.
-		out.Close()  // Close the output file before returning.
 		return
 	}
 
-	// Close the uploaded file and output file to release system resources after the file is saved.
-	if err := file.Close(); err != nil {
-		log.Warn().Err(err).Msgf("Warning: Could not close uploaded file: %s", filePath)
-	}
-	if err := out.Close(); err != nil {
-		log.Warn().Err(err).Msgf("Warning: Could not close output file: %s", filePath)
-	}
-
 	// Respond with a 200 OK, indicating that the file was successfully uploaded.
-	helper.SuccessResponse(w, helper.GetRequestID(r), http.StatusOK, "file uploaded successfully", map[string]string{"uuidFilename": uuidFilename})
+	helper.SuccessResponse(w, helper.GetRequestID(r), http.StatusOK, "file uploaded successfully", map[string]string{"id": status.ID})
 }

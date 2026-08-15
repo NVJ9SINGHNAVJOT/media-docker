@@ -9,8 +9,10 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/nvj9singhnavjot/media-docker/config"
 	"github.com/nvj9singhnavjot/media-docker/helper"
+	"github.com/nvj9singhnavjot/media-docker/internal/media-docker-client/routes"
 	mw "github.com/nvj9singhnavjot/media-docker/middleware"
 	"github.com/nvj9singhnavjot/media-docker/pkg"
+	"github.com/nvj9singhnavjot/media-docker/pkg/asset"
 	"github.com/nvj9singhnavjot/media-docker/shutdown"
 	"github.com/rs/zerolog/log"
 )
@@ -42,6 +44,15 @@ func main() {
 	// NOTE: Adjust throttle middleware value based on the required traffic control
 	// Set up default middlewares such as CORS and logging for the router
 	mw.DefaultMiddlewares(router, config.ClientEnv.ALLOWED_ORIGINS, []string{"GET"}, 40000)
+
+	/*
+		Resolver routes, mounted at "/media". These serve the stable public URL of
+		each asset, redirecting to whichever representation currently exists: the
+		raw upload while conversion is pending, the converted output once it is
+		ready. They are registered before the static mount and kept under a
+		separate prefix so the two route trees cannot overlap.
+	*/
+	router.Route(asset.ResolvePrefix, routes.ResolveRoutes())
 
 	/*
 		Create a route along "/media_docker_files" that serves files from the

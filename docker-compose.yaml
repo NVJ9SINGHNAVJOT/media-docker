@@ -1,10 +1,30 @@
 version: '3.8'
 
+# Reusable definitions for the consumer services. Every consumer runs the same
+# shared runtime and differs only in its topic, env file and worker count.
+x-consumer: &consumer
+  build:
+    context: .
+    dockerfile: ./internal/Dockerfile.ffmpeg
+  volumes:
+    # Consumers write conversion output into asset directories that already
+    # exist. They no longer mount the upload staging volume: since v4 uploads
+    # are merged straight into media storage, so only the server stages chunks.
+    - media-docker-files-data:/app/media_docker_files:rw
+  networks:
+    - media-docker-proxy
+  restart: unless-stopped
+  depends_on:
+    - media-docker-kafka-0
+  stop_grace_period: 60s
+
 services:
   media-docker-client:
     build:
       context: .
-      dockerfile: ./internal/media-docker-client/Dockerfile
+      dockerfile: ./internal/Dockerfile
+      args:
+        SERVICE: media-docker-client
     container_name: media-docker-client
     volumes:
       # Keep the volume mapping unchanged to prevent breaking changes.
@@ -18,138 +38,167 @@ services:
   media-docker-server:
     build:
       context: .
-      dockerfile: ./internal/media-docker-server/Dockerfile
+      dockerfile: ./internal/Dockerfile
+      args:
+        SERVICE: media-docker-server
     container_name: media-docker-server
     volumes:
       # Keep the volume mapping unchanged to prevent breaking changes.
       - media-docker-upload-data:/app/uploadStorage:rw
-      - media-docker-files-data:/app/media_docker_files:ro
+      # NOTE: read-write since v4. The server writes each upload straight into
+      # media storage so that its URL works before conversion has run.
+      - media-docker-files-data:/app/media_docker_files:rw
     networks:
       - media-docker-proxy
     env_file: .env.server
     depends_on:
-      - media-docker-kafka-consumer
+      - media-docker-video-consumer
+      - media-docker-video-resolutions-consumer
+      - media-docker-audio-consumer
+      - media-docker-image-consumer
+      - media-docker-delete-consumer
       - media-docker-failed-consumer
     stop_grace_period: 60s
-  
-  media-docker-failed-consumer:
-    build:
-      context: .
-      dockerfile: ./internal/media-docker-failed-consumer/Dockerfile
-    container_name: media-docker-failed-consumer
-    volumes:
-      # Keep the volume mapping unchanged to prevent breaking changes.
-      - media-docker-upload-data:/app/uploadStorage:rw
-      - media-docker-files-data:/app/media_docker_files:rw
-    networks:
-      - media-docker-proxy
-    restart: unless-stopped
-    env_file: .env.failed
-    depends_on:
-      - media-docker-kafka-consumer
-    stop_grace_period: 60s
 
-  media-docker-kafka-consumer:
+  media-docker-video-consumer:
+    <<: *consumer
     build:
       context: .
-      dockerfile: ./internal/media-docker-kafka-consumer/Dockerfile
-    container_name: media-docker-kafka-consumer
-    volumes:
-      # Keep the volume mapping unchanged to prevent breaking changes.
-      - media-docker-upload-data:/app/uploadStorage:rw
-      - media-docker-files-data:/app/media_docker_files:rw
-    networks:
-      - media-docker-proxy
-    restart: unless-stopped
-    env_file: .env.consumer
-    depends_on:
-      - media-docker-kafka-0
-    stop_grace_period: 60s    
-    
+      dockerfile: ./internal/Dockerfile.ffmpeg
+      args:
+        SERVICE: media-docker-video-consumer
+    container_name: media-docker-video-consumer
+    env_file: .env.video
+
+  media-docker-video-resolutions-consumer:
+    <<: *consumer
+    build:
+      context: .
+      dockerfile: ./internal/Dockerfile.ffmpeg
+      args:
+        SERVICE: media-docker-video-resolutions-consumer
+    container_name: media-docker-video-resolutions-consumer
+    env_file: .env.video-resolutions
+
+  media-docker-audio-consumer:
+    <<: *consumer
+    build:
+      context: .
+      dockerfile: ./internal/Dockerfile.ffmpeg
+      args:
+        SERVICE: media-docker-audio-consumer
+    container_name: media-docker-audio-consumer
+    env_file: .env.audio
+
+  media-docker-image-consumer:
+    <<: *consumer
+    build:
+      context: .
+      dockerfile: ./internal/Dockerfile.ffmpeg
+      args:
+        SERVICE: media-docker-image-consumer
+    container_name: media-docker-image-consumer
+    env_file: .env.image
+
+  # Deletion needs no ffmpeg, so it builds from the slim image.
+  media-docker-delete-consumer:
+    <<: *consumer
+    build:
+      context: .
+      dockerfile: ./internal/Dockerfile
+      args:
+        SERVICE: media-docker-delete-consumer
+    container_name: media-docker-delete-consumer
+    env_file: .env.delete
+
+  media-docker-failed-consumer:
+    <<: *consumer
+    build:
+      context: .
+      dockerfile: ./internal/Dockerfile.ffmpeg
+      args:
+        SERVICE: media-docker-failed-consumer
+    container_name: media-docker-failed-consumer
+    env_file: .env.failed
+
   media-docker-kafka-0:
-    image: docker.io/bitnami/kafka:3.8.0
+    image: apache/kafka:3.8.0
     container_name: media-docker-kafka-0
     volumes:
-      - media-docker-kafka-0_data:/bitnami/kafka
+      - media-docker-kafka-0_data:/opt/kafka/data
     networks:
       - media-docker-proxy
     restart: unless-stopped
     environment:
       # KRaft settings for node 0
-      - KAFKA_KRAFT_CLUSTER_ID=gZpsEhujeRQwA249Kx5KKg
-      - KAFKA_ENABLE_KRAFT=yes
-      - KAFKA_CFG_PROCESS_ROLES=broker,controller
-      - KAFKA_CFG_NODE_ID=0
-      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=0@media-docker-kafka-0:9093,1@media-docker-kafka-1:9093,2@media-docker-kafka-2:9093
+      - CLUSTER_ID=gZpsEhujeRQwA249Kx5KKg
+      - KAFKA_PROCESS_ROLES=broker,controller
+      - KAFKA_NODE_ID=0
+      - KAFKA_CONTROLLER_QUORUM_VOTERS=0@media-docker-kafka-0:9093,1@media-docker-kafka-1:9093,2@media-docker-kafka-2:9093
       # Listeners
-      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
-      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://media-docker-kafka-0:9092
-      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
-      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
-      - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=PLAINTEXT
-      - ALLOW_PLAINTEXT_LISTENER=yes
+      - KAFKA_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
+      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://media-docker-kafka-0:9092
+      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      - KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_INTER_BROKER_LISTENER_NAME=PLAINTEXT
       # Clustering settings
-      - KAFKA_CFG_OFFSETS_TOPIC_REPLICATION_FACTOR=3
-      - KAFKA_CFG_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=3
-      - KAFKA_CFG_TRANSACTION_STATE_LOG_MIN_ISR=2
+      - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=3
+      - KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=3
+      - KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=2
     depends_on:
       - media-docker-kafka-1
 
   media-docker-kafka-1:
-    image: docker.io/bitnami/kafka:3.8.0
+    image: apache/kafka:3.8.0
     container_name: media-docker-kafka-1
     volumes:
-      - media-docker-kafka-1_data:/bitnami/kafka
+      - media-docker-kafka-1_data:/opt/kafka/data
     networks:
       - media-docker-proxy
     restart: unless-stopped
     environment:
       # KRaft settings for node 1
-      - KAFKA_KRAFT_CLUSTER_ID=gZpsEhujeRQwA249Kx5KKg
-      - KAFKA_ENABLE_KRAFT=yes
-      - KAFKA_CFG_PROCESS_ROLES=broker,controller
-      - KAFKA_CFG_NODE_ID=1
-      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=0@media-docker-kafka-0:9093,1@media-docker-kafka-1:9093,2@media-docker-kafka-2:9093
+      - CLUSTER_ID=gZpsEhujeRQwA249Kx5KKg
+      - KAFKA_PROCESS_ROLES=broker,controller
+      - KAFKA_NODE_ID=1
+      - KAFKA_CONTROLLER_QUORUM_VOTERS=0@media-docker-kafka-0:9093,1@media-docker-kafka-1:9093,2@media-docker-kafka-2:9093
       # Listeners
-      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
-      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://media-docker-kafka-1:9092
-      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
-      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
-      - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=PLAINTEXT
-      - ALLOW_PLAINTEXT_LISTENER=yes
+      - KAFKA_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
+      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://media-docker-kafka-1:9092
+      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      - KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_INTER_BROKER_LISTENER_NAME=PLAINTEXT
       # Clustering settings
-      - KAFKA_CFG_OFFSETS_TOPIC_REPLICATION_FACTOR=3
-      - KAFKA_CFG_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=3
-      - KAFKA_CFG_TRANSACTION_STATE_LOG_MIN_ISR=2
+      - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=3
+      - KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=3
+      - KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=2
     depends_on:
       - media-docker-kafka-2
 
   media-docker-kafka-2:
-    image: docker.io/bitnami/kafka:3.8.0
+    image: apache/kafka:3.8.0
     container_name: media-docker-kafka-2
     volumes:
-      - media-docker-kafka-2_data:/bitnami/kafka    
+      - media-docker-kafka-2_data:/opt/kafka/data
     networks:
       - media-docker-proxy
     restart: unless-stopped
     environment:
       # KRaft settings for node 2
-      - KAFKA_KRAFT_CLUSTER_ID=gZpsEhujeRQwA249Kx5KKg
-      - KAFKA_ENABLE_KRAFT=yes
-      - KAFKA_CFG_PROCESS_ROLES=broker,controller
-      - KAFKA_CFG_NODE_ID=2
-      - KAFKA_CFG_CONTROLLER_QUORUM_VOTERS=0@media-docker-kafka-0:9093,1@media-docker-kafka-1:9093,2@media-docker-kafka-2:9093
+      - CLUSTER_ID=gZpsEhujeRQwA249Kx5KKg
+      - KAFKA_PROCESS_ROLES=broker,controller
+      - KAFKA_NODE_ID=2
+      - KAFKA_CONTROLLER_QUORUM_VOTERS=0@media-docker-kafka-0:9093,1@media-docker-kafka-1:9093,2@media-docker-kafka-2:9093
       # Listeners
-      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
-      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://media-docker-kafka-2:9092
-      - KAFKA_CFG_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
-      - KAFKA_CFG_CONTROLLER_LISTENER_NAMES=CONTROLLER
-      - KAFKA_CFG_INTER_BROKER_LISTENER_NAME=PLAINTEXT
-      - ALLOW_PLAINTEXT_LISTENER=yes
+      - KAFKA_LISTENERS=PLAINTEXT://:9092,CONTROLLER://:9093
+      - KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://media-docker-kafka-2:9092
+      - KAFKA_LISTENER_SECURITY_PROTOCOL_MAP=PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+      - KAFKA_CONTROLLER_LISTENER_NAMES=CONTROLLER
+      - KAFKA_INTER_BROKER_LISTENER_NAME=PLAINTEXT
       # Clustering settings
-      - KAFKA_CFG_OFFSETS_TOPIC_REPLICATION_FACTOR=3
-      - KAFKA_CFG_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=3
-      - KAFKA_CFG_TRANSACTION_STATE_LOG_MIN_ISR=2
+      - KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR=3
+      - KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR=3
+      - KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=2
 
 volumes:
   # NOTE: Do not rename or change the volume names, this will cause breaking changes.
@@ -169,7 +218,7 @@ networks:
   # The proxy network is used to serve media files that are accessed by frontend projects
   proxy:
     external: true
-  # NOTE: The media-docker-proxy network is intended to be used with backend projects 
+  # NOTE: The media-docker-proxy network is intended to be used with backend projects
   # to ensure proper network isolation and communication within the infrastructure
   media-docker-proxy:
     external: true

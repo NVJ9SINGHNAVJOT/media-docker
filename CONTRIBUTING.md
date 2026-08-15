@@ -14,8 +14,8 @@ Before you begin, please ensure you have the following installed:
 - [Apache Kafka](https://kafka.apache.org)
 - [Go](https://go.dev)
 
-If you prefer not to install Kafka locally, you can use the Bitnami/Kafka Docker image:
-- [Bitnami/Kafka](https://hub.docker.com/r/bitnami/kafka)
+If you prefer not to install Kafka locally, you can use the Apache/Kafka Docker image:
+- [Apache/Kafka](https://hub.docker.com/r/apache/kafka)
 
 ## FFmpeg
 

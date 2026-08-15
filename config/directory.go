@@ -1,24 +1,32 @@
 package config
 
 import (
+	"path/filepath"
+
 	"github.com/nvj9singhnavjot/media-docker/helper"
 	"github.com/nvj9singhnavjot/media-docker/pkg"
+	"github.com/nvj9singhnavjot/media-docker/pkg/asset"
 )
 
-// CreateDirSetup ensures that the required directories for media storage are created if they do not already exist.
-// It sets up directories for storing chunked files and media files for videos, images, and audios.
+// storageTypes lists every category that gets a directory under both storage roots.
+var storageTypes = []string{
+	asset.TypeVideo, asset.TypeImage, asset.TypeAudio, asset.TypeDocument, asset.TypeOther,
+}
+
+// CreateDirSetup ensures the storage directory tree exists, creating anything missing.
+//
+// This is the media-docker-server's responsibility: it is the only service that
+// creates assets, so it is the only one that needs to bootstrap the tree.
+// Consumers write into asset directories that already exist and merely verify
+// the storage roots are present.
 func CreateDirSetup() {
-	// Create directories within UploadStorage for chunked "videos", "images", and "audios" files, if they don't exist.
-	pkg.DirExist(helper.Constants.UploadStorage+"/videos", true)
-	pkg.DirExist(helper.Constants.UploadStorage+"/images", true)
-	pkg.DirExist(helper.Constants.UploadStorage+"/audios", true)
+	for _, mediaType := range storageTypes {
+		dir := asset.TypeDir(mediaType)
 
-	// Ensure the "videos" directory exists within MediaStorage.
-	pkg.DirExist(helper.Constants.MediaStorage+"/videos", true)
+		// Staging directories for chunked uploads.
+		pkg.DirExist(filepath.Join(helper.Constants.UploadStorage, dir), true)
 
-	// Ensure the "images" directory exists within MediaStorage.
-	pkg.DirExist(helper.Constants.MediaStorage+"/images", true)
-
-	// Ensure the "audios" directory exists within MediaStorage.
-	pkg.DirExist(helper.Constants.MediaStorage+"/audios", true)
+		// Publicly served asset directories.
+		pkg.DirExist(filepath.Join(helper.Constants.MediaStorage, dir), true)
+	}
 }

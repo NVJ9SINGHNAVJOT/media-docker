@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/nvj9singhnavjot/media-docker/api"
 	"github.com/nvj9singhnavjot/media-docker/config"
 	"github.com/nvj9singhnavjot/media-docker/helper"
 	"github.com/nvj9singhnavjot/media-docker/internal/media-docker-server/routes"
@@ -14,6 +15,7 @@ import (
 	mw "github.com/nvj9singhnavjot/media-docker/middleware"
 	"github.com/nvj9singhnavjot/media-docker/pkg"
 	"github.com/nvj9singhnavjot/media-docker/shutdown"
+	"github.com/nvj9singhnavjot/media-docker/topics"
 	"github.com/nvj9singhnavjot/media-docker/validator"
 	"github.com/rs/zerolog/log"
 )
@@ -51,10 +53,15 @@ func main() {
 	// logger setup for server
 	config.SetUpLogger(config.ServerEnv.ENVIRONMENT)
 
-	pkg.DirExist(helper.Constants.UploadStorage)
-	pkg.DirExist(helper.Constants.MediaStorage)
+	pkg.DirExist(helper.Constants.UploadStorage, true)
+	pkg.DirExist(helper.Constants.MediaStorage, true)
 
-	err = kafkahandler.CheckAllKafkaConnections(config.ServerEnv.KAFKA_BROKERS)
+	// The server creates assets, so it bootstraps the full storage tree.
+	config.CreateDirSetup()
+
+	// The server produces to every topic, so it verifies all of them: an
+	// uncreated topic then fails at boot rather than on the first upload.
+	err = kafkahandler.CheckAllKafkaConnections(config.ServerEnv.KAFKA_BROKERS, topics.All()...)
 	if err != nil {
 		log.Fatal().Err(err).Msg("Kafka connection failed for media-docker-server")
 	}
@@ -63,6 +70,9 @@ func main() {
 
 	go pkg.DeleteFileWorker()
 	go pkg.DeleteDirWorker()
+
+	// Reap uploads that were stored but never claimed by a dispatch endpoint.
+	go api.StartJanitor()
 
 	// Initialize validator
 	validator.InitializeValidator()

@@ -1,0 +1,354 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>media-docker demo</title>
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
+<style>
+  :root {
+    --bg: #0f172a;
+    --bg-glass: rgba(30, 41, 59, 0.7);
+    --border-glass: rgba(255, 255, 255, 0.1);
+    --text-primary: #f8fafc;
+    --text-muted: #94a3b8;
+    --accent: #3b82f6;
+    --accent-hover: #2563eb;
+  }
+  
+  body { 
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
+    background: linear-gradient(135deg, #020617 0%, #0f172a 100%);
+    color: var(--text-primary);
+    max-width: 46rem; 
+    margin: 3rem auto; 
+    padding: 0 1.5rem; 
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+  
+  h1 { 
+    font-size: 2.2rem; 
+    font-weight: 700;
+    margin-bottom: 0.5rem; 
+    background: linear-gradient(to right, #60a5fa, #a78bfa);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  
+  p.lede { 
+    margin-top: 0; 
+    color: var(--text-muted); 
+    font-size: 1.1rem;
+    margin-bottom: 2.5rem;
+  }
+  
+  fieldset { 
+    background: var(--bg-glass);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border-glass);
+    border-radius: 16px; 
+    padding: 2rem; 
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2), 0 4px 6px -2px rgba(0, 0, 0, 0.1);
+  }
+  
+  label { 
+    display: block; 
+    margin: 1.2rem 0 0.5rem; 
+    font-weight: 600; 
+    font-size: 0.95rem;
+    color: #e2e8f0;
+  }
+  label:first-child { margin-top: 0; }
+  
+  select, input[type=file], input[type=number] { 
+    width: 100%; 
+    padding: 0.8rem 1rem; 
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid var(--border-glass);
+    border-radius: 8px;
+    color: white;
+    font-family: inherit;
+    font-size: 0.95rem;
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+  }
+  
+  select:focus, input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+  }
+  
+  input[type=file]::file-selector-button {
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    cursor: pointer;
+    margin-right: 1rem;
+    font-weight: 500;
+    transition: background 0.2s;
+  }
+  input[type=file]::file-selector-button:hover {
+    background: var(--accent-hover);
+  }
+  
+  button { 
+    margin-top: 1.5rem; 
+    padding: 0.8rem 1.5rem; 
+    font: inherit; 
+    font-weight: 600;
+    cursor: pointer; 
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    width: 100%;
+    transition: all 0.2s;
+    box-shadow: 0 4px 6px -1px rgba(59, 130, 246, 0.4);
+  }
+  
+  button:hover:not(:disabled) {
+    background: var(--accent-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 8px -1px rgba(59, 130, 246, 0.5);
+  }
+  
+  button:disabled {
+    background: #475569;
+    cursor: not-allowed;
+    box-shadow: none;
+    opacity: 0.7;
+    transform: none;
+  }
+  
+  .asset { 
+    background: var(--bg-glass);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid var(--border-glass);
+    border-radius: 16px; 
+    padding: 1.5rem; 
+    margin-top: 2rem; 
+    animation: slideUp 0.4s ease-out;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
+  }
+  
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(15px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  
+  .state { 
+    display: inline-block; 
+    padding: 0.3rem 0.8rem; 
+    border-radius: 99px; 
+    font-size: 0.75rem; 
+    font-weight: 700; 
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .state.raw { background: rgba(245, 158, 11, 0.2); color: #fcd34d; border: 1px solid rgba(245, 158, 11, 0.3); }
+  .state.converted { background: rgba(16, 185, 129, 0.2); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.3); }
+  .state.missing { background: rgba(239, 68, 68, 0.2); color: #fca5a5; border: 1px solid rgba(239, 68, 68, 0.3); }
+  .state.unknown { background: rgba(148, 163, 184, 0.2); color: #cbd5e1; border: 1px solid rgba(148, 163, 184, 0.3); }
+  
+  code { 
+    font-size: 0.9em; 
+    word-break: break-all; 
+    background: rgba(0, 0, 0, 0.4);
+    padding: 0.3rem 0.6rem;
+    border-radius: 6px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    color: #93c5fd;
+    display: inline-block;
+    margin-top: 1rem;
+  }
+  
+  video, img, audio { 
+    max-width: 100%; 
+    margin-top: 1.2rem; 
+    border-radius: 8px; 
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+    background: #000;
+  }
+  
+  .err { color: #fca5a5; white-space: pre-wrap; margin-top: 1rem; font-size: 0.9rem; text-align: center; }
+  .muted { opacity: 0.7; font-size: 0.85rem; color: var(--text-muted); display: block; margin-top: 0.3rem; }
+  
+  [data-delete] {
+    background: transparent;
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    color: #fca5a5;
+    margin-top: 1.5rem;
+    box-shadow: none;
+    width: auto;
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+  }
+  
+  [data-delete]:hover:not(:disabled) {
+    background: rgba(239, 68, 68, 0.15);
+    border-color: rgba(239, 68, 68, 0.6);
+  }
+</style>
+</head>
+<body>
+<h1>media-docker demo</h1>
+<p class="lede">Upload something, then watch the same URL upgrade from your raw file to the converted output.</p>
+
+<fieldset>
+  <label for="type">Upload as</label>
+  <select id="type">
+    <option value="video">video &mdash; single-quality HLS</option>
+    <option value="video-resolutions">video-resolutions &mdash; full ladder + master playlist</option>
+    <option value="image">image &mdash; compressed JPEG</option>
+    <option value="audio">audio &mdash; MP3</option>
+    <option value="document">document &mdash; stored as-is</option>
+    <option value="other">other &mdash; anything, stored as-is</option>
+  </select>
+
+  <div id="optionWrap" hidden>
+    <label for="option" id="optionLabel">Quality</label>
+    <input type="number" id="option" min="40" max="100" placeholder="optional">
+    <span class="muted" id="optionHint"></span>
+  </div>
+
+  <label for="file">File</label>
+  <input type="file" id="file">
+
+  <button id="go">Upload Media</button>
+  <div id="error" class="err"></div>
+</fieldset>
+
+<div id="assets"></div>
+
+<script>
+const OPTIONS = {
+  video: { label: "Quality", min: 40, max: 100, hint: "40-100, optional" },
+  image: { label: "Compression", min: 1, max: 31, hint: "1 (best) to 31 (worst), optional" },
+  audio: { label: "Bitrate", choices: ["128k", "192k", "256k", "320k"], hint: "optional" },
+};
+
+const typeEl = document.getElementById("type");
+const wrap = document.getElementById("optionWrap");
+const optionLabel = document.getElementById("optionLabel");
+const optionHint = document.getElementById("optionHint");
+let optionEl = document.getElementById("option");
+
+function renderOption() {
+  const cfg = OPTIONS[typeEl.value];
+  if (!cfg) { wrap.hidden = true; return; }
+  wrap.hidden = false;
+  optionLabel.textContent = cfg.label;
+  optionHint.textContent = cfg.hint;
+
+  const replacement = cfg.choices
+    ? Object.assign(document.createElement("select"), { id: "option" })
+    : Object.assign(document.createElement("input"), { id: "option", type: "number", placeholder: "optional" });
+
+  if (cfg.choices) {
+    replacement.append(new Option("default", ""));
+    for (const c of cfg.choices) replacement.append(new Option(c, c));
+  } else {
+    replacement.min = cfg.min;
+    replacement.max = cfg.max;
+  }
+  optionEl.replaceWith(replacement);
+  optionEl = replacement;
+}
+typeEl.addEventListener("change", renderOption);
+renderOption();
+
+document.getElementById("go").addEventListener("click", async () => {
+  const errEl = document.getElementById("error");
+  errEl.textContent = "";
+
+  const file = document.getElementById("file").files[0];
+  if (!file) { errEl.textContent = "Pick a file first."; return; }
+
+  const formData = new FormData();
+  formData.append("type", typeEl.value);
+  formData.append("name", file.name);
+  if (!wrap.hidden && optionEl.value) formData.append("option", optionEl.value);
+  formData.append("file", file);
+
+  const btn = document.getElementById("go");
+  btn.disabled = true;
+  btn.textContent = "Uploading\u2026";
+  try {
+    const res = await fetch("/upload", { method: "POST", body: formData });
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.message || "unknown");
+    addAsset(body, typeEl.value);
+  } catch (e) {
+    errEl.textContent = e.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Upload Media";
+  }
+});
+
+function embed(kind, url) {
+  if (kind === "image") return `<img src="${url}" alt="">`;
+  if (kind === "audio") return `<audio controls src="${url}"></audio>`;
+  if (kind === "video" || kind === "video-resolutions") {
+    return `<video controls src="${url}"></video>
+      <p class="muted">Before conversion this is your original file and plays anywhere. After
+      conversion the URL serves an HLS playlist, which plays natively in Safari but needs
+      hls.js elsewhere &mdash; the URL is the same either way.</p>`;
+  }
+  return `<p><a href="${url}">Download File</a> &mdash; documents and other files are always served as attachments.</p>`;
+}
+
+function addAsset(body, kind) {
+  const el = document.createElement("div");
+  el.className = "asset";
+  el.innerHTML = `
+    <div><span class="state raw" data-state>checking\u2026</span></div>
+    <p><code>${body.fileUrl}</code></p>
+    ${embed(kind, body.fileUrl)}
+    <p class="muted" data-detail></p>
+    <button data-delete>Delete Asset</button>`;
+  document.getElementById("assets").prepend(el);
+
+  const stateEl = el.querySelector("[data-state]");
+  const detailEl = el.querySelector("[data-detail]");
+
+  let tries = 0;
+  let hlsInstance = null;
+  const tick = async () => {
+    const r = await fetch("/status?url=" + encodeURIComponent(body.fileUrl)).then((x) => x.json());
+    stateEl.className = "state " + r.state;
+    stateEl.textContent =
+      r.state === "raw" ? "serving original upload"
+      : r.state === "converted" ? "converted"
+      : r.state === "missing" ? "gone"
+      : "unknown";
+    detailEl.textContent = r.target ? "\u2192 " + r.target : "";
+    if (r.state === "raw" && tries++ < 600) setTimeout(tick, 2000);
+
+    if (r.state === "converted" && (kind === "video" || kind === "video-resolutions") && !hlsInstance) {
+      const videoEl = el.querySelector("video");
+      if (videoEl && window.Hls && Hls.isSupported()) {
+        hlsInstance = new Hls();
+        hlsInstance.loadSource(body.fileUrl);
+        hlsInstance.attachMedia(videoEl);
+      }
+    }
+  };
+  tick();
+
+  el.querySelector("[data-delete]").addEventListener("click", async (e) => {
+    e.target.disabled = true;
+    const params = new URLSearchParams({ id: body.id, type: body.type });
+    await fetch("/file?" + params, { method: "DELETE" });
+    setTimeout(tick, 500);
+  });
+}
+</script>
+</body>
+</html>

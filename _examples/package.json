@@ -1,0 +1,9 @@
+{
+  "name": "media-docker-examples",
+  "private": true,
+  "type": "module",
+  "description": "media-docker client module and a runnable demo. No dependencies -- there is nothing to install.",
+  "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning app/server.ts"
+  }
+}

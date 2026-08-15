@@ -1,8 +1,17 @@
-// process package contains Kafka message processing functions for media-docker-failed-consumer.
+// Package process implements the retry logic of media-docker-failed-consumer.
+//
+// It consumes the dead-letter queue and re-runs the conversion that failed. It
+// deliberately calls the very same handlers the primary consumers use rather
+// than keeping a parallel implementation: those handlers are idempotent, write
+// through a scratch directory, and leave the raw upload untouched on failure,
+// which is exactly what a retry needs. Before v4 this package duplicated every
+// conversion, and the two copies were free to drift apart.
 package process
 
 import (
-	"github.com/nvj9singhnavjot/media-docker/kafkahandler"
+	"time"
+
+	"github.com/nvj9singhnavjot/media-docker/internal/consumerapp/handlers"
 	"github.com/nvj9singhnavjot/media-docker/logger"
 	"github.com/nvj9singhnavjot/media-docker/topics"
 	"github.com/nvj9singhnavjot/media-docker/validator"
@@ -10,24 +19,28 @@ import (
 	"github.com/segmentio/kafka-go"
 )
 
-// topicHandler is a struct that holds the fileType and the corresponding processing function for a given topic.
-type topicHandler struct {
-	fileType    string                                          // Describes the type of file (e.g., "video", "audio").
-	processFunc func(string, topics.DLQMessage) (string, error) // Function to process the message for the file type and return newId,error if any.
+// Retry settings for a message pulled off the dead-letter queue.
+const (
+	retryAttempts = 3
+	retryBackoff  = 2 * time.Second
+)
+
+// conversion re-runs the work a failed message describes. It is the very same
+// function the primary consumer used, not a parallel implementation.
+type conversion func(payload []byte) (newId string, resMessage string, err error)
+
+// topicHandlers maps the topic a failed message came from to its conversion.
+var topicHandlers = map[string]conversion{
+	"video":             handlers.Video,
+	"video-resolutions": handlers.VideoResolutions,
+	"image":             handlers.Image,
+	"audio":             handlers.Audio,
 }
 
-// topicHandlers is a map that associates Kafka topics with their respective handlers (fileType and processing function).
-var topicHandlers = map[string]topicHandler{
-	"video":             {fileType: "video", processFunc: processVideoMessage},                       // Handler for video topic.
-	"video-resolutions": {fileType: "videoResolutions", processFunc: processVideoResolutionsMessage}, // Handler for video-resolutions topic.
-	"image":             {fileType: "image", processFunc: processImageMessage},                       // Handler for image topic.
-	"audio":             {fileType: "audio", processFunc: processAudioMessage},                       // Handler for audio topic.
-}
-
-// ProcessMessage processes the Kafka message based on its topic.
-// If the message is successfully unmarshalled and validated, it calls handleDLQMessage.
-// If not, it attempts to extract the newId and originalTopic from the message,
-// logging the error and sending a failed response if necessary.
+// ProcessMessage processes a message from the dead-letter queue.
+//
+// If the message unmarshals and validates, the conversion it describes is
+// retried. If it does not, there is nothing to act on and it is logged.
 func ProcessMessage(msg kafka.Message, workerName string) {
 	var dlqMsg topics.DLQMessage
 
@@ -35,91 +48,84 @@ func ProcessMessage(msg kafka.Message, workerName string) {
 	errmsg, err := validator.UnmarshalAndValidate(msg.Value, &dlqMsg)
 
 	if err == nil {
-		// Handle the DLQ message if unmarshalling was successful.
 		handleDLQMessage(dlqMsg, workerName)
 		return
 	}
 
-	// Attempt to extract newId and originalTopic from the message on failure.
-	newId, originalTopic, extractErr := validator.ExtractNewIdAndOriginalTopic(msg.Value)
-	if extractErr == nil {
-		// Check if the original topic exists in the topicHandlers map.
-		handler, exists := topicHandlers[originalTopic]
-		if exists {
-			// Log the error, record the failed message processing, and send a failed response.
-			logger.LogErrorWithKafkaMessage(err, workerName, msg, errmsg+" DLQMessage")
-			kafkahandler.SendConsumerResponse(workerName, newId, handler.fileType, "failed")
-			return
-		}
-	}
-
-	// Log the error if newId and originalTopic extraction fails, without sending a response.
-	// CAUTION: No response will be sent to "media-docker-files-response",
-	// leaving client backend services unnotified.
-	log.Error().
-		Err(err).
-		Str("worker", workerName).
-		Interface("dlq_message", dlqMsg).
-		Str("failed", "Failed to get newId and originalTopic").
-		Msg(errmsg + " DLQMessage")
+	// The message is not a DLQMessage, so there is nothing to retry and nothing
+	// to recover from it. Whatever asset it referred to keeps serving its raw
+	// upload; only the retry is lost.
+	logger.LogErrorWithKafkaMessage(err, workerName, msg, errmsg+" DLQMessage")
 }
 
-// handleDLQMessage processes a "failed-letter-queue" message by first checking if the original topic is recognized.
-// It calls the corresponding processing function for the known topic.
-// If the original topic is unknown, an error is logged and no response is sent.
-// If the message processing fails, the error is logged, and a failure response is sent back to the consumer.
+// handleDLQMessage retries the conversion a failed message describes.
+//
+// A permanently failed conversion is no longer a broken asset. The raw upload is
+// still in place and the asset's URL keeps serving it, so exhausting the retries
+// means the asset stays in its original quality rather than that it is
+// unavailable.
 func handleDLQMessage(dlqMsg topics.DLQMessage, workerName string) {
+	convert, exists := topicHandlers[dlqMsg.OriginalTopic]
+	if !exists {
+		// The topic passed struct validation but has no handler, which can only
+		// mean the validation tag and this map have drifted apart.
+		log.Error().
+			Str("worker", workerName).
+			Interface("dlq_message", dlqMsg).
+			Msg("No handler for original topic of DLQMessage.")
+		return
+	}
 
-	// Verify that the originalTopic exists in the topicHandlers map.
-	//
-	// NOTE: The existence of the handler is not checked because
-	// the originalTopic has already been validated in the ProcessMessage function.
-	handler := topicHandlers[dlqMsg.OriginalTopic]
-
-	// Log a success message if the DLQ message is recognized with a valid originalTopic.
 	log.Info().
 		Str("worker", workerName).
 		Interface("dlq_message", dlqMsg).
 		Msg("DLQMessage received.")
 
-	// Process the DLQ message using the appropriate handler function for the original topic.
-	newId, err := handler.processFunc(workerName, dlqMsg)
+	newId, resMessage, err := retryConversion(convert, dlqMsg, workerName)
+
 	if err == nil {
-		// Log success after processing the DLQ message without errors.
 		log.Info().
 			Str("worker", workerName).
+			Str("newId", newId).
 			Interface("dlq_message", dlqMsg).
 			Msg("DLQMessage processing completed successfully.")
-		// Send a success response to the consumer indicating the message processing is completed.
-		kafkahandler.SendConsumerResponse(workerName, newId, handler.fileType, "completed")
 		return
 	}
 
-	// Log an error if the processing of the DLQ message fails.
-	// INFO: This indicates that the last attempt at file conversion or processing has failed.
-	if newId == "" && (dlqMsg.NewId == nil) {
-		// CAUTION: No response will be sent to "media-docker-files-response",
-		// which leaves client backend services unnotified.
-		log.Error().
-			Err(err).
-			Str("worker", workerName).
-			Interface("dlq_message", dlqMsg).
-			Str("newId", "Failed to get newId"). // Log an error indicating that newId could not be obtained.
-			Msg("Failed to process DLQMessage.")
-		return
-	}
-
-	// Update the DLQ message with the newId if it is empty.
-	if newId == "" {
-		*dlqMsg.NewId = newId
-	}
-
-	// Log the error indicating the processing of the DLQ message failed.
+	// INFO: This was the last attempt at converting this asset. The raw upload
+	// remains in place and continues to be served, so the asset stays usable at
+	// its original quality rather than becoming unavailable.
 	log.Error().
 		Err(err).
 		Str("worker", workerName).
+		Str("detail", resMessage).
 		Interface("dlq_message", dlqMsg).
-		Msg("Failed to process DLQMessage.")
-	// Send a failure response to the consumer indicating that the processing has failed.
-	kafkahandler.SendConsumerResponse(workerName, newId, handler.fileType, "failed")
+		Msg("Failed to process DLQMessage, asset keeps serving its raw upload.")
+}
+
+// retryConversion re-runs a conversion, giving it a few attempts before giving up.
+func retryConversion(convert conversion, dlqMsg topics.DLQMessage, workerName string) (string, string, error) {
+	var newId, resMessage string
+	var err error
+
+	payload := []byte(dlqMsg.Value)
+
+	for attempt := 1; attempt <= retryAttempts; attempt++ {
+		newId, resMessage, err = convert(payload)
+		if err == nil {
+			return newId, resMessage, nil
+		}
+
+		if attempt < retryAttempts {
+			log.Warn().
+				Err(err).
+				Str("worker", workerName).
+				Str("detail", resMessage).
+				Msgf("Attempt %d/%d failed for %s retry, retrying", attempt, retryAttempts, dlqMsg.OriginalTopic)
+
+			time.Sleep(retryBackoff)
+		}
+	}
+
+	return newId, resMessage, err
 }

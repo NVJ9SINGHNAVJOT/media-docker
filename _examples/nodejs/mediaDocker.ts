@@ -10,46 +10,46 @@
     along with a file URL or multiple URLs (in case the media generates multiple output formats).
   - Once the file is uploaded, Media-Docker will process it according to the file type
     (e.g., image conversion, video transcoding, etc.).
-  
-  Post-Upload Response:
-  - After processing, your server will receive a message from Media-Docker via Kafka.
-  - This message will include the following fields:
-  
-    ```typescript
-    type MediaDockerMessage = {
-      id: string; // Unique file identifier (UUID v4 format)
-      fileType: "image" | "video" | "videoResolutions" | "audio"; // Type of the uploaded file
-      status: "completed" | "failed"; // Status of the file processing
-    };
-    ```
 
-  - The `id` will match the UUID v4 of the uploaded file.
-  - The `fileType` will specify the media type, such as "image", "video", "videoResolutions", or "audio".
-  - The `status` field will indicate whether the processing was successful ("completed") or failed ("failed").
+  IMPORTANT (v4): the returned fileUrl works immediately.
+  - You can store and serve the URL as soon as the upload returns; there is nothing to wait for.
+  - Until conversion finishes, the URL serves the file exactly as you uploaded it, so a
+    video is playable straight away as a plain progressive download.
+  - When the consumer finishes, the same URL starts serving the converted output (an HLS
+    playlist for video, a compressed JPEG for images, an MP3 for audio). Nothing on your
+    side has to change: the URL never does.
+  - "document" and "other" uploads are never converted and are always served as uploaded.
 
-  Handling the Response:
-  - Based on the `status` ("completed" or "failed"), you can implement further logic in your system:
-    - For "completed", you may update your database, notify users, or proceed with further actions.
-    - For "failed", you can handle retries or report errors in your application.
-  
-  Note: This file is designed to ensure smooth integration with Media-Docker. If modifications are 
-  necessary, please review them carefully to avoid breaking the upload and response processing functionality.
+  There is no callback and no message queue to consume. The URL is the entire contract:
+  it works the moment the upload returns, and it silently starts serving the converted
+  output when conversion finishes. If conversion never succeeds, the URL keeps serving
+  your original upload indefinitely -- degraded, not broken. Nothing on your side has to
+  hold assets in a "pending" state.
+
+  This file has no third-party dependencies.
+
+  Note: This file is designed to ensure smooth integration with Media-Docker. If modifications are
+  necessary, please review them carefully to avoid breaking the upload functionality.
 */
 
 // Importing file system for handling file operations
 import * as fs from "fs";
 import * as fsp from "fs/promises";
-// Importing Kafka and Consumer classes from kafkajs library for handling Kafka messaging
-// Note: Ensure that the kafkajs library is installed in your project by running:
-// npm install kafkajs or yarn add kafkajs
-import { Kafka, Consumer, logLevel } from "kafkajs";
 
 type FileStatus = {
   type: string;
   status: string;
   chunk: number;
-  chunkId?: string;
+  fileName: string;
+  // The asset id, returned by the server on the first chunk. It is the final
+  // media id, so every later request in the upload refers to the same asset.
+  id?: string;
 };
+
+/**
+ * Storage categories accepted by the server.
+ */
+type MediaDockerFileType = "image" | "video" | "audio" | "document" | "other";
 
 /**
  * Standardized response format
@@ -77,6 +77,8 @@ type MediaFile = {
 type Video = MediaFile; // Type for video media files
 type Audio = MediaFile; // Type for audio media files
 type Image = MediaFile; // Type for image media files
+type Document = MediaFile; // Type for document files, stored and served as uploaded
+type Other = MediaFile; // Type for arbitrary files, stored and served as uploaded
 
 /**
  * Defines the structure for different video resolutions and their corresponding URLs.
@@ -90,6 +92,10 @@ type Image = MediaFile; // Type for image media files
  */
 type VideoResolutions = {
   id: string;
+  // The adaptive URL. Once converted it serves a master playlist listing every
+  // resolution, so a player can switch quality on its own. Prefer this over
+  // picking a fixed resolution from fileUrls.
+  fileUrl: string;
   fileUrls: {
     "360": string;
     "480": string;
@@ -99,35 +105,48 @@ type VideoResolutions = {
 };
 
 /**
- * Message type for Kafka messages
- * @typedef {Object} MediaDockerMessage
- * @property {string} id - Unique identifier for the message
- * @property {"image" | "video" | "videoResolutions" | "audio"} fileType - Type of media file
- * @property {"completed" | "failed"} status - Status of the media processing
- */
-export type MediaDockerMessage = {
-  id: string;
-  fileType: "image" | "video" | "videoResolutions" | "audio";
-  status: "completed" | "failed";
-};
-
-/**
- * MediaDocker class for handling media uploads and Kafka messages
+ * MediaDocker class for handling media uploads
  */
 class MediaDocker {
-  private _validFiles = {
+  private _validFiles: Record<string, string[] | null> = {
     image: ["jpeg", "jpg", "png"], // Supported image file extensions
     video: ["mp4", "webm", "ogg", "mkv"], // Supported video file extensions
     audio: ["mp3", "mpeg", "wav"], // Supported audio file extensions
+    document: ["pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx", "odt", "txt", "csv"],
+    // null means any extension is accepted; "other" exists for exactly that.
+    other: null,
+  };
+
+  // MIME types for the extensions above. The server derives the stored extension
+  // from the file name rather than this value, but it still checks the type
+  // against its allowlist, so it has to be plausible.
+  private _mimeTypes: Record<string, string> = {
+    jpeg: "image/jpeg",
+    jpg: "image/jpg",
+    png: "image/png",
+    mp4: "video/mp4",
+    webm: "video/webm",
+    ogg: "video/ogg",
+    mkv: "video/mkv",
+    mp3: "audio/mp3",
+    mpeg: "audio/mpeg",
+    wav: "audio/wav",
+    pdf: "application/pdf",
+    doc: "application/msword",
+    docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    xls: "application/vnd.ms-excel",
+    xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    ppt: "application/vnd.ms-powerpoint",
+    pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+    odt: "application/vnd.oasis.opendocument.text",
+    txt: "text/plain",
+    csv: "text/csv",
   };
 
   private _config = {
     mediaDockerServerKey: "", // API key for authenticating to the media server
     mediaDockerServerBaseURL: "", // Base URL for the media server API
   };
-
-  private kafka!: Kafka; // Kafka instance for message handling
-  private consumer!: Consumer; // Kafka consumer for processing messages
 
   /**
    * Uploads the file to the specified storage API endpoint.
@@ -169,53 +188,43 @@ class MediaDocker {
       throw new Error("mediaDocker is not connected"); // Error if server key is missing.
     }
 
-    // Extract the file extension from the file path to determine its type.
-    let fileType = filePath.split(".").pop();
-    const ext = fileType; // Save the file extension for setting MIME type later.
+    // Extract the file name and extension. The server stores the file under this
+    // extension, which is why it is sent with every request: deriving it from the
+    // MIME type does not work for document formats.
+    const fileName = filePath.split(/[/\\]/).pop() as string;
+    const ext = fileName.includes(".") ? (fileName.split(".").pop() as string).toLowerCase() : "";
 
-    // Validate that the file has an extension, throw an error if missing.
-    if (!fileType) {
-      throw new Error("Invalid file type: File extension is missing");
+    // Map the endpoint to the storage category the server files it under.
+    const fileType = this.storageTypeFor(apiEndPoint);
+
+    // Validate the extension against the category's allowlist. A null allowlist
+    // ("other") accepts anything.
+    const allowed = this._validFiles[fileType];
+    if (allowed) {
+      if (!ext) {
+        throw new Error("Invalid file type: File extension is missing");
+      }
+      if (!allowed.includes(ext)) {
+        throw new Error(`Invalid file type: ${ext} is not allowed for ${apiEndPoint} endpoint`);
+      }
     }
 
-    // Validate the file type based on the provided API endpoint (audio, image, video, etc.).
-    if (apiEndPoint === "audio") {
-      if (!this._validFiles.audio.includes(fileType)) {
-        throw new Error(`Invalid file type: ${fileType} is not allowed for audio endpoint`);
-      }
-      fileType = "audio";
-    } else if (apiEndPoint === "image") {
-      if (!this._validFiles.image.includes(fileType)) {
-        throw new Error(`Invalid file type: ${fileType} is not allowed for image endpoint`);
-      }
-      fileType = "image";
-    } else if (apiEndPoint === "video") {
-      if (!this._validFiles.video.includes(fileType)) {
-        throw new Error(`Invalid file type: ${fileType} is not allowed for video endpoint`);
-      }
-      fileType = "video";
-    } else if (apiEndPoint === "video-resolutions") {
-      if (!this._validFiles.video.includes(fileType)) {
-        throw new Error(`Invalid file type: ${fileType} is not allowed for video-resolutions endpoint`);
-      }
-      fileType = "video";
-    } else {
-      // Throw an error for any unsupported API endpoints.
-      throw new Error(`Invalid API endpoint: ${apiEndPoint}`);
-    }
+    const mimeType = this._mimeTypes[ext] ?? "application/octet-stream";
 
     // Set the size for each file chunk (2 MB for chunked uploads).
+    // NOTE: this must match helper.Constants.MaxChunkSize on the server.
     const CHUNK_SIZE = 2 * 1024 * 1024; // 2 MB chunk size.
     const stats = fs.statSync(filePath); // Retrieve the file size.
     const totalChunks = Math.ceil(stats.size / CHUNK_SIZE); // Calculate the total number of chunks.
-    let uuidFilename = ""; // Variable to store the UUID filename returned from the server.
+    let id = ""; // The asset id assigned by the server.
 
     if (totalChunks <= 1) {
       // If the file size is less than or equal to 2 MB, upload the file in a single request.
       const content = await fsp.readFile(filePath); // Read the entire file content.
       const formData = new FormData();
-      formData.append(fileType + "File", new Blob([content], { type: `${fileType}/${ext}` })); // Append file content to FormData.
+      formData.append(fileType + "File", new Blob([content], { type: mimeType })); // Append file content to FormData.
       formData.append("type", fileType); // Append file type to FormData.
+      formData.append("fileName", fileName); // Used by the server to derive the stored extension.
       const response = await this.uploadToStorage(formData, "file-storage"); // Send file to the file storage API.
       const resData = await response.json(); // Parse the server's JSON response.
 
@@ -224,8 +233,8 @@ class MediaDocker {
         throw new Error("message" in resData ? resData.message : "unknown");
       }
 
-      // Store the UUID filename returned by the server for future reference.
-      uuidFilename = resData.data.uuidFilename;
+      // Store the asset id returned by the server.
+      id = resData.data.id;
     } else {
       // If the file is larger than 2 MB, perform chunked uploads.
       const fileStream = fs.createReadStream(filePath, { highWaterMark: CHUNK_SIZE }); // Create a stream to read file chunks.
@@ -234,19 +243,20 @@ class MediaDocker {
         type: fileType, // Set file type for the upload.
         status: "start", // Initial upload status.
         chunk: 0, // Starting chunk index.
+        fileName: fileName, // Original file name.
       };
 
       // Iterate over each chunk of the file and upload it.
       for await (const chunk of fileStream) {
         const formData = new FormData(); // FormData object for the current chunk.
-        formData.append(`${fileType}File`, new Blob([chunk], { type: `${fileType}/${ext}` })); // Append the current chunk.
+        formData.append(`${fileType}File`, new Blob([chunk], { type: mimeType })); // Append the current chunk.
 
         // Set the file status for the last chunk to 'completed'.
         if (fileStatus.chunk === totalChunks - 1) {
           fileStatus.status = "completed";
         }
 
-        // Append fileStatus fields (e.g., chunkId, status) to the formData for the current upload.
+        // Append fileStatus fields (e.g., id, status) to the formData for the current upload.
         Object.keys(fileStatus).forEach((key) => {
           const value = fileStatus[key as keyof FileStatus];
           if (value !== null && value !== undefined) {
@@ -264,13 +274,11 @@ class MediaDocker {
           throw new Error("message" in resData ? resData.message : "unknown");
         }
 
-        // For the first chunk, set the status to 'uploading' and store the new chunkId.
+        // The first chunk mints the asset id; every later request reuses it.
         if (fileStatus.chunk === 0) {
           fileStatus.status = "uploading";
-          fileStatus.chunkId = resData.data.newChunkId;
-        } else if (fileStatus.chunk === totalChunks - 1) {
-          // For the last chunk, store the UUID filename from the server response.
-          uuidFilename = resData.data.uuidFilename;
+          fileStatus.id = resData.data.id;
+          id = resData.data.id;
         }
 
         // Increment the chunk index for the next iteration.
@@ -280,11 +288,11 @@ class MediaDocker {
       fileStream.close(); // Close the file stream after the chunked upload is complete.
     }
 
-    // Ensure the data object exists and add the UUID filename for the final metadata upload.
+    // Claim the stored upload and, where applicable, queue its conversion.
     data = data || {}; // Initialize an empty object if no data is provided.
-    data.uuidFilename = uuidFilename; // Add the UUID filename to the data.
+    data.id = id;
 
-    // Send the final metadata (including the UUID filename) to the media-docker server.
+    // Send the final metadata (including the asset id) to the media-docker server.
     const response = await fetch(this._config.mediaDockerServerBaseURL + `/api/v1/uploads/${apiEndPoint}`, {
       method: "POST", // HTTP method for sending metadata.
       body: JSON.stringify(data), // Send the metadata as JSON.
@@ -303,61 +311,54 @@ class MediaDocker {
   }
 
   /**
-   * Establishes connections to both the media server and the Kafka broker.
-   * This function handles the authentication to the media server and sets up
-   * the Kafka consumer to process incoming messages from the specified topics.
+   * Maps an upload endpoint to the storage category the server files it under.
+   * Note that both video endpoints share the "video" category: they differ in
+   * how the file is converted, not in where it is stored.
    *
-   * The connection to the media server is authenticated using the provided API key
-   * and base URL, while the Kafka consumer connects to the specified brokers and
-   * listens for messages within the defined consumer group.
+   * @param {string} apiEndPoint - The upload endpoint.
+   * @returns {MediaDockerFileType} - The storage category.
+   */
+  private storageTypeFor(apiEndPoint: string): MediaDockerFileType {
+    switch (apiEndPoint) {
+      case "video":
+      case "video-resolutions":
+        return "video";
+      case "image":
+        return "image";
+      case "audio":
+        return "audio";
+      case "document":
+        return "document";
+      case "other":
+        return "other";
+      default:
+        throw new Error(`Invalid API endpoint: ${apiEndPoint}`);
+    }
+  }
+
+  /**
+   * Authenticates against the media-docker server.
+   *
+   * This is the only handshake there is: it validates the API key and stores the
+   * key and base URL for every later call. Nothing is held open afterwards --
+   * each upload is an ordinary HTTP request -- so there is no connection to
+   * manage and nothing to tear down.
    *
    * Use `localhost` when running media Docker services locally (for development).
    * When deploying in Docker or production, use the appropriate container or server URLs.
-   *
-   * Upon successful connection to Kafka, the consumer will continuously listen
-   * for incoming messages. If any connection fails, an error is thrown and
-   * logged. If Kafka fails to connect, it retries up to 5 times before giving up.
-   *
-   * The provided message handler function will be invoked for each Kafka message
-   * received, enabling custom message processing logic to be executed in real-time.
    *
    * @param {string} mediaDockerServerKey - The API key required for authenticating
    * with the media server.
    * @param {"http://localhost:7007" | "http://media-docker-server:7007"} mediaDockerServerBaseURL -
    * The base URL for the media server API. Use `localhost` for development and
    * `media-docker-server` for Docker or production environments.
-   * @param {"localhost:9092" | "media-docker-kafka-0:9092,media-docker-kafka-1:9092,media-docker-kafka-2:9092"} kafkaBrokers -
-   * Comma-separated list of Kafka broker addresses. Use `localhost` for development
-   * and Docker container addresses for Docker or production environments.
-   * @param {(message: MediaDockerMessage) => Promise<void>} messageHandler -
-   * Callback function to process each incoming Kafka message.
    *
-   * @returns {Promise<void>} - Resolves once both the media server and Kafka broker
-   * are connected, or rejects if a connection fails.
+   * @returns {Promise<void>} - Resolves once the key has been accepted, rejects if it has not.
    */
-  async connectMediaDockerAndKafka(
+  async connect(
     mediaDockerServerKey: string,
-    mediaDockerServerBaseURL: "http://localhost:7007" | "http://media-docker-server:7007",
-    kafkaBrokers: "localhost:9092" | "media-docker-kafka-0:9092,media-docker-kafka-1:9092,media-docker-kafka-2:9092",
-    messageHandler: (message: MediaDockerMessage) => Promise<void>
+    mediaDockerServerBaseURL: "http://localhost:7007" | "http://media-docker-server:7007"
   ): Promise<void> {
-    // Initialize the Kafka instance with client ID and broker addresses
-    this.kafka = new Kafka({
-      clientId: "media-docker-response-client", // Unique client ID for Kafka
-      brokers: kafkaBrokers.split(","), // Connect to the specified Kafka brokers
-      retry: {
-        retries: 5, // Retry Kafka connection 5 times on failure
-      },
-      logLevel: logLevel.WARN, // Log Kafka events at WARN level
-    });
-
-    // Initialize the Kafka consumer with the specified group ID and heartbeat settings
-    this.consumer = this.kafka.consumer({
-      groupId: "media-docker-response-group", // Consumer group for coordinated message consumption
-      heartbeatInterval: 3000, // Heartbeat interval to maintain connection (3 seconds)
-      sessionTimeout: 60000, // Session timeout duration (60 seconds)
-    });
-
     // Connect to the media server using the provided API key and base URL
     const response = await fetch(mediaDockerServerBaseURL + "/api/v1/connections/connect", {
       method: "GET",
@@ -379,113 +380,6 @@ class MediaDocker {
     this._config.mediaDockerServerKey = mediaDockerServerKey;
     this._config.mediaDockerServerBaseURL = mediaDockerServerBaseURL;
     this.log("INFO", "Connected to media server successfully."); // Log successful media server connection
-
-    // Connect the Kafka consumer to the Kafka brokers
-    await this.consumer.connect();
-    this.log("INFO", "Connected to Kafka successfully."); // Log successful Kafka connection
-
-    // Start processing incoming Kafka messages using the provided message handler
-    this.handleConsumer(messageHandler);
-    this.log("INFO", "Kafka message consumption has started."); // Log the start of Kafka message consumption
-  }
-
-  /**
-   * Disconnect from Kafka, shutting down the consumer gracefully.
-   * This method ensures that any ongoing message processing is completed
-   * before disconnecting. It logs the disconnection status and any errors
-   * that occur during the process.
-   *
-   * @returns {Promise<void>} - Resolves when the consumer is successfully disconnected,
-   * or rejects if an error occurs during disconnection.
-   */
-  async disconnect(): Promise<void> {
-    await this.consumer.disconnect(); // Disconnect the Kafka consumer
-    this.log("INFO", "Disconnected from Kafka successfully."); // Log successful disconnection
-  }
-
-  /**
-   * Handle incoming Kafka messages by connecting to the broker and
-   * processing messages as they arrive. This function attempts to connect
-   * to Kafka up to 10 times if the initial connection fails. If successful,
-   * it subscribes to the specified topic and runs a background process that
-   * continuously listens for messages, invoking the provided message handler
-   * for each one.
-   *
-   * If an error occurs while processing a message, it logs the error
-   * information for debugging purposes. The retry mechanism ensures that
-   * transient network issues do not prevent the application from connecting
-   * to Kafka, providing robustness in message handling.
-   *
-   * @param {(message: MediaDockerMessage) => Promise<void>} messageHandler -
-   * Function to handle incoming messages. This function is called for each
-   * message received from the Kafka topic.
-   *
-   * @returns {Promise<void>} - Resolves when the consumer is running
-   * and actively listening for messages.
-   */
-  private async handleConsumer(messageHandler: (message: MediaDockerMessage) => Promise<void>): Promise<void> {
-    // Attempt to connect to Kafka up to 10 times
-    for (let attempt = 0; attempt < 10; attempt++) {
-      try {
-        if (attempt > 0) {
-          // Reconnect to the Kafka broker only on subsequent attempts
-          await this.consumer.connect();
-          this.log("INFO", "Reconnected to Kafka successfully."); // Log successful reconnection
-        }
-
-        // Subscribe to the specified topic
-        await this.consumer.subscribe({ topics: ["media-docker-files-response"], fromBeginning: true });
-
-        // Run the consumer to process incoming messages
-        await this.consumer.run({
-          eachMessage: async ({ topic, partition, message }) => {
-            // Declare value and initialize to null
-            let value: MediaDockerMessage | null = null;
-
-            try {
-              // Check if the message value is null or empty
-              if (!message.value) {
-                this.log("ERROR", `Received null or empty message from topic "${topic}", partition "${partition}"`);
-                return; // Skip processing if message is invalid
-              }
-
-              // Parse message value
-              value = JSON.parse(message.value.toString()) as MediaDockerMessage;
-
-              // Call the provided message handler for custom processing
-              await messageHandler(value);
-            } catch (error) {
-              // Log errors that occur during message processing, including the parsed value if available
-              this.log(
-                "ERROR",
-                `Error processing message from topic "${topic}", partition "${partition}": ${error}. Parsed message value: ${value ? JSON.stringify(value) : "Not available"}`
-              );
-              this.delay(1000); // Delay for 1 second
-            }
-          },
-        });
-
-        // Successfully connected and running
-        return;
-      } catch (error) {
-        // Log the connection error
-        this.log("ERROR", `Connection attempt failed: ${error}`);
-        this.log("INFO", `Retrying connection (${attempt + 1}/10)...`); // Log retry attempt
-        await this.delay(2000); // Wait before retrying
-      }
-    }
-
-    // Log failure if maximum connection attempts are reached
-    this.log("ERROR", "Max connection attempts reached. Could not connect to Kafka.");
-  }
-
-  /**
-   * Delay execution for a specified number of milliseconds
-   * @param {number} ms - Delay in milliseconds
-   * @returns {Promise<void>} - Resolves after the delay
-   */
-  private delay(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   /**
@@ -524,10 +418,14 @@ class MediaDocker {
   /**
    * Upload an image file to the media server
    * @param {string} filePath - Path to the image file being uploaded
+   * @param {number} [compression] - Optional ffmpeg quality level, 1 (best) to 31 (worst)
    * @returns {Promise<Result<Image>>} - Result containing image upload response
    */
-  async uploadImage(filePath: string): Promise<Result<Image>> {
-    const res = await this.uploadFileToMediaDockerServer<Image>(filePath, "image");
+  async uploadImage(filePath: string, compression?: number): Promise<Result<Image>> {
+    if (compression && (compression < 1 || compression > 31)) {
+      throw new Error("Compression must be between 1 and 31"); // Validate compression range
+    }
+    const res = await this.uploadFileToMediaDockerServer<Image>(filePath, "image", { compression });
     return res; // Return the response from the upload
   }
 
@@ -543,12 +441,42 @@ class MediaDocker {
   }
 
   /**
+   * Upload a document to the media server.
+   *
+   * Documents are stored and served exactly as uploaded; no conversion happens,
+   * so the URL is final from the moment the upload completes. They are always
+   * served as a download rather than rendered in the browser.
+   *
+   * @param {string} filePath - Path to the document being uploaded
+   * @returns {Promise<Result<Document>>} - Result containing the upload response
+   */
+  async uploadDocument(filePath: string): Promise<Result<Document>> {
+    const res = await this.uploadFileToMediaDockerServer<Document>(filePath, "document");
+    return res; // Return the response from the upload
+  }
+
+  /**
+   * Upload a file of any type to the media server.
+   *
+   * Like documents, these are stored and served exactly as uploaded and are
+   * always served as a download. Use this for files that do not fit the other
+   * categories; no extension allowlist is applied.
+   *
+   * @param {string} filePath - Path to the file being uploaded
+   * @returns {Promise<Result<Other>>} - Result containing the upload response
+   */
+  async uploadOther(filePath: string): Promise<Result<Other>> {
+    const res = await this.uploadFileToMediaDockerServer<Other>(filePath, "other");
+    return res; // Return the response from the upload
+  }
+
+  /**
    * Delete a media file from the server
    * @param {string} id - ID of the media file to be deleted
-   * @param {"image" | "video" | "audio"} type - Type of the media file
+   * @param {MediaDockerFileType} type - Type of the media file
    * @returns {Promise<void>} - Resolves when deletion is successful
    */
-  async deleteFile(id: string, type: "image" | "video" | "audio"): Promise<void> {
+  async deleteFile(id: string, type: MediaDockerFileType): Promise<void> {
     if (this._config.mediaDockerServerKey === "") {
       throw new Error("mediaDocker is not connected"); // Ensure the server key is set
     }
