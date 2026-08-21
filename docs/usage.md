@@ -27,7 +27,7 @@ The upload returns a URL that already works, serving your file as uploaded until
 and the converted output silently takes its place at the same URL. There is no completion message to
 consume.
 
-Currently only a Node.js module is available. Other language integrations are under development; the
+Currently only a Node.js module is available. Other language integrations are under development, and the
 `_examples/` layout has a folder per language so they can be added without disturbing this one.
 
 ## See it work
@@ -41,6 +41,6 @@ The demo uploads a file and then polls the asset URL, showing whether it is stil
 upload or has upgraded to the converted output. It needs media-docker-server and
 media-docker-client running, plus the consumer for whichever media type you upload.
 
-`npm start` installs nothing — Node runs the `.ts` files directly by stripping types (23.6+; on
+`npm start` installs nothing — Node runs the `.ts` files directly by stripping types (23.6+, on
 22.6–23.5 add `--experimental-strip-types`). See [_examples/README.md](../_examples/README.md) for
 the details and the full environment variable list.

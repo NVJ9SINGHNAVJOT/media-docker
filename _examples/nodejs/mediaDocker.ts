@@ -20,6 +20,12 @@
     side has to change: the URL never does.
   - "document" and "other" uploads are never converted and are always served as uploaded.
 
+  Every response also carries an originalUrl. Conversion adds a representation rather than
+  replacing one, so the file you uploaded stays on disk for the life of the asset and
+  originalUrl serves it unchanged, before and after conversion. Use fileUrl to serve the
+  best available version, and originalUrl when you want the source bytes: a
+  download-original link, a quality comparison, or your own re-processing.
+
   There is no callback and no message queue to consume. The URL is the entire contract:
   it works the moment the upload returns, and it silently starts serving the converted
   output when conversion finishes. If conversion never succeeds, the URL keeps serving
@@ -65,10 +71,15 @@ type Result<T> = { message: string; data: T };
  * @typedef {Object} MediaFile
  * @property {string} id - Unique identifier for the media file
  * @property {string} fileUrl - URL of the media file
+ * @property {string} originalUrl - URL that always serves the file as uploaded
  */
 type MediaFile = {
   id: string;
   fileUrl: string;
+  // Always the upload exactly as you sent it, before and after conversion. The
+  // raw file is never deleted, so this URL stays valid for as long as the asset
+  // does.
+  originalUrl: string;
 };
 
 /**
@@ -89,6 +100,7 @@ type Other = MediaFile; // Type for arbitrary files, stored and served as upload
  * @property {string} fileUrls.480 - URL for the 480p resolution video
  * @property {string} fileUrls.720 - URL for the 720p resolution video
  * @property {string} fileUrls.1080 - URL for the 1080p resolution video
+ * @property {string} originalUrl - URL that always serves the file as uploaded
  */
 type VideoResolutions = {
   id: string;
@@ -102,6 +114,9 @@ type VideoResolutions = {
     "720": string;
     "1080": string;
   };
+  // The source video, at whatever resolution it was uploaded in. It is not part
+  // of the ladder and is not adaptive: it is the file itself.
+  originalUrl: string;
 };
 
 /**
@@ -392,7 +407,11 @@ class MediaDocker {
   }
 
   /**
-   * Upload a video file to the media server
+   * Upload a video file to the media server.
+   *
+   * fileUrl serves the upload immediately and switches to an HLS stream once the
+   * consumer finishes; originalUrl keeps serving the file you sent, either way.
+   *
    * @param {string} filePath - Path to the video file being uploaded
    * @param {number} [quality] - Optional quality level between 40 and 100
    * @returns {Promise<Result<Video>>} - Result containing video upload response
@@ -406,7 +425,12 @@ class MediaDocker {
   }
 
   /**
-   * Upload video resolutions to the media server
+   * Upload video resolutions to the media server.
+   *
+   * Returns the adaptive fileUrl, one URL per rung of the ladder, and
+   * originalUrl for the source video at its uploaded resolution -- useful when
+   * the upload is higher quality than the top rung.
+   *
    * @param {string} filePath - Path to the video resolutions file
    * @returns {Promise<Result<VideoResolutions>>} - Result containing video resolutions upload response
    */
@@ -416,7 +440,11 @@ class MediaDocker {
   }
 
   /**
-   * Upload an image file to the media server
+   * Upload an image file to the media server.
+   *
+   * fileUrl serves a compressed JPEG once converted; originalUrl keeps serving
+   * the image at its uploaded format and quality.
+   *
    * @param {string} filePath - Path to the image file being uploaded
    * @param {number} [compression] - Optional ffmpeg quality level, 1 (best) to 31 (worst)
    * @returns {Promise<Result<Image>>} - Result containing image upload response
@@ -430,7 +458,11 @@ class MediaDocker {
   }
 
   /**
-   * Upload an audio file to the media server
+   * Upload an audio file to the media server.
+   *
+   * fileUrl serves an MP3 once converted; originalUrl keeps serving the audio as
+   * uploaded, which matters when the source was lossless.
+   *
    * @param {string} filePath - Path to the audio file being uploaded
    * @param {"128k" | "192k" | "256k" | "320k"} [bitrate] - Optional bitrate for the audio file
    * @returns {Promise<Result<Audio>>} - Result containing audio upload response
@@ -445,7 +477,8 @@ class MediaDocker {
    *
    * Documents are stored and served exactly as uploaded; no conversion happens,
    * so the URL is final from the moment the upload completes. They are always
-   * served as a download rather than rendered in the browser.
+   * served as a download rather than rendered in the browser. originalUrl is
+   * returned for consistency and addresses the same bytes as fileUrl.
    *
    * @param {string} filePath - Path to the document being uploaded
    * @returns {Promise<Result<Document>>} - Result containing the upload response

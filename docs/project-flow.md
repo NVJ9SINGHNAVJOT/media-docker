@@ -1,8 +1,9 @@
 # Project Flow
 
 End-to-end traces of every path through the system, with the file that owns each step.
-For structure see [folderstructure.md](./folderstructure.md); for rationale see
-[systemdesign.md](./systemdesign.md).
+For structure see [folderstructure.md](./folderstructure.md), for rationale see
+[systemdesign.md](./systemdesign.md), and for the whole thing in one picture see
+[diagram.md](./diagram.md).
 
 ---
 
@@ -16,20 +17,24 @@ your backend            media-docker-server        Kafka         video-consumer 
      │◀ { id } ─────────────────│ original.mp4       │                  │              │
      │                          │                    │                  │              │
      │─ POST /video {id} ──────▶│── produce ────────▶│                  │              │
-     │◀ 201 { id, fileUrl } ────│                    │─ fetch ─────────▶│              │
-     │                          │                    │            ffmpeg → .processing/│
+     │◀ 201 { id, fileUrl,      │                    │─ fetch ─────────▶│              │
+     │       originalUrl } ─────│                    │            ffmpeg → .processing/│
      │   ┌──────────────────────────────────────────────────────────────┐             │
      │   │ fileUrl ALREADY WORKS — 302 → original.mp4                   │─────────────▶│
      │   └──────────────────────────────────────────────────────────────┘             │
      │                          │                    │          rename → hls/          │
-     │                          │                    │◀ "completed" ────│              │
-     │◀ { id, video, completed }────────────────────│                  │              │
+     │                          │                    │      original.mp4 stays         │
      │                                                                                 │
      │   same fileUrl — 302 → hls/index.m3u8 ────────────────────────────────────────▶│
+     │   originalUrl  — 302 → original.mp4 ──────────────────────────────────────────▶│
 ```
 
 The boxed step is the point of v4: the URL is usable before conversion has started, and the caller
 never has to switch to a different URL afterwards.
+
+Note what is **not** in the diagram: no message ever comes back to your backend. The consumer
+commits its offset and stops. There is no completion topic and nothing to subscribe to. The two
+final lines are the same two URLs the dispatch response already returned.
 
 ---
 
@@ -38,7 +43,7 @@ never has to switch to a different URL afterwards.
 **Server** ([cmd/media-docker-server/main.go](../cmd/media-docker-server/main.go)):
 `LoadEnv(".env.server")` → `ValidateServerEnv` → `SetUpLogger` → `DirExist` both roots →
 `config.CreateDirSetup()` (creates the full tree for all five categories) →
-`CheckAllKafkaConnections` → `InitializeKafkaProducerManager` → delete workers →
+`CheckAllKafkaConnections` → `InitializeKafkaProducerManager` → `go pkg.DeleteDirWorker()` →
 `go api.StartJanitor()` → `InitializeValidator` → router → `go WaitForShutdownSignal(srv, 60)` →
 `ListenAndServe`.
 
@@ -52,7 +57,10 @@ static file server at `/media_docker_files` → `go WaitForShutdownSignal(srv, 2
 **Consumers** — all six run [internal/consumerapp/run.go](../internal/consumerapp/run.go):
 `LoadEnv` → `ValidateConsumerEnv` → `SetUpLogger` → `DirExist(MediaStorage)` →
 `CheckAllKafkaConnections` → `InitializeValidator` → producer + consumer manager for the single
-configured topic → delete workers → `go KafkaConsumeSetup()` → select loop on `sigChan` / `workDone`.
+configured topic → `go KafkaConsumeSetup()` → select loop on `sigChan` / `workDone`.
+
+Consumers start no delete workers. They only ever add files to an asset directory, and they clear
+their own scratch directory synchronously, so there is no background deletion to run or drain.
 
 Each spawns `KAFKA_WORKERS` goroutines in group `consumer-<topic>-group`, workers named
 `consumer-<topic>-group-worker-<i>`.
@@ -67,13 +75,13 @@ Each spawns `KAFKA_WORKERS` goroutines in group `consumer-<topic>-group`, worker
 **Phase 1 — `start`** (`type`, `status=start`, `chunk=0`, `fileName`, `<type>File`)
 1. `checkForm` validates the category, parses `chunk`, enforces *chunk 0 ⟺ start*, and **mints the
    asset id** — the final media id, not a throwaway handle.
-2. MIME allowlist check → 415; size vs 2 MB → 413. (`other` skips the allowlist by design.)
+2. MIME allowlist check → 415, size vs 2 MB → 413. (`other` skips the allowlist by design.)
 3. Creates `uploadStorage/<type>s/<id>/`, writes `chunk_0`. → `200 { id }`
 
 **Phase 2 — `uploading`** (adds `id`, `chunk=n`) — validates the id as UUIDv4, writes `chunk_<n>`.
 
 **Phase 3 — `completed`**
-1. Writes the final chunk; queues the staging directory for deletion whatever happens next.
+1. Writes the final chunk, then queues the staging directory for deletion whatever happens next.
 2. `totalChunksSize` vs the category max → 400 if over.
 3. `finalizeUpload`: derive the extension via `Constants.SanitizeExt`, create
    `media_docker_files/<type>s/<id>/`, **merge chunks directly into `original.<ext>`**, write
@@ -104,15 +112,22 @@ Shared logic in [api/dispatch.go](../api/dispatch.go):
 3. Produce the job with `FilePath` pointing at `original.<ext>`.
 4. On produce failure, `releaseDispatch` reverts the flag so the caller can retry and the janitor can
    still reap it → 500.
-5. → `201 { id, fileUrl }`.
+5. → `201 { id, fileUrl, originalUrl }`, plus `fileUrls` for video-resolutions.
 
-| Endpoint | Topic | Returned |
-|---|---|---|
-| `/video` | `video` | `{BASE_URL}/media/videos/{id}` |
-| `/video-resolutions` | `video-resolutions` | base URL + `fileUrls` for 360/480/720/1080 |
-| `/image` | `image` | `{BASE_URL}/media/images/{id}` |
-| `/audio` | `audio` | `{BASE_URL}/media/audios/{id}` |
-| `/document`, `/other` | **none** | `{BASE_URL}/media/{documents,others}/{id}` |
+Every response carries `originalUrl`. Bodies are wrapped in the standard `{ message, data }`
+envelope, so the fields below are what appears under `data`.
+
+| Endpoint | Topic | `fileUrl` | Also returned |
+|---|---|---|---|
+| `/video` | `video` | `{BASE_URL}/media/videos/{id}` | `originalUrl` |
+| `/video-resolutions` | `video-resolutions` | same, master playlist once converted | `fileUrls` for 360/480/720/1080, `originalUrl` |
+| `/image` | `image` | `{BASE_URL}/media/images/{id}` | `originalUrl` |
+| `/audio` | `audio` | `{BASE_URL}/media/audios/{id}` | `originalUrl` |
+| `/document`, `/other` | **none** | `{BASE_URL}/media/{documents,others}/{id}` | `originalUrl`, addressing the same bytes |
+
+`originalUrl` is always `{fileUrl}/original`. It is returned rather than left to be constructed so
+that callers never build media-docker paths themselves — the same reason `pkg/asset` owns every path
+on the server side.
 
 `document` and `other` ([api/store.go](../api/store.go)) queue nothing and return. They still require
 this call — it is what marks them claimed so the janitor leaves them alone.
@@ -136,17 +151,19 @@ topic matches, call it, then publish `completed` or route to the DLQ.
 Every handler ([internal/consumerapp/handlers/](../internal/consumerapp/handlers/)) follows one
 contract:
 
-1. **Skip if already converted** — at-least-once delivery means redelivery is normal, and by then the
-   raw input is usually gone.
+1. **Skip if already converted** — at-least-once delivery means redelivery is normal.
 2. `prepareProcessing` — clear and recreate `<id>/.processing/`.
 3. Run ffmpeg into the scratch directory.
-4. **Success** → `PromoteDir` / `PromoteFile` (atomic rename) → *then* queue `original.<ext>` for
-   deletion.
-5. **Failure** → remove `.processing/` synchronously, **leave `original.<ext>`** → return the error.
+4. **Success** → `PromoteDir` / `PromoteFile` (atomic rename). Nothing else.
+5. **Failure** → remove `.processing/` synchronously → return the error.
 
-Step 5 is why a failed conversion no longer breaks anything: the URL keeps resolving to the raw file.
-Removal is synchronous rather than queued, because the failed consumer retries immediately and a
-queued delete could land after the retry recreated the directory.
+**`original.<ext>` is never touched on either path.** On failure that is why nothing breaks: the URL
+keeps resolving to the raw file. On success it is why the source bytes remain available at
+`<url>/original`, and why a redelivered or retried message always still has its input. The only thing
+that removes an asset is the delete flow below.
+
+Scratch removal is synchronous rather than queued, because the failed consumer retries immediately
+and a queued delete could land after the retry recreated the directory.
 
 `VideoResolutions` additionally writes the master playlist into `.processing/` before promoting, so
 the ladder and its index appear together.
@@ -171,7 +188,7 @@ go together. Failures are logged rather than routed to the DLQ, which has no han
 
 ## 7. Failure flow — DLQ round trip
 
-**Step 1** — the handler fails; `handleErrorResponse` builds a `DLQMessage` (original
+**Step 1** — the handler fails, and `handleErrorResponse` builds a `DLQMessage` (original
 topic/partition/offset/high-water mark/raw value, error, timestamps, worker) and produces it to
 `failed-letter-queue`. If that produce fails the message is logged and the conversion is never
 retried.
@@ -187,7 +204,7 @@ unmarshal DLQMessage ──ok──▶ handleDLQMessage
 **Step 3** — `retryConversion` re-runs **the same handler** the primary consumer used, up to 3
 attempts with 2s backoff. No parallel implementation exists.
 
-**Step 4** — success → the converted output is promoted; exhaustion → logged as *"asset keeps serving
+**Step 4** — success → the converted output is promoted, exhaustion → logged as *"asset keeps serving
 its raw upload"*. Either way the URL still works, and nothing needs to be told which happened.
 
 ---
@@ -197,9 +214,18 @@ its raw upload"*. Either way the URL still works, and nothing needs to be told w
 Two route trees on the client, deliberately separate so they cannot collide:
 
 **`/media/**` — the resolver** ([internal/media-docker-client/routes/resolveRoutes.go](../internal/media-docker-client/routes/resolveRoutes.go)):
-`asset.Resolve` picks the best existing representation and replies `302` with `Cache-Control:
-no-store` while unconverted, `max-age=300` once converted. Unknown resolution variants are rejected
-rather than silently falling back. `documents`/`others` get download parameters appended.
+
+| Route | Serves |
+|---|---|
+| `/media/{types}/{id}` | the best representation that exists — converted output, else the raw upload |
+| `/media/videos/{id}/{360\|480\|720\|1080}` | that rung of the ladder |
+| `/media/{types}/{id}/original` | the raw upload, for every type, whatever else exists |
+
+`asset.Resolve` picks the representation and the route replies `302`. `Cache-Control` is `no-store`
+only while the answer is still provisional — an unconverted asset whose URL a consumer may replace at
+any moment. Everything settled gets `max-age=300`, including an explicitly requested original and the
+never-converted `documents`/`others`. A variant the type cannot serve is rejected with a 404 rather
+than silently falling back. `documents`/`others` get download parameters appended.
 
 **`/media_docker_files/**` — static files** ([middleware/fileServer.go](../middleware/fileServer.go)):
 registers `.m3u8` and `.ts` MIME types (Go's builtin table has neither and the Alpine image has no
@@ -211,11 +237,12 @@ registers `.m3u8` and `.ts` MIME types (Go's builtin table has neither and the A
 ## 9. Shutdown flow
 
 **Server / client** — SIGINT/SIGTERM → `srv.Shutdown(ctx)` (60s / 20s). The server then closes the
-producer, closes the delete channels and sleeps 10s so the delete goroutines drain.
+producer, closes the directory delete channel and sleeps 10s so the delete goroutine drains.
 
 **Consumers** — the select loop catches the signal → `cancel()` → every reader sees `ctx.Done()` →
-`wg.Wait()` → close producer, close delete channels, sleep 5s. The same loop also exits when
-`workDone` closes, i.e. every worker has died and the pool is exhausted; Docker then restarts it.
+`wg.Wait()` → close producer. There is no delete channel to close and nothing to drain. The same loop
+also exits when `workDone` closes, i.e. every worker has died and the pool is exhausted, and Docker then
+restarts it.
 
 Compose `stop_grace_period`: 60s server and consumers, 30s client.
 
@@ -231,9 +258,15 @@ task i                             # go mod download && verify
 task dev-kafka                     # single-broker dev container
 task dev-kafka-topics              # topics from kafka_config.sh, RF=1
 
-# separate terminals:
-task server ; task client
-task video ; task video-resolutions ; task audio ; task image ; task delete ; task failed
+# separate terminals, one command each:
+task server
+task client
+task video
+task video-resolutions
+task audio
+task image
+task delete
+task failed
 ```
 
 Requires local Go 1.22 and ffmpeg on `PATH`. Server `:7007`, client `:7000`. You only need the
@@ -252,7 +285,7 @@ task compose-down
 |---|---|
 | `task` | list all tasks |
 | `task build` | eight binaries into `dist/` |
-| `task test` | run the test suite |
+| `task test` | `go test ./...` — wired up, but there are no tests yet |
 | `task k-cluster` | KRaft quorum + replication status |
 | `task kafka-topics` / `task delete-topics` | create / delete topics |
 
@@ -267,7 +300,7 @@ task compose-down
 | change the resolution ladder | `asset.Ladder` only — scale filter and master playlist both derive from it |
 | add a media type | `helper.Constants.Files`, `asset` type constants, resolver routes, an API route, SDK method |
 | change a topic struct | breaks in-flight messages of the old shape — version it first |
-| rename a volume or network | don't; compose marks these as breaking changes |
+| rename a volume or network | don't, compose marks these as breaking changes |
 
 ---
 
@@ -275,11 +308,11 @@ task compose-down
 
 - **Old URLs keep working.** Pre-v4 assets are flat (`videos/<id>/index.m3u8`, `images/<id>.jpeg`)
   and the static mount is unchanged, so every URL already handed out still resolves. They are not
-  reachable through `/media/...`; old and new coexist with no data migration.
+  reachable through `/media/...`. Old and new coexist with no data migration.
 - **`.env.consumer` is gone**, replaced by five per-consumer files. Create them before `compose-up`.
 - **API responses changed**: storage endpoints return `{ id }` instead of `{ uuidFilename }` /
   `{ newChunkId }`, and dispatch endpoints take `{ id }`. Copy the updated
   [_examples/nodejs/mediaDocker.ts](../_examples/nodejs/mediaDocker.ts).
 - **`fileUrl` now points at `/media/...`**, not directly at a file.
-- **The server needs `media_docker_files` read-write**; the consumers no longer need `uploadStorage`
+- **The server needs `media_docker_files` read-write**, and the consumers no longer need `uploadStorage`
   at all.

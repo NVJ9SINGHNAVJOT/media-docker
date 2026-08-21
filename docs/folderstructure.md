@@ -1,7 +1,7 @@
 # Folder Structure
 
 Single Go module — `github.com/nvj9singhnavjot/media-docker` (Go 1.22) — producing eight binaries.
-Everything under `cmd/` is a thin entrypoint; the real code is split between **shared root packages**
+Everything under `cmd/` is a thin entrypoint, and the real code is split between **shared root packages**
 and **`internal/`**.
 
 ```
@@ -52,14 +52,19 @@ exactly one place.
 
 | File | Contents |
 |---|---|
-| [paths.go](../pkg/asset/paths.go) | storage-type constants, `Dir`, `OriginalPath`, `ProcessingDir`, `HLSDir`, `PlaylistPath`, `ConvertedPath`, `StagingDir`, `URLPath`, `Ladder` |
+| [paths.go](../pkg/asset/paths.go) | storage-type constants, `VariantOriginal`, `Dir`, `OriginalPath`, `ProcessingDir`, `HLSDir`, `PlaylistPath`, `ConvertedPath`, `StagingDir`, `URLPath`, `VariantURLPath`, `OriginalURLPath`, `IsVariant`, `Ladder` |
 | [meta.go](../pkg/asset/meta.go) | `Meta`, `WriteMeta` (atomic), `ReadMeta`, `MarkDispatched` |
-| [resolve.go](../pkg/asset/resolve.go) | `Resolve` — picks the best representation that exists; `ErrNotFound` |
+| [resolve.go](../pkg/asset/resolve.go) | `Resolve` (picks the best representation that exists, or the one a variant names), `Resolution.Immutable`, `ErrNotFound` |
 | [promote.go](../pkg/asset/promote.go) | `PromoteDir`, `PromoteFile`, `WriteMasterPlaylist` |
-| [resolve_test.go](../pkg/asset/resolve_test.go) | resolution state matrix, promotion, master playlist |
 
 `Ladder` is the single source of truth for the resolution ladder — widths, heights and advertised
 bandwidths. Both the ffmpeg scale filter and the master playlist derive from it.
+
+`VariantOriginal` (`"original"`) shares the URL position with the rung names: `/media/videos/<id>/720`
+and `/media/videos/<id>/original` are both "one specific representation" rather than "the best one".
+`IsVariant` is what the resolver route validates against, so which variants a type accepts is decided
+here rather than in the client. `Resolution.Immutable` reports whether the chosen representation can
+still be replaced, and is what drives the cache header.
 
 ## internal/
 
@@ -84,7 +89,7 @@ internal/
 
 `consumerapp.Config` takes either a `Handler` (payload in, result out — wrapped with the topic guard
 and DLQ routing) or a `RawHandler` (raw Kafka message, failures not retried through the DLQ). The
-delete consumer uses `RawHandler` because the failed consumer has no handler for its topic; the
+delete consumer uses `RawHandler` because the failed consumer has no handler for its topic. The
 failed consumer uses it because it would otherwise re-queue into the topic it is draining.
 
 ## api/ — HTTP handlers
@@ -92,13 +97,16 @@ failed consumer uses it because it would otherwise re-queue into the topic it is
 | File | Handler | Does |
 |---|---|---|
 | [fileStorage.go](../api/fileStorage.go) | `FileStorage` | single-shot upload ≤2 MB, written straight into the asset dir |
-| [chunksStorage.go](../api/chunksStorage.go) | `ChunksStorage` | 3-phase chunk upload; merges into `original.<ext>` |
-| [dispatch.go](../api/dispatch.go) | — | `claimForDispatch`, `releaseDispatch`, `fileURL`, shared by all dispatch handlers |
+| [chunksStorage.go](../api/chunksStorage.go) | `ChunksStorage` | 3-phase chunk upload, merges into `original.<ext>` |
+| [dispatch.go](../api/dispatch.go) | — | `claimForDispatch`, `releaseDispatch`, `fileURL`, `variantURL`, `originalURL`, shared by all dispatch handlers |
 | [video.go](../api/video.go) | `Video` | claim → produce `video` → return URL |
 | [videoResolutions.go](../api/videoResolutions.go) | `VideoResolutions` | claim → produce → return master + 4 variant URLs |
 | [image.go](../api/image.go) | `Image` | claim → produce `image` (optional compression) |
 | [audio.go](../api/audio.go) | `Audio` | claim → produce `audio` (optional bitrate) |
-| [store.go](../api/store.go) | `Document`, `Other` | claim → return URL; no topic, no conversion |
+| [store.go](../api/store.go) | `Document`, `Other` | claim → return URL (no topic, no conversion) |
+
+Every dispatch response carries `originalUrl` alongside `fileUrl` — `{fileUrl}/original`, which serves
+the upload unchanged whether or not conversion has run.
 | [deleteFile.go](../api/deleteFile.go) | `DeleteFile` | `DeleteFileRequest` + produce `delete-file` |
 | [janitor.go](../api/janitor.go) | `StartJanitor` | hourly sweep of abandoned uploads and staging dirs |
 | [connect.go](../api/connect.go) | `Connect` | handshake / liveness |
@@ -111,8 +119,8 @@ failed consumer uses it because it would otherwise re-queue into the topic it is
 |---|---|
 | [topics/](../topics/) | `DLQMessage`, `AudioMessage`, `ImageMessage`, `VideoMessage`, `VideoResolutionsMessage` |
 | [kafkahandler/](../kafkahandler/) | `KafkaProducer`, `KafkaConsumer`, `CheckAllKafkaConnections` |
-| [pkg/](../pkg/) | `ConvertVideo`, `ConvertVideoResolutions`, `ConvertImage`, `ConvertAudio`; delete channels; dir helpers; `.env` parser |
-| [config/](../config/) | `ServerEnv`, `ClientEnv`, `ConsumerEnv` + validators; logger setup; `CreateDirSetup` |
+| [pkg/](../pkg/) | `ConvertVideo`, `ConvertVideoResolutions`, `ConvertImage`, `ConvertAudio`, the directory delete channel, dir helpers, `.env` parser |
+| [config/](../config/) | `ServerEnv`, `ClientEnv`, `ConsumerEnv` + validators, logger setup, `CreateDirSetup` |
 | [helper/](../helper/) | `Constants` (storage paths, chunk size, per-type MIME allowlists and sizes), `SanitizeExt`, JSON responses |
 | [middleware/](../middleware/) | default middleware stack, Bearer auth, request logging, secure file server |
 | [validator/](../validator/) | `ValidateRequest`, `UnmarshalAndValidate`, `ExtractNewId` |
@@ -128,7 +136,7 @@ subtype and then a per-category default — the MIME subtype of a `.docx` is not
 | File | Purpose |
 |---|---|
 | [Taskfile.yaml](../Taskfile.yaml) | `i`, `build`, `test`, `server`, `client`, `video`, `video-resolutions`, `audio`, `image`, `delete`, `failed`, `proxy`, `dev-kafka`, `kafka-topics`, `compose-up` |
-| [docker-compose.yaml](../docker-compose.yaml) | 8 services + 3 brokers; consumers share a YAML anchor |
+| [docker-compose.yaml](../docker-compose.yaml) | 8 services + 3 brokers, consumers share a YAML anchor |
 | [kafka_config.sh](../kafka_config.sh) | `topics_and_partitions` — single source of truth for topics |
 | [.env.example](../.env.example) | template for all eight `.env.*` files |
 
@@ -136,7 +144,7 @@ subtype and then a per-category default — the MIME subtype of a `.docx` is not
 
 ```
 _examples/
-├── package.json          # "type": "module" and the start script; no dependencies
+├── package.json          # "type": "module" and the start script, no dependencies
 ├── nodejs/
 │   └── mediaDocker.ts    # the SDK you copy into your backend
 └── app/
@@ -146,14 +154,22 @@ _examples/
 [nodejs/mediaDocker.ts](../_examples/nodejs/mediaDocker.ts) — Node.js SDK, no third-party
 dependencies. Handles the connect handshake, 2 MB chunking, and `uploadVideo`,
 `uploadVideoResolutions`, `uploadImage`, `uploadAudio`, `uploadDocument`, `uploadOther`, `deleteFile`.
-One folder per language, so other bindings can be added without disturbing this one.
+Every upload result carries `id`, `fileUrl` and `originalUrl`, plus `fileUrls` for
+`uploadVideoResolutions`. One folder per language, so other bindings can be added without disturbing
+this one.
 
 [app/server.ts](../_examples/app/server.ts) — `node:http` demo that uploads a file and then polls the
-asset URL, showing whether it still serves the raw upload (`Cache-Control: no-store`) or the
-converted output (`max-age=300`). It imports `../nodejs/mediaDocker.ts` directly rather than keeping
-a copy, and Node runs the `.ts` files by stripping types, so there is no build step. Takes the
-browser's file as a raw request body, not multipart — parsing multipart in core Node would be most of
-the file and would demonstrate nothing about media-docker.
+asset URL, showing whether it still serves the raw upload (`Cache-Control: no-store`) or a settled
+representation (`max-age=300`). It imports `../nodejs/mediaDocker.ts` directly rather than keeping a
+copy, and Node runs the `.ts` files by stripping types, so there is no build step. Uploads arrive as
+`multipart/form-data`, parsed with the WHATWG `Request`/`formData()` bridge over the incoming stream,
+so there is still no dependency to install.
+
+[app/index.html](../_examples/app/index.html) — the front end. Polls `/status`, plays the asset URL
+before and after conversion, and offers a source picker: `Auto / 360p / 480p / 720p / 1080p /
+Original` for video-resolutions, `Converted / Original` for video, image and audio. The `Original`
+entry is what makes the retained upload visible — it plays `originalUrl` while the converted output
+stays exactly where it was.
 
 ## Not in the repo
 

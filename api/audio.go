@@ -45,7 +45,13 @@ func Audio(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Respond with success, providing the stable audio URL
-	helper.SuccessResponse(w, helper.GetRequestID(r), http.StatusCreated, "audio uploaded and processed successfully",
-		map[string]any{"id": meta.ID, "fileUrl": fileURL(asset.TypeAudio, meta.ID)})
+	// Respond with success, providing the stable audio URL alongside the URL that
+	// keeps serving the upload as it was sent. Conversion has only been queued at
+	// this point, not performed.
+	helper.SuccessResponse(w, helper.GetRequestID(r), http.StatusCreated, "audio uploaded successfully",
+		map[string]any{
+			"id":          meta.ID,
+			"fileUrl":     fileURL(asset.TypeAudio, meta.ID),
+			"originalUrl": originalURL(asset.TypeAudio, meta.ID),
+		})
 }

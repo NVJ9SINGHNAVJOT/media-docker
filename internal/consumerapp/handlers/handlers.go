@@ -5,17 +5,24 @@
 // safe:
 //
 //  1. If the converted output already exists, do nothing. Kafka delivery is
-//     at-least-once, so a redelivered message must not re-run ffmpeg -- and by
-//     that point the raw input has usually been removed anyway.
+//     at-least-once, so a redelivered message must not re-run ffmpeg.
 //  2. Convert into the asset's scratch directory, never into its served paths.
-//  3. On success, promote the output with a rename and only then remove the raw
-//     upload.
-//  4. On failure, remove the scratch directory and leave the raw upload alone.
+//  3. On success, promote the output with a rename.
+//  4. On failure, remove the scratch directory.
 //
-// Step 4 is the important one. The raw upload is what the asset's URL is serving
-// while conversion is pending, so deleting it on failure would break a URL a
-// caller is already using. Leaving it means a permanently failed conversion
-// degrades quality rather than breaking the asset.
+// The raw upload is never removed, on either path. Conversion adds a
+// representation rather than replacing one: the asset's URL upgrades from the
+// raw upload to the converted output, and the raw upload stays on disk behind
+// the asset's VariantOriginal URL, /media/<types>/<id>/original.
+//
+// Keeping it on failure is what makes a permanently failed conversion degrade
+// quality rather than break an asset, since the URL a caller already holds keeps
+// resolving. Keeping it on success is what makes the source bytes retrievable
+// for the life of the asset, and it means a redelivered or retried message
+// always still has its input.
+//
+// The only thing that removes an asset is an explicit delete, which takes the
+// whole directory -- metadata, raw upload and converted output together.
 package handlers
 
 import (
@@ -52,13 +59,10 @@ func prepareProcessing(mediaType, id string) (string, error) {
 // removeProcessing discards the scratch directory once it is no longer needed,
 // whether the conversion succeeded or failed.
 //
-// After a failure the raw upload is deliberately left in place: it is the
-// representation the asset's URL currently resolves to.
-//
-// Removal is synchronous rather than queued through the delete channels. The
-// failed consumer retries a conversion immediately after a failure, and a queued
-// delete could land after the retry had already recreated the directory,
-// deleting output from a run in progress.
+// Removal is synchronous rather than queued. The failed consumer retries a
+// conversion immediately after a failure, and a queued delete could land after
+// the retry had already recreated the directory, deleting output from a run in
+// progress.
 func removeProcessing(dir string) {
 	if err := os.RemoveAll(dir); err != nil {
 		log.Error().Err(err).Str("dir", dir).Msg("Error removing processing directory")

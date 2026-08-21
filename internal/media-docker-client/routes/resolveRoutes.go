@@ -24,6 +24,12 @@ import (
 // inside an HLS playlist keep working. The redirect lands inside the asset's own
 // directory, so "segment000.ts" next to "index.m3u8" resolves correctly; serving
 // the playlist body from the resolver URL would break those references.
+//
+// A trailing variant segment asks for one specific representation instead of the
+// best one: a rung of the resolution ladder for videos, or "original" for any
+// type, which pins the response to the raw upload no matter what has been
+// converted since. Since the raw upload is kept for the life of an asset, that
+// sub-resource stays valid permanently.
 func ResolveRoutes() func(router chi.Router) {
 	return func(router chi.Router) {
 		for _, mediaType := range []string{
@@ -32,11 +38,7 @@ func ResolveRoutes() func(router chi.Router) {
 			dir := asset.TypeDir(mediaType)
 
 			router.Get("/"+dir+"/{id}", resolveHandler(mediaType, false))
-
-			// Videos additionally expose each rung of the resolution ladder.
-			if mediaType == asset.TypeVideo {
-				router.Get("/"+dir+"/{id}/{variant}", resolveHandler(mediaType, true))
-			}
+			router.Get("/"+dir+"/{id}/{variant}", resolveHandler(mediaType, true))
 		}
 	}
 }
@@ -49,10 +51,10 @@ func resolveHandler(mediaType string, withVariant bool) http.HandlerFunc {
 		var variant string
 		if withVariant {
 			variant = chi.URLParam(r, "variant")
-			// Reject anything that is not a known rung rather than silently
-			// falling back, so a typo does not quietly serve a different quality.
-			if !asset.IsResolution(variant) {
-				helper.ErrorResponse(w, helper.GetRequestID(r), http.StatusNotFound, "unknown resolution", nil)
+			// Reject anything this type cannot serve rather than silently falling
+			// back, so a typo does not quietly serve a different representation.
+			if !asset.IsVariant(mediaType, variant) {
+				helper.ErrorResponse(w, helper.GetRequestID(r), http.StatusNotFound, "unknown variant", nil)
 				return
 			}
 		}
@@ -67,11 +69,12 @@ func resolveHandler(mediaType string, withVariant bool) http.HandlerFunc {
 			return
 		}
 
-		// An unconverted asset can change representation at any moment, so the
-		// redirect must never be cached: a client that cached the raw file would
-		// never pick up the converted output. Converted output is terminal and
-		// may be cached.
-		if resolution.Converted {
+		// An asset still awaiting conversion can change representation at any
+		// moment, so the redirect must never be cached: a client that cached the
+		// raw file would never pick up the converted output. Anything terminal --
+		// converted output, an explicitly requested original, a type that is never
+		// converted at all -- may be cached.
+		if resolution.Immutable {
 			w.Header().Set("Cache-Control", "public, max-age=300")
 		} else {
 			w.Header().Set("Cache-Control", "no-store")

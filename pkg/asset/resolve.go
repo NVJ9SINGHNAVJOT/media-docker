@@ -19,10 +19,15 @@ type Resolution struct {
 	// can be appended to a URL directly.
 	RelPath string
 
-	// Converted reports whether RelPath points at processed output rather than
-	// the raw upload. Callers use this to decide cache headers: an unconverted
-	// asset may change representation at any moment.
-	Converted bool
+	// Immutable reports whether the selected representation is terminal: nothing
+	// a consumer does later will replace it. Callers use this to decide cache
+	// headers.
+	//
+	// It is true for converted output, for an explicitly requested original, and
+	// for categories that are never converted at all. It is false only where the
+	// raw upload was selected as a fallback and a conversion could still promote
+	// output over it.
+	Immutable bool
 
 	// Meta is the asset's metadata, needed for the download file name of
 	// document and other assets.
@@ -37,9 +42,14 @@ type Resolution struct {
 // rename, there is no intermediate state where a half-written playlist is
 // selected.
 //
-// variant selects a rung of the resolution ladder for video assets ("360",
-// "480", "720", "1080"); pass an empty string for the default representation,
-// which for a video-resolutions asset is the master playlist.
+// variant selects a specific representation instead of the best one. It accepts
+// a rung of the resolution ladder for video assets ("360", "480", "720",
+// "1080"), or VariantOriginal for any category, which pins the result to the raw
+// upload. Pass an empty string for the default representation, which for a
+// video-resolutions asset is the master playlist.
+//
+// Because the raw upload is never removed, VariantOriginal resolves for the
+// whole life of an asset, not only until its conversion finishes.
 //
 // Falling back to the raw upload is not an error condition. It is the normal
 // state between upload and conversion, and the permanent state for an asset
@@ -57,6 +67,13 @@ func Resolve(mediaType, id, variant string) (Resolution, error) {
 
 	relDir := RelDir(mediaType, id)
 
+	// An explicit request for the source bytes skips the converted output
+	// entirely, and is terminal: this is the one representation that can never
+	// be superseded.
+	if variant == VariantOriginal {
+		return originalResolution(mediaType, id, relDir, meta, true)
+	}
+
 	switch mediaType {
 	case TypeVideo:
 		// A specific rung of the ladder, when one was asked for and exists.
@@ -64,7 +81,7 @@ func Resolve(mediaType, id, variant string) (Resolution, error) {
 			if ok, err := pkg.DirOrFileExist(ResolutionPlaylistPath(id, variant)); err == nil && ok {
 				return Resolution{
 					RelPath:   join(relDir, HLSDirName, variant, PlaylistName),
-					Converted: true,
+					Immutable: true,
 					Meta:      meta,
 				}, nil
 			}
@@ -75,7 +92,7 @@ func Resolve(mediaType, id, variant string) (Resolution, error) {
 		if ok, err := pkg.DirOrFileExist(PlaylistPath(id)); err == nil && ok {
 			return Resolution{
 				RelPath:   join(relDir, HLSDirName, PlaylistName),
-				Converted: true,
+				Immutable: true,
 				Meta:      meta,
 			}, nil
 		}
@@ -88,7 +105,7 @@ func Resolve(mediaType, id, variant string) (Resolution, error) {
 		if ok, err := pkg.DirOrFileExist(converted); err == nil && ok {
 			return Resolution{
 				RelPath:   join(relDir, filepath.Base(converted)),
-				Converted: true,
+				Immutable: true,
 				Meta:      meta,
 			}, nil
 		}
@@ -97,7 +114,15 @@ func Resolve(mediaType, id, variant string) (Resolution, error) {
 		// Never converted; always served as uploaded.
 	}
 
-	// Fall back to the raw upload.
+	// Fall back to the raw upload. For a category that is never converted this
+	// is not a fallback at all but the asset's only, and final, representation.
+	neverConverted := mediaType == TypeDocument || mediaType == TypeOther
+
+	return originalResolution(mediaType, id, relDir, meta, neverConverted)
+}
+
+// originalResolution selects the raw upload, if it is still on disk.
+func originalResolution(mediaType, id, relDir string, meta Meta, immutable bool) (Resolution, error) {
 	ok, err := pkg.DirOrFileExist(OriginalPath(mediaType, id, meta.Ext))
 	if err != nil || !ok {
 		return Resolution{}, ErrNotFound
@@ -105,7 +130,7 @@ func Resolve(mediaType, id, variant string) (Resolution, error) {
 
 	return Resolution{
 		RelPath:   join(relDir, OriginalName(meta.Ext)),
-		Converted: false,
+		Immutable: immutable,
 		Meta:      meta,
 	}, nil
 }

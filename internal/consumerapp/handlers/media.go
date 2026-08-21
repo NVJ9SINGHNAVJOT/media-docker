@@ -57,9 +57,6 @@ func Image(kafkaMsg []byte) (string, string, error) {
 
 	removeProcessing(processingDir)
 
-	// The converted image is live; the raw upload is no longer served.
-	pkg.AddToFileDeleteChan(imageMsg.FilePath)
-
 	return imageMsg.NewId, "Image conversion completed successfully", nil
 }
 
@@ -106,9 +103,6 @@ func Audio(kafkaMsg []byte) (string, string, error) {
 	}
 
 	removeProcessing(processingDir)
-
-	// The converted audio is live; the raw upload is no longer served.
-	pkg.AddToFileDeleteChan(audioMsg.FilePath)
 
 	return audioMsg.NewId, "Audio conversion completed successfully", nil
 }

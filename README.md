@@ -117,9 +117,10 @@ Contributions to Media-Docker are always welcome! To submit feature requests, re
 The **Media-Docker** project, now in version 4, is a complete media processing solution built for scalability and efficiency using **Kafka** workers, **FFmpeg**, and a robust client-server architecture. It supports advanced video streaming, flexible audio processing, image compression, and plain storage for documents and arbitrary files — with URLs that are usable the moment an upload finishes and a dedicated, independently scalable consumer service per media type.
 
 For a deeper look at the design, see [docs/architecture.md](./docs/architecture.md),
-[docs/systemdesign.md](./docs/systemdesign.md), [docs/project-flow.md](./docs/project-flow.md) and
-[docs/folderstructure.md](./docs/folderstructure.md). Upgrading from v3? See the migration notes at
-the end of [docs/project-flow.md](./docs/project-flow.md).
+[docs/systemdesign.md](./docs/systemdesign.md), [docs/project-flow.md](./docs/project-flow.md),
+[docs/folderstructure.md](./docs/folderstructure.md) and [docs/diagram.md](./docs/diagram.md) for the
+full system diagram. Upgrading from v3? See the migration notes at the end of
+[docs/project-flow.md](./docs/project-flow.md).
 
 ## Installation
 

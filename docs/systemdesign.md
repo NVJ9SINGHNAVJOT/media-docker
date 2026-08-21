@@ -1,8 +1,9 @@
 # System Design
 
 Design rationale, contracts, capacity model and failure semantics. Complements
-[architecture.md](./architecture.md) (what the pieces are) and [project-flow.md](./project-flow.md)
-(how a request moves through them).
+[architecture.md](./architecture.md) (what the pieces are), [project-flow.md](./project-flow.md)
+(how a request moves through them) and [diagram.md](./diagram.md) (every component and data path in
+one picture).
 
 ---
 
@@ -10,11 +11,11 @@ Design rationale, contracts, capacity model and failure semantics. Complements
 
 | Goal | How it is met |
 |---|---|
-| A URL that works the moment an upload finishes | Uploads are written into the served tree; a resolver picks the best representation per request |
+| A URL that works the moment an upload finishes | Uploads are written into the served tree, and a resolver picks the best representation per request |
 | Never block the HTTP request on ffmpeg | Server only writes bytes and produces to Kafka |
 | Independent scaling per media type | One consumer service per topic, each with its own worker count |
 | A failed conversion must not break an asset | The raw upload is kept unless conversion succeeds |
-| Survive worker and process crashes | Consumer groups rebalance; manual commit; idempotent handlers |
+| Survive worker and process crashes | Consumer groups rebalance, manual commit, idempotent handlers |
 | Self-hosted, no third-party storage | Docker volumes plus a static file server |
 
 The system is still **not** trying to be multi-tenant, per-user authenticated, geo-distributed, or
@@ -28,16 +29,17 @@ v3 returned a URL for a file that did not exist yet, so every integrating backen
 Kafka response topic and hold assets in a pending state. v4 inverts that:
 
 ```
-POST /api/v1/uploads/video     →  201 { id, fileUrl }   ← already works
+POST /api/v1/uploads/video     →  201 { id, fileUrl, originalUrl }   ← already works
 GET  {fileUrl}                 →  302 → original.mp4    ← raw upload, playable now
       ⋮ (consumer finishes, promotes atomically)
 GET  {fileUrl}                 →  302 → hls/index.m3u8  ← same URL, better representation
+GET  {originalUrl}             →  302 → original.mp4    ← unchanged, before and after
 ```
 
 There is no completion message at all. The URL is the entire contract: it is usable from the moment
 the upload returns, and if conversion never succeeds it permanently keeps serving the raw upload. A
 backend that wants to distinguish the two can read the resolver's cache header — `no-store` while
-raw, `max-age=300` once converted — but nothing requires it to.
+the representation can still change, `max-age=300` once it is settled — but nothing requires it to.
 
 ### Why a redirect
 
@@ -50,8 +52,32 @@ Three options were considered for the upgrade mechanism:
 - **Two URLs (raw + converted)** — leaves the backend implementing the state machine v4 exists to
   remove.
 
-Cache headers follow the representation: `no-store` while unconverted, since it can change at any
-moment; `max-age=300` once converted, since that state is terminal.
+### Why `originalUrl` is not the rejected "two URLs"
+
+`/media/videos/<id>/original` looks like the third option above, and is deliberately not it. The
+rejected design made a caller *choose* between two URLs and therefore *know* which state the asset
+was in — the state machine v4 removes. `originalUrl` asks nothing of a caller: `fileUrl` remains the
+whole contract, and a backend that ignores `originalUrl` behaves exactly as it did before. It is a
+sub-resource for the cases where the source bytes are what you actually want — a download-original
+link, a quality comparison, reprocessing — not an alternative to the primary URL.
+
+It sits in the same URL position as a ladder rung, `/media/videos/<id>/{variant}`, because it is the
+same kind of thing: one specific representation instead of the best one. The rung names are numeric
+so `original` cannot collide with one.
+
+### Cache headers
+
+Headers follow one rule: **can this representation still change?**
+
+| Request | Serves | Header |
+|---|---|---|
+| asset URL, unconverted | `original.<ext>` | `no-store` — a consumer may replace it at any moment |
+| asset URL, converted | `hls/index.m3u8`, `converted.jpeg`, … | `public, max-age=300` |
+| `/original`, any time | `original.<ext>` | `public, max-age=300` |
+| document / other | `original.<ext>` | `public, max-age=300` — nothing converts them |
+
+`no-store` does not mean "this is the raw upload," it means "this answer is provisional." The raw upload
+requested explicitly is the most permanent thing in the system, and is cached accordingly.
 
 ### Why promotion must be atomic
 
@@ -61,8 +87,7 @@ clients a truncated playlist.
 
 So consumers write into `<id>/.processing/` and promote with a single `os.Rename`
 ([pkg/asset/promote.go](../pkg/asset/promote.go)). Converted output is either absent or complete —
-there is no third state. `.processing/` is never reachable through the resolver, which
-[a test](../pkg/asset/resolve_test.go) pins explicitly.
+there is no third state, and `.processing/` is never reachable through the resolver.
 
 Re-processing moves the existing output aside, renames the new output in, then deletes the old, so
 the window in which neither is in place is one rename long.
@@ -77,7 +102,7 @@ and the public URL. v3's separate upload handle and output UUID are gone.
 **Uploads are merged straight into media storage.** Assembling a chunked file is one full pass over
 the data regardless of destination, so that pass writes to the final location — avoiding a second
 full copy of every upload and any cross-volume move. Chunk staging stays on the private upload
-volume; only the merged result reaches media storage.
+volume. Only the merged result reaches media storage.
 
 The cost of that choice is uploads that are stored but never claimed. `meta.json` carries a
 `dispatched` flag, and [api/janitor.go](../api/janitor.go) sweeps hourly for undispatched assets and
@@ -88,11 +113,11 @@ chunk directories previously accumulated with nothing to clean them up.
 
 - **Single-shot** (`/file-storage`), for files ≤ 2 MB, written directly into the asset directory.
 - **Chunked** (`/chunks-storage`), a three-state protocol (`start` → `uploading` → `completed`).
-  `start` mints the id and creates the staging directory; `completed` checks total size, merges, and
+  `start` mints the id and creates the staging directory. `completed` checks total size, merges, and
   writes `meta.json`.
 
-The 2 MB chunk cap (`helper.Constants.MaxChunkSize`) is a hard contract with the SDK's `CHUNK_SIZE`;
-both sides must change together. Total size is enforced at `completed` by walking the staging
+The 2 MB chunk cap (`helper.Constants.MaxChunkSize`) is a hard contract with the SDK's `CHUNK_SIZE`.
+Both sides must change together. Total size is enforced at `completed` by walking the staging
 directory.
 
 **Extension handling** takes the extension from the client's file name (sanitised to
@@ -112,13 +137,13 @@ from the MIME subtype alone — as v3 did — produces
 | audio | `-vn -ar 44100 -ac 2 [-b:a bitrate]` | `converted.mp3` |
 
 Quality knobs: video `quality` 40–100 maps to bitrates `500+(q-40)*15` kbps video and `64+(q-40)*2`
-kbps audio; audio `bitrate` ∈ {128k, 192k, 256k, 320k}; image `compression` 1–31 (ffmpeg `-q:v`),
+kbps audio. Audio `bitrate` ∈ {128k, 192k, 256k, 320k}. Image `compression` 1–31 (ffmpeg `-q:v`),
 defaulting to 1. Image compression was hardcoded in v3 despite the README advertising it as
-configurable; it is now plumbed through `ImageMessage`.
+configurable. It is now plumbed through `ImageMessage`.
 
 **The resolution ladder** lives in `asset.Ladder`: 360 (640×360), 480 (854×480), 720 (1280×720),
 1080 (1920×1080), each with an advertised bandwidth. v3 scaled 360p to 640**740**×360, a non-16:9
-aspect that distorted the picture; the ladder now supplies both the ffmpeg scale filter and the
+aspect that distorted the picture. The ladder now supplies both the ffmpeg scale filter and the
 master playlist from one definition.
 
 **The master playlist** is new. Without it a video-resolutions asset has no top-level playlist for
@@ -126,7 +151,7 @@ its base URL to resolve to. It also delivers the adaptive quality switching the 
 advertised: players read it and select a variant themselves. Only rungs that were actually produced
 are advertised, so a partial ladder still yields a valid playlist.
 
-`runCommand` discards ffmpeg output in production; the streaming variant is commented out in
+`runCommand` discards ffmpeg output in production. The streaming variant is commented out in
 [pkg/ffmpegCommand.go](../pkg/ffmpegCommand.go).
 
 ---
@@ -167,17 +192,18 @@ consumer handler
 ```
 
 The failed consumer calls the **same handlers** the primary consumers use rather than keeping a
-parallel implementation. Those handlers are idempotent, write through a scratch directory, and leave
-the raw upload alone on failure — exactly what a retry needs. In v3 the two implementations were
-separate and free to drift.
+parallel implementation. Those handlers are idempotent, write through a scratch directory, and never
+remove the raw upload — exactly what a retry needs, since its input is guaranteed to still be there
+however many attempts came before. In v3 the two implementations were separate and free to drift.
 
 **`DLQMessage`** carries `NewId?`, `OriginalTopic`, `Partition`, `Offset`, `HighWaterMark`, the raw
 `Value`, `ErrorDetails`, timestamps, `Worker` and `CustomMessage` — enough to replay by hand.
 
 **Duplicate processing** is now benign. Offsets commit after processing, so a crash in between
-redelivers the message; each handler returns early when the converted output already exists. This
-also prevents a worse v3 outcome: a redelivered message whose raw input had already been deleted
-would fail conversion and end up in the DLQ.
+redelivers the message. Each handler returns early when the converted output already exists. Two
+things make that safe where v3 was not: the early return, and the fact that the raw input is still on
+disk either way. In v3 a redelivered message whose input had already been deleted failed conversion
+and landed in the DLQ.
 
 **A retry can still be lost** in two places: the DLQ produce fails, or a DLQ message is unparseable.
 Each costs an asset its upgrade rather than its availability — the raw upload stays in place and the
@@ -192,7 +218,7 @@ URL keeps serving it.
 | Server auth | one shared `SERVER_KEY`, Bearer |
 | Client auth | none — anyone who can reach `:7000` can read any asset by URL |
 | Kafka auth | none, `PLAINTEXT` |
-| Transport | plain HTTP internally; TLS expected at an external nginx-proxy |
+| Transport | plain HTTP internally, TLS expected at an external nginx-proxy |
 | CORS | per-service allowlists |
 | Isolation | `media-docker-proxy` (internal) vs `proxy` (public, client only) |
 
@@ -237,14 +263,18 @@ Where the design bends next:
   read-write, so a multi-host deployment needs NFS or an object store. This remains the biggest
   constraint, and the raw-upload-served-immediately model makes shared storage more load-bearing, not
   less.
-- **Storage has no lifecycle.** Nothing expires or tiers `media_docker_files`; the janitor only
-  reaps *unclaimed* uploads, not old assets.
+- **Storage has no lifecycle.** Nothing expires or tiers `media_docker_files`. The janitor only
+  reaps *unclaimed* uploads, not old assets. Retaining every original makes this the first constraint
+  a real deployment will hit: a converted asset costs its source plus its output, so video storage is
+  roughly double what conversion alone would need. The obvious next step is a retention policy that
+  can tier originals to cold storage once an asset has been converted — which is exactly the choice
+  deleting them foreclosed.
 - **`video-resolutions` is still four sequential transcodes in one message.** Splitting it into four
   messages would use the partition budget far better, but needs a completion barrier before the
   master playlist can be written — the one piece the current design writes last.
-- **No backpressure signal.** The server produces with no view of consumer lag; a burst queues
+- **No backpressure signal.** The server produces with no view of consumer lag. A burst queues
   invisibly. Less damaging than in v3, since the raw file is already servable, but still opaque.
 - **No observability.** Diagnosing a stuck pipeline means reading container logs.
 - **Kafka structs remain unversioned.** [topics/structs.go](../topics/structs.go) warns that changing
-  a struct breaks in-flight messages; a future change to a payload should add a version field or
+  a struct breaks in-flight messages. A future change to a payload should add a version field or
   version-suffixed topics first.

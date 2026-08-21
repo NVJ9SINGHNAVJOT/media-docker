@@ -10,9 +10,13 @@ Two properties define v4:
 
 **Uploads are usable immediately.** The server writes each upload directly into the publicly served
 directory and returns a URL that works at once. Until conversion finishes that URL serves the raw
-upload; afterwards the same URL serves the converted output. Callers never wait on a Kafka message
+upload, and afterwards the same URL serves the converted output. Callers never wait on a Kafka message
 before using a URL, and a conversion that fails permanently degrades quality rather than breaking
 the asset.
+
+**Conversion adds, it never replaces.** The raw upload is kept for the life of the asset and stays
+addressable at `<url>/original`, so every asset can serve both its processed output and its source
+bytes. Only an explicit delete removes anything.
 
 **One consumer per media type.** Conversion is split across five consumer services plus a retry
 service, so a backlog of video transcodes cannot starve image or audio work and each type scales on
@@ -40,7 +44,7 @@ Ports are **hardcoded in config**, not env-driven — see [config/validateEnvs.g
 - Chi router. Middleware: CORS → RequestID → Logger → Recoverer → Throttle(10000) → `ServerKey`
   (Bearer auth) → `AllowContentEncoding` → `AllowContentType` → `LoggingRequest`.
 - Routes at `/api/v1/uploads`, `/api/v1/destroys`, `/api/v1/connections`
-  ([internal/media-docker-server/routes/](../internal/media-docker-server/routes/)); handlers in the
+  ([internal/media-docker-server/routes/](../internal/media-docker-server/routes/)), with handlers in the
   shared [api/](../api/) package (shared because the delete consumer imports `api.DeleteFileRequest`).
 - Mounts `uploadStorage` **rw** for chunk staging and `media_docker_files` **rw** — writing uploads
   into the served tree is what makes URLs work before conversion.
@@ -97,7 +101,7 @@ topic's partition count. Excess workers idle forever.
 - **Manual commit after processing** — at-least-once delivery. Redelivery is now harmless: every
   handler returns early if the converted output already exists.
 - Reader failures retry 5× with 4s backoff, then the worker dies and `decrementWorker` logs the
-  shrinking pool. Workers are **not respawned**; when the last dies the service exits and Docker's
+  shrinking pool. Workers are **not respawned**, so when the last dies the service exits and Docker's
   `restart: unless-stopped` restarts it.
 
 ---
@@ -117,8 +121,8 @@ deletion, and the raw→converted swap all trivial:
 ```
 media_docker_files/
   videos/<id>/
-    meta.json                    type, ext, originalName, dispatched, createdAt
-    original.mp4                 raw upload — served until conversion finishes
+    meta.json                    id, type, ext, originalName, dispatched, job, createdAt
+    original.mp4                 raw upload — served until conversion finishes, then kept
     .processing/                 conversion scratch, never served
     hls/index.m3u8               single-quality playlist, or master playlist
     hls/{360,480,720,1080}/index.m3u8
@@ -127,6 +131,12 @@ media_docker_files/
   documents/<id>/ meta.json, original.pdf
   others/<id>/    meta.json, original.zip
 ```
+
+`original.<ext>` is never deleted. A consumer only ever adds converted output beside it, so an asset
+that has been converted holds both representations: the asset URL serves the converted one, and
+`<url>/original` serves the upload. That costs storage — see Known gaps — and buys a source-quality
+download, an intact input for any later reprocessing, and a retry path that always still has its
+input.
 
 [pkg/asset/](../pkg/asset/) is the single owner of this layout — server, client and consumers all
 import it rather than building paths by hand.
@@ -139,9 +149,10 @@ Converted output either is not there at all or is there complete.
 There is exactly **one id per asset**, minted when the upload starts. v3's separate upload handle and
 output UUID are gone.
 
-Cleanup is asynchronous via [pkg/channel.go](../pkg/channel.go) for request-path deletions; the
-janitor and the consumers' scratch cleanup are synchronous, so nothing is silently dropped when the
-buffered channel is full.
+Cleanup is asynchronous via [pkg/channel.go](../pkg/channel.go) for the server's request-path
+directory deletions — chunk staging and half-written assets. The janitor, the consumers' scratch
+cleanup and asset deletion are synchronous, so nothing is silently dropped when the buffered channel
+is full. There is no queue for single files: nothing deletes a file out of an asset directory.
 
 ---
 
@@ -150,7 +161,7 @@ buffered channel is full.
 | Network | Type | Members | Purpose |
 |---|---|---|---|
 | `proxy` | external | client | public/frontend access |
-| `media-docker-proxy` | external | server, all 6 consumers, all 3 brokers | internal; your backend joins this |
+| `media-docker-proxy` | external | server, all 6 consumers, all 3 brokers | internal, your backend joins this |
 
 Both are created out-of-band (`task proxy`, `task media-docker-proxy`) so they survive `compose down`.
 
@@ -168,11 +179,12 @@ vars. Eight env files, one per service. Every consumer uses the same three varia
 **Validation** — one `go-playground/validator` instance per process with two custom rules
 ([validator/validator.go](../validator/validator.go)), used for both HTTP bodies and Kafka payloads.
 
-**Logging** — `zerolog`; console in `development`, JSON otherwise. Kafka errors carry
+**Logging** — `zerolog`, console in `development`, JSON otherwise. Kafka errors carry
 topic/partition/offset/highWaterMark/value ([logger/logger.go](../logger/logger.go)).
 
 **Shutdown** — server/client use `shutdown.WaitForShutdownSignal` (60s / 20s). Consumers cancel a
-context, `wg.Wait()`, close the producer, drain delete channels, sleep 5s.
+context, `wg.Wait()` and close the producer. They queue no background deletes, so there is nothing to
+drain.
 
 ---
 
@@ -183,7 +195,8 @@ The failure path, in order:
 1. Conversion fails → handler removes `.processing/`, **leaves `original.<ext>` in place** →
    `DLQMessage` to `failed-letter-queue`.
 2. `failed-consumer` retries the **same handler** up to 3× with backoff. It does not maintain a
-   parallel implementation; the handlers are idempotent and safe to re-run.
+   parallel implementation. The handlers are idempotent and safe to re-run, and since no path removes the
+   raw upload, a retry always still has its input, however many deliveries preceded it.
 3. Success → the converted output is promoted. Exhaustion → logged and abandoned.
 4. **Either way the URL keeps working.** Exhaustion means the asset permanently serves its raw upload.
 
@@ -198,8 +211,13 @@ URL keeps serving it.
 ### Known gaps
 
 - Dead workers are not respawned ([kafkahandler/consumer.go](../kafkahandler/consumer.go) `HACK:`).
-- Request-path delete channels still drop work silently when full ([pkg/channel.go](../pkg/channel.go)),
-  and their retry logic matches a **Windows** error string that never matches on Alpine.
+- The server's request-path directory delete channel still drops work silently when full
+  ([pkg/channel.go](../pkg/channel.go)). It only ever loses a temporary staging directory, which the
+  janitor then reaps.
 - No metrics, health endpoints, or consumer-lag visibility.
-- No storage lifecycle policy: `media_docker_files` grows unboundedly.
-- Test coverage is limited to [pkg/asset/](../pkg/asset/) and [helper/](../helper/).
+- **No storage lifecycle policy: `media_docker_files` grows unboundedly**, and retaining originals
+  makes it grow roughly twice as fast for converted media. Nothing ages an asset out, and only
+  `deleteFile` and the janitor's undispatched sweep remove anything. This is the most significant
+  gap on the list.
+- No automated tests. [pkg/asset/](../pkg/asset/) is the obvious place to start: it owns the layout,
+  and `Resolve` is a pure state matrix over what exists on disk.

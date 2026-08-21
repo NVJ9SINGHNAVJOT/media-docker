@@ -47,7 +47,12 @@ func Video(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Respond with success, providing the stable video URL
+	// Respond with success, providing the stable video URL alongside the URL that
+	// keeps serving the upload as it was sent.
 	helper.SuccessResponse(w, helper.GetRequestID(r), http.StatusCreated, "video uploaded successfully",
-		map[string]any{"id": meta.ID, "fileUrl": fileURL(asset.TypeVideo, meta.ID)})
+		map[string]any{
+			"id":          meta.ID,
+			"fileUrl":     fileURL(asset.TypeVideo, meta.ID),
+			"originalUrl": originalURL(asset.TypeVideo, meta.ID),
+		})
 }

@@ -47,7 +47,12 @@ func Image(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Respond with success, providing the stable image URL
+	// Respond with success, providing the stable image URL alongside the URL that
+	// keeps serving the upload as it was sent.
 	helper.SuccessResponse(w, helper.GetRequestID(r), http.StatusCreated, "image uploaded successfully",
-		map[string]any{"id": meta.ID, "fileUrl": fileURL(asset.TypeImage, meta.ID)})
+		map[string]any{
+			"id":          meta.ID,
+			"fileUrl":     fileURL(asset.TypeImage, meta.ID),
+			"originalUrl": originalURL(asset.TypeImage, meta.ID),
+		})
 }

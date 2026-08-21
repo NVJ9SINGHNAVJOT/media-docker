@@ -4,13 +4,18 @@
 //
 //	media_docker_files/videos/<id>/
 //	  meta.json          metadata written at upload time
-//	  original.mp4       the raw upload, served immediately
+//	  original.mp4       the raw upload, served immediately and kept permanently
 //	  .processing/       conversion scratch space, never served
 //	  hls/index.m3u8     the converted output, appears atomically
 //
 // This uniformity is what allows a single stable URL to serve the raw upload
 // first and the converted output later (see Resolve), and it makes deletion a
 // single RemoveAll regardless of media type.
+//
+// The raw upload is never removed. Conversion adds a representation, it does not
+// replace one, so every asset keeps its source bytes for the whole of its life
+// and they stay addressable through the VariantOriginal variant. Only an
+// explicit delete removes an asset, and it removes the directory whole.
 //
 // The server, the client, and every consumer import this package so that path
 // knowledge lives in exactly one place.
@@ -50,6 +55,14 @@ const (
 	ConvertedImageName = "converted.jpeg"
 	ConvertedAudioName = "converted.mp3"
 )
+
+// VariantOriginal names the variant that always resolves to the raw upload,
+// whether or not converted output exists.
+//
+// It shares a namespace with the ladder rung names, since both appear in the
+// same URL position, so it must never collide with one. Ladder names are all
+// numeric, which keeps that true by construction.
+const VariantOriginal = "original"
 
 // Rung describes one step of the video-resolutions ladder.
 //
@@ -95,6 +108,18 @@ func IsResolution(v string) bool {
 		}
 	}
 	return false
+}
+
+// IsVariant reports whether variant names a representation that mediaType can
+// actually serve.
+//
+// Every category can serve VariantOriginal, because every asset keeps its raw
+// upload. Only video has a resolution ladder on top of that.
+func IsVariant(mediaType, variant string) bool {
+	if variant == VariantOriginal {
+		return true
+	}
+	return mediaType == TypeVideo && IsResolution(variant)
 }
 
 // IsStorageType reports whether mediaType is a valid storage category.
@@ -180,10 +205,19 @@ func URLPath(mediaType, id string) string {
 	return ResolvePrefix + "/" + TypeDir(mediaType) + "/" + id
 }
 
-// VariantURLPath returns the public path of one rung of a video's resolution
-// ladder, e.g. "/media/videos/3f2b.../720".
+// VariantURLPath returns the public path of one specific representation of an
+// asset, e.g. "/media/videos/3f2b.../720".
 func VariantURLPath(mediaType, id, variant string) string {
 	return URLPath(mediaType, id) + "/" + variant
+}
+
+// OriginalURLPath returns the public path that always serves the raw upload,
+// e.g. "/media/videos/3f2b.../original".
+//
+// Unlike URLPath it never upgrades to converted output, so it is the URL to hand
+// a caller that wants the source bytes rather than the best representation.
+func OriginalURLPath(mediaType, id string) string {
+	return VariantURLPath(mediaType, id, VariantOriginal)
 }
 
 // StagingDir returns the private directory chunks are written to while an

@@ -5,6 +5,10 @@
   URL works the moment the upload returns, and it silently upgrades to the converted output
   when a consumer finishes. Same URL, no callback, nothing to wait for.
 
+  It also shows the other half of that: converting does not consume the upload. Every asset
+  keeps the file you sent, at originalUrl, so the UI can switch between the converted output
+  and the source at any point.
+
   This imports ../nodejs/mediaDocker.ts directly -- the same file you would copy into your
   own backend, not a copy of it. Nothing here is compiled or bundled first.
 
@@ -144,9 +148,13 @@ type AssetState = "raw" | "converted" | "missing" | "unknown";
  * Reports whether an asset URL currently serves the raw upload or the converted output.
  *
  * media-docker-client answers an asset URL with a 302 to whichever representation exists,
- * and marks it `Cache-Control: no-store` while that is still the raw upload and
- * `max-age=300` once conversion has been promoted into place. Reading that header is all
- * it takes to know which one you have.
+ * and the cache header says whether that representation can still change: `no-store` while
+ * the URL is still on the raw upload and a conversion could replace it, `max-age=300` once
+ * the answer is settled. Reading that header is all it takes to know which one you have.
+ *
+ * Documents and others therefore report "converted" straight away. Nothing converts them,
+ * so their one representation is final from the start -- the caller renders that as
+ * "stored" rather than "converted", and stops polling.
  *
  * It runs here rather than in the browser only so the demo needs no CORS setup on the
  * client service.
@@ -214,8 +222,10 @@ const server = http.createServer(async (req, res) => {
       }
 
       try {
+        // result.data is passed through as-is: id, fileUrl, originalUrl, and
+        // fileUrls for video-resolutions. The browser needs all of them.
         const result = await upload(endpoint, target, option);
-        json(res, 200, { ...result.data, type: STORAGE_TYPE[endpoint], message: result.message });
+        json(res, 200, { ...result.data, type: STORAGE_TYPE[endpoint], endpoint, message: result.message });
       } finally {
         cleanup(dir);
       }

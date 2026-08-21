@@ -45,7 +45,13 @@ func storeAsIs(w http.ResponseWriter, r *http.Request, mediaType, fileType strin
 	}
 
 	// Nothing will ever change this asset's representation, so the URL returned
-	// here is already final rather than an upgrade waiting to happen.
+	// here is already final rather than an upgrade waiting to happen. originalUrl
+	// is included for uniformity across every upload response; for these types it
+	// addresses the same bytes as fileUrl.
 	helper.SuccessResponse(w, helper.GetRequestID(r), http.StatusCreated, fileType+" uploaded successfully",
-		map[string]any{"id": meta.ID, "fileUrl": fileURL(mediaType, meta.ID)})
+		map[string]any{
+			"id":          meta.ID,
+			"fileUrl":     fileURL(mediaType, meta.ID),
+			"originalUrl": originalURL(mediaType, meta.ID),
+		})
 }

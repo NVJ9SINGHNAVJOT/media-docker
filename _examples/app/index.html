@@ -194,11 +194,113 @@
     background: rgba(239, 68, 68, 0.15);
     border-color: rgba(239, 68, 68, 0.6);
   }
+
+  /* --- Quality picker for video-resolutions --- */
+  .quality-picker {
+    display: none;
+    margin-top: 1.2rem;
+    animation: slideUp 0.3s ease-out;
+  }
+  .quality-picker.visible {
+    display: block;
+  }
+  .quality-picker-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #94a3b8;
+    margin-bottom: 0.5rem;
+  }
+  .quality-buttons {
+    display: flex;
+    gap: 0.4rem;
+    flex-wrap: wrap;
+  }
+  .quality-btn {
+    margin: 0;
+    padding: 0.4rem 0.9rem;
+    font-size: 0.82rem;
+    font-weight: 600;
+    border-radius: 6px;
+    width: auto;
+    background: rgba(15, 23, 42, 0.6);
+    border: 1px solid var(--border-glass);
+    color: #cbd5e1;
+    box-shadow: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .quality-btn:hover:not(:disabled) {
+    background: rgba(59, 130, 246, 0.15);
+    border-color: rgba(59, 130, 246, 0.4);
+    color: #93c5fd;
+    transform: none;
+    box-shadow: none;
+  }
+  .quality-btn.active {
+    background: rgba(59, 130, 246, 0.25);
+    border-color: var(--accent);
+    color: #60a5fa;
+    box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.3);
+  }
+  .quality-info {
+    margin-top: 0.6rem;
+    font-size: 0.8rem;
+    color: #64748b;
+    min-height: 1.2em;
+  }
+  .quality-info span {
+    color: #94a3b8;
+    font-weight: 500;
+  }
+  .resolution-urls {
+    margin-top: 0.8rem;
+    display: none;
+  }
+  .resolution-urls.visible {
+    display: block;
+  }
+  .resolution-urls summary {
+    cursor: pointer;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: #64748b;
+    user-select: none;
+    padding: 0.3rem 0;
+  }
+  .resolution-urls summary:hover {
+    color: #94a3b8;
+  }
+  .url-list {
+    margin-top: 0.4rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+  .url-entry {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    font-size: 0.78rem;
+  }
+  .url-entry .res-label {
+    font-weight: 700;
+    color: #60a5fa;
+    min-width: 3.5rem;
+  }
+  .url-entry code {
+    margin: 0;
+    padding: 0.15rem 0.4rem;
+    font-size: 0.75rem;
+  }
 </style>
 </head>
 <body>
 <h1>media-docker demo</h1>
-<p class="lede">Upload something, then watch the same URL upgrade from your raw file to the converted output.</p>
+<p class="lede">Upload something, then watch the same URL upgrade from your raw file to the
+converted output &mdash; and switch back to the original at any point, because converting
+never removes it.</p>
 
 <fieldset>
   <label for="type">Upload as</label>
@@ -227,6 +329,8 @@
 <div id="assets"></div>
 
 <script>
+const RESOLUTIONS = ["360", "480", "720", "1080"];
+
 const OPTIONS = {
   video: { label: "Quality", min: 40, max: 100, hint: "40-100, optional" },
   image: { label: "Compression", min: 1, max: 31, hint: "1 (best) to 31 (worst), optional" },
@@ -293,57 +397,238 @@ document.getElementById("go").addEventListener("click", async () => {
 });
 
 function embed(kind, url) {
-  if (kind === "image") return `<img src="${url}" alt="">`;
-  if (kind === "audio") return `<audio controls src="${url}"></audio>`;
+  if (kind === "image") return `<img alt="">`;
+  if (kind === "audio") return `<audio controls></audio>`;
   if (kind === "video" || kind === "video-resolutions") {
-    return `<video controls src="${url}"></video>
+    return `<video controls></video>
       <p class="muted">Before conversion this is your original file and plays anywhere. After
       conversion the URL serves an HLS playlist, which plays natively in Safari but needs
-      hls.js elsewhere &mdash; the URL is the same either way.</p>`;
+      hls.js elsewhere &mdash; the URL is the same either way. Your upload is not consumed by
+      the conversion, so the Original button keeps working afterwards.</p>`;
   }
-  return `<p><a href="${url}">Download File</a> &mdash; documents and other files are always served as attachments.</p>`;
+  return `<p><a href="${url}">Download File</a> &mdash; documents and other files are never
+    converted and are always served as attachments, so the asset URL and the original URL
+    are the same file.</p>`;
+}
+
+/**
+ * Builds a row of buttons that pick which representation to play.
+ *
+ * The same control serves two jobs: the resolution ladder for video-resolutions,
+ * and a plain converted/original switch for everything else that plays inline.
+ * Both end in the same place -- "original" is just another representation, one
+ * that happens to always exist.
+ */
+function buildPicker(label, buttons, urls) {
+  const buttonsHtml = buttons.map((b, i) =>
+    `<button type="button" class="quality-btn${i === 0 ? " active" : ""}" data-quality="${b.value}">${b.text}</button>`
+  ).join("");
+
+  const urlsHtml = urls.length === 0 ? "" : `
+    <div class="resolution-urls" data-resolution-urls>
+      <details>
+        <summary>Per-resolution URLs</summary>
+        <div class="url-list">${urls.map(u =>
+          `<div class="url-entry"><span class="res-label">${u.label}</span><code>${u.url}</code></div>`
+        ).join("")}</div>
+      </details>
+    </div>`;
+
+  return `
+    <div class="quality-picker" data-quality-picker>
+      <div class="quality-picker-label">${label}</div>
+      <div class="quality-buttons">${buttonsHtml}</div>
+      <div class="quality-info" data-quality-info></div>
+    </div>${urlsHtml}`;
 }
 
 function addAsset(body, kind) {
+  const isVideoRes = kind === "video-resolutions";
+  const isVideo = kind === "video" || isVideoRes;
+  const isPlayable = isVideo || kind === "image" || kind === "audio";
+  const neverConverts = kind === "document" || kind === "other";
+
   const el = document.createElement("div");
   el.className = "asset";
+
+  // video-resolutions gets the ladder plus Original; anything else that plays
+  // inline gets a plain two-way switch. Nothing converts a document, so it has
+  // nothing to switch between.
+  let pickerHtml = "";
+  if (isVideoRes && body.fileUrls) {
+    pickerHtml = buildPicker(
+      "Video quality",
+      [{ value: "auto", text: "Auto" }]
+        .concat(RESOLUTIONS.map(r => ({ value: r, text: r + "p" })))
+        .concat([{ value: "original", text: "Original" }]),
+      RESOLUTIONS.filter(r => body.fileUrls[r]).map(r => ({ label: r + "p", url: body.fileUrls[r] }))
+    );
+  } else if (isPlayable) {
+    pickerHtml = buildPicker(
+      "Source",
+      [{ value: "converted", text: "Converted" }, { value: "original", text: "Original" }],
+      []
+    );
+  }
+
   el.innerHTML = `
     <div><span class="state raw" data-state>checking\u2026</span></div>
     <p><code>${body.fileUrl}</code></p>
+    <p class="muted">original &mdash; always the file you uploaded: <code>${body.originalUrl}</code></p>
     ${embed(kind, body.fileUrl)}
+    ${pickerHtml}
     <p class="muted" data-detail></p>
     <button data-delete>Delete Asset</button>`;
   document.getElementById("assets").prepend(el);
 
   const stateEl = el.querySelector("[data-state]");
   const detailEl = el.querySelector("[data-detail]");
+  const videoEl = el.querySelector("video");
+  const mediaEl = videoEl || el.querySelector("img") || el.querySelector("audio");
+  const picker = el.querySelector("[data-quality-picker]");
+  const infoEl = el.querySelector("[data-quality-info]");
+  const urlsEl = el.querySelector("[data-resolution-urls]");
 
   let tries = 0;
-  let hlsInstance = null;
+  let hls = null;
+  let converted = false;
+  let selected = isVideoRes ? "auto" : "converted";
+
+  function setInfo(text) {
+    if (infoEl) infoEl.textContent = text;
+  }
+
+  function destroyHls() {
+    if (hls) {
+      hls.destroy();
+      hls = null;
+    }
+  }
+
+  // Point a media element at a URL, forcing a refetch even when the URL string
+  // has not changed -- the asset URL serves different bytes before and after
+  // conversion, and the element would otherwise keep what it already loaded.
+  function loadFile(url) {
+    destroyHls();
+    mediaEl.removeAttribute("src");
+    mediaEl.src = url;
+    if (typeof mediaEl.load === "function") mediaEl.load();
+    if (typeof mediaEl.play === "function") mediaEl.play().catch(() => {});
+  }
+
+  // Load an HLS playlist. fixed pins the player to the single rung the playlist
+  // contains, instead of letting it adapt.
+  function loadHls(url, fixed) {
+    destroyHls();
+
+    if (window.Hls && Hls.isSupported()) {
+      hls = new Hls({ startLevel: fixed ? 0 : -1 });
+      hls.loadSource(url);
+      hls.attachMedia(videoEl);
+
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        if (fixed) hls.currentLevel = 0;
+        videoEl.play().catch(() => {});
+      });
+
+      hls.on(Hls.Events.LEVEL_SWITCHED, (_event, data) => {
+        if (selected !== "auto" || !hls) return;
+        const level = hls.levels[data.level];
+        if (level) {
+          setInfo(`Adaptive \u2014 currently playing ${level.height}p (${Math.round(level.bitrate / 1000)} kbps)`);
+        }
+      });
+      return;
+    }
+
+    if (videoEl.canPlayType("application/vnd.apple.mpegurl")) {
+      // Safari plays HLS natively.
+      loadFile(url);
+    }
+  }
+
+  // Play whichever representation is currently selected.
+  function apply(value) {
+    selected = value;
+    if (!mediaEl) return;
+
+    if (value === "original") {
+      // The raw upload is a plain file, never a playlist, whatever the type.
+      loadFile(body.originalUrl);
+      setInfo("Source \u2014 the file exactly as you uploaded it");
+      return;
+    }
+
+    if (!converted) {
+      // The asset URL still resolves to the upload, so it plays as a plain file.
+      loadFile(body.fileUrl);
+      setInfo("The asset URL, still serving your upload \u2014 conversion has not finished");
+      return;
+    }
+
+    if (!isVideo) {
+      loadFile(body.fileUrl);
+      setInfo("Converted output");
+      return;
+    }
+
+    if (value === "auto" || value === "converted") {
+      loadHls(body.fileUrl);
+      setInfo(isVideoRes
+        ? "Adaptive \u2014 player selects best quality automatically"
+        : "Converted HLS stream");
+      return;
+    }
+
+    const variantUrl = body.fileUrls && body.fileUrls[value];
+    if (variantUrl) {
+      loadHls(variantUrl, true);
+      setInfo(`Fixed ${value}p`);
+    }
+  }
+
+  if (picker) {
+    const buttons = picker.querySelectorAll(".quality-btn");
+    buttons.forEach(btn => {
+      btn.addEventListener("click", () => {
+        buttons.forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        apply(btn.dataset.quality);
+      });
+    });
+  }
+
   const tick = async () => {
     const r = await fetch("/status?url=" + encodeURIComponent(body.fileUrl)).then((x) => x.json());
     stateEl.className = "state " + r.state;
     stateEl.textContent =
       r.state === "raw" ? "serving original upload"
-      : r.state === "converted" ? "converted"
+      : r.state === "converted" ? (neverConverts ? "stored" : "converted")
       : r.state === "missing" ? "gone"
       : "unknown";
     detailEl.textContent = r.target ? "\u2192 " + r.target : "";
     if (r.state === "raw" && tries++ < 600) setTimeout(tick, 2000);
 
-    if (r.state === "converted" && (kind === "video" || kind === "video-resolutions") && !hlsInstance) {
-      const videoEl = el.querySelector("video");
-      if (videoEl && window.Hls && Hls.isSupported()) {
-        hlsInstance = new Hls();
-        hlsInstance.loadSource(body.fileUrl);
-        hlsInstance.attachMedia(videoEl);
-      }
+    // While the asset URL is still the upload, play it from that URL: showing it
+    // work before conversion is the whole point of the demo.
+    if (r.state === "raw" && isPlayable && !converted && !mediaEl.src) {
+      apply(selected);
+    }
+
+    // The upgrade happened. Reload the same URL to pick up the converted output,
+    // and offer the original alongside it.
+    if (r.state === "converted" && !converted && isPlayable) {
+      converted = true;
+      apply(selected);
+      if (picker) picker.classList.add("visible");
+      if (urlsEl) urlsEl.classList.add("visible");
     }
   };
   tick();
 
   el.querySelector("[data-delete]").addEventListener("click", async (e) => {
     e.target.disabled = true;
+    destroyHls();
     const params = new URLSearchParams({ id: body.id, type: body.type });
     await fetch("/file?" + params, { method: "DELETE" });
     setTimeout(tick, 500);

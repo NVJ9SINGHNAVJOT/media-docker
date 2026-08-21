@@ -54,8 +54,9 @@ func VideoResolutions(w http.ResponseWriter, r *http.Request) {
 
 	helper.SuccessResponse(w, helper.GetRequestID(r), http.StatusCreated, "video uploaded successfully",
 		map[string]any{
-			"id":       meta.ID,
-			"fileUrl":  fileURL(asset.TypeVideo, meta.ID), // Master playlist once converted
-			"fileUrls": fileUrls,
+			"id":          meta.ID,
+			"fileUrl":     fileURL(asset.TypeVideo, meta.ID), // Master playlist once converted
+			"fileUrls":    fileUrls,
+			"originalUrl": originalURL(asset.TypeVideo, meta.ID), // Always the upload as it was sent
 		})
 }

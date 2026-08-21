@@ -46,9 +46,6 @@ func Video(kafkaMsg []byte) (string, string, error) {
 		return videoMsg.NewId, "Error publishing converted video", err
 	}
 
-	// The converted stream is live; the raw upload is no longer served.
-	pkg.AddToFileDeleteChan(videoMsg.FilePath)
-
 	return videoMsg.NewId, "Video conversion completed successfully", nil
 }
 
@@ -100,9 +97,6 @@ func VideoResolutions(kafkaMsg []byte) (string, string, error) {
 		removeProcessing(processingDir)
 		return videoMsg.NewId, "Error publishing converted video resolutions", err
 	}
-
-	// The converted stream is live; the raw upload is no longer served.
-	pkg.AddToFileDeleteChan(videoMsg.FilePath)
 
 	return videoMsg.NewId, "Video resolution conversion completed successfully", nil
 }

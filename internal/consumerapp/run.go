@@ -17,7 +17,6 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
-	"time"
 
 	"github.com/nvj9singhnavjot/media-docker/config"
 	"github.com/nvj9singhnavjot/media-docker/helper"
@@ -130,10 +129,6 @@ func Run(cfg Config) {
 		config.ConsumerEnv.KAFKA_BROKERS,
 		messageProcessor(cfg))
 
-	// Start additional worker routines for deleting files and directories
-	go pkg.DeleteFileWorker()
-	go pkg.DeleteDirWorker()
-
 	log.Info().
 		Str("topic", cfg.Topic).
 		Int("workers", config.ConsumerEnv.KAFKA_WORKERS).
@@ -183,10 +178,8 @@ func cleanUp(cfg Config) {
 		log.Info().Msgf("Producer closed for %s.", cfg.Service)
 	}
 
-	pkg.CloseDeleteChannels()
-	log.Info().Msg("Delete channels closed.")
-
-	// Give the deletion workers a moment to drain before the process exits.
-	time.Sleep(5 * time.Second)
+	// A consumer queues no background deletes: it only ever adds to an asset
+	// directory, and it clears its own scratch directory synchronously. There is
+	// nothing left to drain here.
 	log.Info().Msgf("%s service shutdown complete.", cfg.Service)
 }

@@ -30,7 +30,7 @@ func cleanUpForServer() {
 	}
 
 	pkg.CloseDeleteChannels()
-	log.Info().Msg("Delete channels closed.")
+	log.Info().Msg("Delete channel closed.")
 	time.Sleep(10 * time.Second)
 	log.Info().Msg("Cleanup completed.")
 }
@@ -68,7 +68,8 @@ func main() {
 
 	kafkahandler.InitializeKafkaProducerManager(config.ServerEnv.KAFKA_BROKERS)
 
-	go pkg.DeleteFileWorker()
+	// Chunk staging directories and half-written assets are cleaned off the
+	// request path.
 	go pkg.DeleteDirWorker()
 
 	// Reap uploads that were stored but never claimed by a dispatch endpoint.

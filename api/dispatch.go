@@ -21,6 +21,15 @@ func variantURL(mediaType, id, variant string) string {
 	return config.ServerEnv.BASE_URL + asset.VariantURLPath(mediaType, id, variant)
 }
 
+// originalURL builds the public URL that always serves the raw upload.
+//
+// Unlike fileURL it never upgrades to converted output, so a caller can offer
+// the source bytes alongside the processed ones. It stays valid for as long as
+// the asset exists, since conversion never removes the raw upload.
+func originalURL(mediaType, id string) string {
+	return config.ServerEnv.BASE_URL + asset.OriginalURLPath(mediaType, id)
+}
+
 // claimForDispatch checks that an uploaded asset is ready to be handed off for
 // processing and marks it as dispatched.
 //

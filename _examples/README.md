@@ -5,7 +5,8 @@ _examples/
 ├── nodejs/
 │   └── mediaDocker.ts   the module you copy into your own backend
 └── app/
-    └── server.ts        a runnable demo that uses it
+    ├── server.ts        a runnable demo that uses it
+    └── index.html       its front end
 ```
 
 No dependencies. There is nothing to install for either one.
@@ -22,6 +23,7 @@ await mediaDocker.connect("YOUR_SERVER_API_KEY", "http://localhost:7007");
 
 const { data } = await mediaDocker.uploadVideo("/tmp/clip.mp4", 80);
 // data.fileUrl works right now. Store it and move on.
+// data.originalUrl serves the file you uploaded, before and after conversion.
 ```
 
 `connect()` is the only handshake; nothing is held open afterwards, so there is no connection to
@@ -36,10 +38,22 @@ consumer finishes, the *same URL* starts serving the converted output. Nothing o
 there is no completion message to wait for, and if conversion never succeeds the URL keeps serving
 your original upload indefinitely: degraded, not broken.
 
+**Your upload is never consumed.** Converting adds a representation, it does not replace one, so the
+file you sent stays on disk for the life of the asset. Every response also carries an `originalUrl`
+(always `{fileUrl}/original`) that serves it unchanged, before and after conversion. Use `fileUrl` to
+serve the best available version and `originalUrl` when you specifically want the source: a
+download-original link, a quality comparison, or your own reprocessing. Ignoring it entirely is fine
+— `fileUrl` behaves exactly as described above either way.
+
+Only `deleteFile` removes anything, and it removes the whole asset: metadata, original and converted
+output together.
+
 ## Running the demo
 
-The demo makes that upgrade visible: it uploads a file, then polls the asset URL and shows whether
-it is still serving your raw upload or has switched to the converted output.
+The demo makes both of those visible: it uploads a file, polls the asset URL to show whether it is
+still serving your raw upload or has switched to the converted output, and gives you a picker to play
+the original against the converted result — `Auto / 360p / … / Original` for video-resolutions,
+`Converted / Original` for video, image and audio.
 
 ```bash
 cd _examples
@@ -64,9 +78,9 @@ Asset URLs come back already pointing at media-docker-client, because the server
 own `BASE_URL`, so there is nothing to configure for that.
 
 [app/server.ts](app/server.ts) imports `../nodejs/mediaDocker.ts` directly — the same file you would
-copy, not a copy of it. It is ~200 lines of `node:http` plus an inline HTML page, and it accepts the
-browser's file as a raw request body rather than as `multipart/form-data`: parsing multipart in core
-Node would be most of the file and would demonstrate nothing about media-docker.
+copy, not a copy of it. It is ~250 lines of `node:http` serving [app/index.html](app/index.html), and
+it parses the browser's `multipart/form-data` by bridging the incoming stream into a WHATWG `Request`
+and calling `formData()` on it — so it still installs nothing.
 
 ## Running TypeScript
 
