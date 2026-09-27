@@ -122,15 +122,16 @@ services:
     env_file: .env.failed
 
   media-docker-kafka-0:
-    image: apache/kafka:3.8.0
+    image: apache/kafka:4.3.1
     container_name: media-docker-kafka-0
     volumes:
-      - media-docker-kafka-0_data:/opt/kafka/data
+      - media-docker-kafka-0_data:/var/lib/kafka/data
     networks:
       - media-docker-proxy
     restart: unless-stopped
     environment:
       # KRaft settings for node 0
+      - KAFKA_LOG_DIRS=/var/lib/kafka/data
       - CLUSTER_ID=gZpsEhujeRQwA249Kx5KKg
       - KAFKA_PROCESS_ROLES=broker,controller
       - KAFKA_NODE_ID=0
@@ -149,15 +150,16 @@ services:
       - media-docker-kafka-1
 
   media-docker-kafka-1:
-    image: apache/kafka:3.8.0
+    image: apache/kafka:4.3.1
     container_name: media-docker-kafka-1
     volumes:
-      - media-docker-kafka-1_data:/opt/kafka/data
+      - media-docker-kafka-1_data:/var/lib/kafka/data
     networks:
       - media-docker-proxy
     restart: unless-stopped
     environment:
       # KRaft settings for node 1
+      - KAFKA_LOG_DIRS=/var/lib/kafka/data
       - CLUSTER_ID=gZpsEhujeRQwA249Kx5KKg
       - KAFKA_PROCESS_ROLES=broker,controller
       - KAFKA_NODE_ID=1
@@ -176,15 +178,16 @@ services:
       - media-docker-kafka-2
 
   media-docker-kafka-2:
-    image: apache/kafka:3.8.0
+    image: apache/kafka:4.3.1
     container_name: media-docker-kafka-2
     volumes:
-      - media-docker-kafka-2_data:/opt/kafka/data
+      - media-docker-kafka-2_data:/var/lib/kafka/data
     networks:
       - media-docker-proxy
     restart: unless-stopped
     environment:
       # KRaft settings for node 2
+      - KAFKA_LOG_DIRS=/var/lib/kafka/data
       - CLUSTER_ID=gZpsEhujeRQwA249Kx5KKg
       - KAFKA_PROCESS_ROLES=broker,controller
       - KAFKA_NODE_ID=2
